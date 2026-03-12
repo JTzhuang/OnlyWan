@@ -13,15 +13,15 @@ This roadmap extracts a standalone C++ library for WAN video generation from the
 | Phase | Status | Progress |
 |-------|--------|----------|
 | 1 - Foundation | Completed | 100% | 2026-03-12 |
-| 2 - Build System | 1/1 | Complete   | 2026-03-12 |
-| 3 - Public API | Not started | 0% |
+| 2 - Build System | Completed | 100% | 2026-03-12 |
+| 3 - Public API | Completed | 100% | 2026-03-12 |
 | 4 - Examples | Not started | 0% |
 
 ## Phases
 
 - [x] **Phase 1: Foundation** - Project structure and code extraction
 - [x] **Phase 2: Build System** - CMake configuration and multi-backend support
-- [ ] **Phase 3: Public API** - C-style API and core inference functionality
+- [x] **Phase 3: Public API** - C-style API and core inference functionality
 - [ ] **Phase 4: Examples** - CLI tool, video output, and documentation
 
 ## Phase Details
@@ -86,7 +86,9 @@ This roadmap extracts a standalone C++ library for WAN video generation from the
 5. User can configure generation parameters (seed, steps, guidance scale) via API
 6. Library can be linked from C, C++, and has opaque handle patterns ready for language bindings
 
-**Plans**: TBD
+**Plans**: 03-public-api (Completed)
+- [x] 03-public-api: Public API implementation
+- See [03-public-api-SUMMARY.md](./phases/03-public-api/03-public-api-SUMMARY.md) for details
 
 ---
 
