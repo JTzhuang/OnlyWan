@@ -14,7 +14,7 @@
 
 #include "gguf_reader.hpp"
 #include "model.h"
-#include "stable-diffusion.h"
+#include "wan-types.h"
 #include "util.h"
 
 #include "ggml-alloc.h"
@@ -23,7 +23,6 @@
 #include "ggml.h"
 
 #include "name_conversion.h"
-#include "stable-diffusion.h"
 
 #ifdef SD_USE_METAL
 #include "ggml-metal.h"
