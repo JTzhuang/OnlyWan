@@ -179,7 +179,7 @@ static std::vector<ParameterInfo> get_parameter_infos() {
 
 wan_params_t* wan_params_create(void) {
     try {
-        auto params = std::make_unique<wan_params_t>();
+        auto params = new wan_params_t();
         params->seed = -1;
         params->steps = WanConfig::DEFAULT_STEPS;
         params->cfg = WanConfig::DEFAULT_CFG;
@@ -192,7 +192,7 @@ wan_params_t* wan_params_create(void) {
         params->backend = "cpu";
         params->progress_cb = nullptr;
         params->user_data = nullptr;
-        return params.release();
+        return params;
     } catch (const std::exception& e) {
         if (g_log_callback) {
             g_log_callback(3, e.what(), g_log_user_data);

@@ -3,17 +3,22 @@
  * @brief Internal headers for Wan C API implementation
  *
  * This file contains internal structures and declarations used by the
- * C API implementation. It is not part of the public API.
+ * C API implementation. It is not part of public API.
  */
 
-#ifndef WAN_INTERNAL_HPP
+#ifndef#ifndef WAN_INTERNAL_HPP
 #define WAN_INTERNAL_HPP
 
 #include <memory>
 #include <string>
 #include <vector>
+#include <map>
 
 #include "wan.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* ============================================================================
  * Forward Declarations
@@ -27,6 +32,10 @@ struct WanBackend;
 
 } // namespace Wan
 
+#ifdef __cplusplus
+}
+#endif
+
 /* ============================================================================
  * Smart Pointer Types
  * ============================================================================ */
@@ -36,21 +45,14 @@ using WanVAEPtr = std::shared_ptr<Wan::WanVAE>;
 using WanBackendPtr = std::unique_ptr<Wan::WanBackend>;
 
 /* ============================================================================
- * Model Loading Result
+ * Internal Parameters Structure
  * ============================================================================ */
 
-struct WanModelLoadResult {
-    bool success;
-    WanModelPtr model;
-    WanVAEPtr vae;
-    std::string error_message;
-    std::string model_version;  // "WAN2.1", "WAN2.2", etc.
-};
-
-/* ============================================================================
- * Generation Parameters (Internal)
- * ============================================================================ */
-
+/**
+ * @brief Internal parameters structure for Wan generation
+ *
+ * This is a C++ implementation backing the C API params.
+ */
 struct WanParams {
     int seed = -1;
     int steps = 30;
@@ -68,6 +70,22 @@ struct WanParams {
     float slg_scale = 0.0f;
     float slg_layer_start = 0.5f;
     float slg_layer_end = 1.0f;
+    int n_threads = 0;
+    std::string backend = "cpu";
+    wan_progress_cb_t progress_cb = nullptr;
+    void* user_data = nullptr;
+};
+
+/* ============================================================================
+ * Model Loading Result
+ * ============================================================================ */
+
+struct WanModelLoadResult {
+    bool success;
+    WanModelPtr model;
+    WanVAEPtr vae;
+    std::string error_message;
+    std::string model_version;  // "WAN2.1", "WAN2.2", etc.
 };
 
 /* ============================================================================
@@ -87,15 +105,10 @@ struct WanModel {
     std::string model_type;  // "t2v", "i2v", etc.
     std::string model_version;  // "WAN2.1", "WAN2.2", etc.
 
-    // Tensor storage maps for model weights
-    std::map<std::string, struct ggml_tensor*> diffusion_tensors;
-    std::map<std::string, struct ggml_tensor*> vae_tensors;
-    std::map<std::string, struct ggml_tensor*> text_encoder_tensors;
-
     /**
      * @brief Load a Wan model from a GGUF file
      *
-     * @param file_path Path to the GGUF model file
+     * @param file_path Path to GGUF model file
      * @param backend GGML backend for computation
      * @return Loading result with model or error information
      */
@@ -106,22 +119,14 @@ struct WanModel {
      * @brief Check if model is a valid Wan model
      */
     bool is_valid() const;
-
-    /**
-     * @brief Get model information
-     */
-    std::string get_info() const() const;
 };
 
 /**
  * @brief Internal VAE structure
  *
- * Contains the VAE encoder/decoder for latent space operations.
+ * Contains VAE encoder/decoder for latent space operations.
  */
 struct WanVAE {
-    std::map<std::string, struct ggml_tensor*> encoder_tensors;
-    std::map<std::string, struct ggml_tensor*> decoder_tensors;
-
     /**
      * @brief Decode latent tensors to RGB images
      */
@@ -133,6 +138,10 @@ struct WanVAE {
     struct ggml_tensor* encode(const std::vector<uint8_t>& image,
                               int width, int height);
 };
+
+/* ============================================================================
+ * Internal Backend
+ * ============================================================================ */
 
 /**
  * @brief Internal backend structure
@@ -154,16 +163,6 @@ struct WanBackend {
      * @return Backend instance or nullptr on failure
      */
     static WanBackend* create(const std::string& type, int n_threads);
-
-    /**
-     * @brief Allocate tensor buffer
-     */
-    bool allocate_buffer(size_t size);
-
-    /**
-     * @brief Free backend resources
-     */
-    ~WanBackend();
 };
 
 } // namespace Wan

@@ -8,6 +8,7 @@
 #include "wan.h"
 #include "wan-internal.hpp"
 
+#include <cstdarg>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -92,7 +93,7 @@ static void set_last_error_fmt(wan_context_t* ctx, const char* fmt, ...) {
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
 
-    ctx->last_error = buffer;
+    ctx->last_error = std::string(buffer);
 }
 
 /* ============================================================================

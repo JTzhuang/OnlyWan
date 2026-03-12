@@ -7,11 +7,19 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <random>
 
 #include "ggml-backend.h"
 #include "ggml.h"
-#include <cstdlib>
+
+// Include helper functions
+#include "wan-helpers.hpp"
+
+// For convenience
+#define set_last_error wan_set_last_error
+#define g_log_callback wan_get_log_callback()
+#define g_log_user_data wan_get_log_callback_user_data()
 
 namespace WanT2V {
 

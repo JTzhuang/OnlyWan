@@ -93,9 +93,12 @@ set(WAN_LIB wan-cpp)
 file(GLOB WAN_LIB_HEADERS
     "src/*.h"
     "src/*.hpp"
+    "include/wan-cpp/*.h"
+    "include/wan-cpp/*.hpp"
 )
 
-file(GLOB WAN_LIB_SOURCES
+# Main library source files (recursive)
+file(GLOB_RECURSE WAN_LIB_SOURCES
     "src/*.cpp"
 )
 
@@ -166,6 +169,7 @@ target_include_directories(${WAN_LIB} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/wan-cpp>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty>
 )
 

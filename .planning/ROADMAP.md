@@ -13,7 +13,7 @@ This roadmap extracts a standalone C++ library for WAN video generation from the
 | Phase | Status | Progress |
 |-------|--------|----------|
 | 1 - Foundation | Completed | 100% | 2026-03-12 |
-| 2 - Build System | Completed | 100% | 2026-03-12 |
+| 2 - Build System | 1/1 | Complete   | 2026-03-12 |
 | 3 - Public API | Not started | 0% |
 | 4 - Examples | Not started | 0% |
 
