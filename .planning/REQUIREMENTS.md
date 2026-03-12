@@ -9,17 +9,17 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### 项目结构
 
-- [ ] **STRUCT-01**: 创建独立的目录结构（include、src、examples、thirdparty、ggml 子模块）
-- [ ] **STRUCT-02**: 配置 .gitmodules 引用 ggml 子模块
-- [ ] **STRUCT-03**: 添加 .gitignore 和基础 README
+- [x] **STRUCT-01**: 创建独立的目录结构（include、src、examples、thirdparty、ggml 子模块）
+- [x] **STRUCT-02**: 配置 .gitmodules 引用 ggml 子模块
+- [x] **STRUCT-03**: 添加 .gitignore 和基础 README
 
 ### 核心代码提取
 
-- [ ] **CORE-01**: 提取 wan.hpp 及其依赖文件（common_block.hpp、rope.hpp、vae.hpp、flux.hpp）
-- [ ] **CORE-02**: 提取图像预处理功能（preprocessing.hpp）
-- [ ] **CORE-03**: 提取工具函数（util.h/cpp）
-- [ ] **CORE-04**: 提取模型加载相关代码（model.h/cpp 中的 WAN 部分）
-- [ ] **CORE-05**: 修正所有相对包含路径以适应新结构
+- [x] **CORE-01**: 提取 wan.hpp 及其依赖文件（common_block.hpp、rope.hpp、vae.hpp、flux.hpp）
+- [x] **CORE-02**: 提取图像预处理功能（preprocessing.hpp）
+- [x] **CORE-03**: 提取工具函数（util.h/cpp）
+- [x] **CORE-04**: 提取模型加载相关代码（model.h/cpp 中的 WAN 部分）
+- [x] **CORE-05**: 修正所有相对包含路径以适应新结构
 
 ### 构建系统
 
@@ -84,14 +84,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STRUCT-01 | Phase 1 | Pending |
-| STRUCT-02 | Phase 1 | Pending |
-| STRUCT-03 | Phase 1 | Pending |
-| CORE-01 | Phase 1 | Pending |
-| CORE-02 | Phase 1 | Pending |
-| CORE-03 | Phase 1 | Pending |
-| CORE-04 | Phase 1 | Pending |
-| CORE-05 | Phase 1 | Pending |
+| STRUCT-01 | Phase 1 | Completed |
+| STRUCT-02 | Phase 1 | Completed |
+| STRUCT-03 | Phase 1 | Completed |
+| CORE-01 | Phase 1 | Completed |
+| CORE-02 | Phase 1 | Completed |
+| CORE-03 | Phase 1 | Completed |
+| CORE-04 | Phase 1 | Completed |
+| CORE-05 | Phase 1 | Completed |
 | BUILD-01 | Phase 2 | Pending |
 | BUILD-02 | Phase 2 | Pending |
 | BUILD-03 | Phase 2 | Pending |
@@ -110,7 +110,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 - v1 requirements: 20 total
 - Mapped to phases: 20
 - Unmapped: 0 ✓
+- Completed: 8 (Phase 1)
 
 ---
 *Requirements defined: 2025-03-12*
-*Last updated: 2025-03-12 after initial definition*
+*Last updated: 2026-03-12 after Phase 1 completion*

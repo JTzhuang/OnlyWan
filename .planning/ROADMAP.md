@@ -12,14 +12,14 @@ This roadmap extracts a standalone C++ library for WAN video generation from the
 
 | Phase | Status | Progress |
 |-------|--------|----------|
-| 1 - Foundation | Not started | 0% |
+| 1 - Foundation | Completed | 100% |
 | 2 - Build System | Not started | 0% |
 | 3 - Public API | Not started | 0% |
 | 4 - Examples | Not started | 0% |
 
 ## Phases
 
-- [ ] **Phase 1: Foundation** - Project structure and code extraction
+- [x] **Phase 1: Foundation** - Project structure and code extraction
 - [ ] **Phase 2: Build System** - CMake configuration and multi-backend support
 - [ ] **Phase 3: Public API** - C-style API and core inference functionality
 - [ ] **Phase 4: Examples** - CLI tool, video output, and documentation
@@ -42,7 +42,9 @@ This roadmap extracts a standalone C++ library for WAN video generation from the
 5. All macro names use WAN-specific prefixes to avoid collisions with stable-diffusion.cpp
 6. README.md provides basic project overview and usage instructions
 
-**Plans**: TBD
+**Plans**: 01-foundation (Completed)
+- [x] 01-foundation: Foundation plan execution
+- See [01-foundation-SUMMARY.md](./phases/01-foundation/01-foundation-SUMMARY.md) for details
 
 ---
 
