@@ -101,16 +101,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-03 | Phase 3 | Completed |
 | API-04 | Phase 3 | Completed |
 | API-05 | Phase 3 | Completed |
-| EX-01 | Phase 4 | Pending |
-| EX-02 | Phase 4 | Pending |
-| EX-03 | Phase 4 | Pending |
-| EX-04 | Phase 4 | Pending |
+| EX-01 | Phase 4 | Completed |
+| EX-02 | Phase 4 | Completed |
+| EX-03 | Phase 4 | Completed |
+| EX-04 | Phase 4 | Completed |
 
 **Coverage:**
 - v1 requirements: 20 total
 - Mapped to phases: 20
 - Unmapped: 0 ✓
-- Completed: 13 (Phase 1: 8, Phase 2: 0, Phase 3: 5)
+- Completed: 20 (Phase 1: 8, Phase 2: 4, Phase 3: 5, Phase 4: 4)
 
 ---
 *Requirements defined: 2025-03-12*

@@ -14,15 +14,15 @@ This roadmap extracts a standalone C++ library for WAN video generation from the
 |-------|--------|----------|
 | 1 - Foundation | Completed | 100% | 2026-03-12 |
 | 2 - Build System | Completed | 100% | 2026-03-12 |
-| 3 - Public API | Completed | 100% | 2026-03-12 |
-| 4 - Examples | Not started | 0% |
+| 3 - Public API | 1/1 | Complete   | 2026-03-12 |
+| 4 - Examples | Completed | 100% | 2026-03-12 |
 
 ## Phases
 
 - [x] **Phase 1: Foundation** - Project structure and code extraction
 - [x] **Phase 2: Build System** - CMake configuration and multi-backend support
 - [x] **Phase 3: Public API** - C-style API and core inference functionality
-- [ ] **Phase 4: Examples** - CLI tool, video output, and documentation
+- [x] **Phase 4: Examples** - CLI tool, video video, and documentation
 
 ## Phase Details
 
@@ -107,7 +107,9 @@ This roadmap extracts a standalone C++ library for WAN video generation from the
 4. Example documentation (README or docs/) shows typical usage patterns
 5. CLI example demonstrates both T2V and I2V generation modes
 
-**Plans**: TBD
+**Plans**: 04-examples (Completed)
+- [x] 04-examples: CLI example with AVI output
+- See [04-examples-SUMMARY.md](./phases/04-examples/04-examples-SUMMARY.md) for details
 
 ---
 
