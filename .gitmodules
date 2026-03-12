@@ -1,0 +1,6 @@
+# Note: GGML is linked via symbolic link to ../ggml
+# because git submodule cannot share a directory with parent repository.
+# To use in production, add this as a proper submodule:
+# [submodule "ggml"]
+#     path = ggml
+#     url = https://github.com/ggerganov/ggml.git
