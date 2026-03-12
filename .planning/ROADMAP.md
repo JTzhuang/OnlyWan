@@ -12,15 +12,15 @@ This roadmap extracts a standalone C++ library for WAN video generation from the
 
 | Phase | Status | Progress |
 |-------|--------|----------|
-| 1 - Foundation | Completed | 100% |
-| 2 - Build System | Not started | 0% |
+| 1 - Foundation | Completed | 100% | 2026-03-12 |
+| 2 - Build System | Completed | 100% | 2026-03-12 |
 | 3 - Public API | Not started | 0% |
 | 4 - Examples | Not started | 0% |
 
 ## Phases
 
 - [x] **Phase 1: Foundation** - Project structure and code extraction
-- [ ] **Phase 2: Build System** - CMake configuration and multi-backend support
+- [x] **Phase 2: Build System** - CMake configuration and multi-backend support
 - [ ] **Phase 3: Public API** - C-style API and core inference functionality
 - [ ] **Phase 4: Examples** - CLI tool, video output, and documentation
 
@@ -64,7 +64,9 @@ This roadmap extracts a standalone C++ library for WAN video generation from the
 5. Third-party dependencies (json.hpp, zip.h) are correctly configured and link
 6. Build produces a static library file (libwan.a or wan.lib)
 
-**Plans**: TBD
+**Plans**: 02-build-system (Completed)
+- [x] 02-build-system: Build system configuration
+- See [02-build-system-SUMMARY.md](./phases/02-build-system/02-build-system) for details
 
 ---
 
@@ -144,3 +146,4 @@ These features are tracked in REQUIREMENTS.md but not part of the v1 roadmap.
 
 ---
 *Roadmap created: 2026-03-12*
+*Last updated: 2026-03-12 after Phase 2 completion*

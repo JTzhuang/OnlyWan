@@ -25,7 +25,7 @@
 
 #include "ggml-cpu.h"
 #include "ggml.h"
-#include "stable-diffusion.h"
+#include "wan-types.h"
 
 bool ends_with(const std::string& str, const std::string& ending) {
     if (str.length() >= ending.length()) {

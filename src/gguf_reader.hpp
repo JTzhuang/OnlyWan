@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include <cstring>
 #include "ggml.h"
 #include "util.h"
 
