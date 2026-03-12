@@ -33,7 +33,29 @@ make
 
 ## Usage
 
-See `examples` directory for sample programs demonstrating how to use the library for video generation.
+### CLI Example
+
+Build the CLI example:
+
+```bash
+mkdir build && cd build
+cmake -DWAN_BUILD_EXAMPLES=ON ..
+make
+```
+
+Text-to-Video (T2V):
+
+```bash
+./bin/wan-cli --model models/wan2.1-fp16.gguf --prompt "A cat running in a garden" --output output.avi
+```
+
+Image-to-Video (I2V):
+
+```bash
+./bin/wan-cli --model models/wan2.1-fp16.gguf --input input.jpg --prompt "Make the cat jump" --output output.avi
+```
+
+See `examples/README.md` for more details and API usage examples.
 
 ## License
 
