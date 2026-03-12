@@ -6,7 +6,7 @@
  * C API implementation. It is not part of public API.
  */
 
-#ifndef#ifndef WAN_INTERNAL_HPP
+#ifndef WAN_INTERNAL_HPP
 #define WAN_INTERNAL_HPP
 
 #include <memory>
@@ -15,6 +15,10 @@
 #include <map>
 
 #include "wan.h"
+
+#include "ggml.h"
+#include "ggml-alloc.h"
+#include "ggml-backend.h"
 
 #ifdef __cplusplus
 extern "C" {

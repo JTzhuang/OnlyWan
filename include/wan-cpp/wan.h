@@ -45,24 +45,6 @@ typedef enum {
 /** Opaque handle to a Wan context */
 typedef struct wan_context wan_context_t;
 
-/** Generation parameters structure (not opaque - can be allocated and managed by user) */
-typedef struct wan_params {
-    int seed;                           /**< Random seed (-1 for random) */
-    int steps;                          /**< Number of sampling steps */
-    float cfg;                           /**< Classifier-free guidance scale */
-    int width;                          /**< Output video width */
-    int height;                          /**< Output video height */
-    int num_frames;                      /**< Number of output frames */
-    int fps;                             /**< Frames per second */
-    int n_threads;                        /**< Number of threads (0 = auto-detect) */
-    const char* negative_prompt;           /**< Negative prompt string */
-    const char* backend;                  /**< Backend type string */
-    wan_progress_cb_t progress_cb;       /**< Progress callback */
-    void* user_data;                     /**< User data for callbacks */
-    /* Private fields for internal use */
-    void* _internal_ptr;
-} wan_params_t;
-
 /** Opaque handle to generation result */
 typedef struct wan_result wan_result_t;
 
@@ -91,6 +73,24 @@ typedef struct {
  * @return Return non-zero to abort generation
  */
 typedef int (*wan_progress_cb_t)(int step, int total_steps, float progress, void* user_data);
+
+/** Generation parameters structure (not opaque - can be allocated and managed by user) */
+typedef struct wan_params {
+    int seed;                           /**< Random seed (-1 for random) */
+    int steps;                          /**< Number of sampling steps */
+    float cfg;                           /**< Classifier-free guidance scale */
+    int width;                          /**< Output video width */
+    int height;                          /**< Output video height */
+    int num_frames;                      /**< Number of output frames */
+    int fps;                             /**< Frames per second */
+    int n_threads;                        /**< Number of threads (0 = auto-detect) */
+    const char* negative_prompt;           /**< Negative prompt string */
+    const char* backend;                  /**< Backend type string */
+    wan_progress_cb_t progress_cb;       /**< Progress callback */
+    void* user_data;                     /**< User data for callbacks */
+    /* Private fields for internal use */
+    void* _internal_ptr;
+} wan_params_t;
 
 /** Log callback type
  *

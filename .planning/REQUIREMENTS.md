@@ -38,10 +38,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### 示例程序
 
-- [ ] **EX-01**: 提取并适配 CLI 示例程序
-- [ ] **EX-02**: 实现视频输出功能（AVI 格式）
-- [ ] **EX-03**: 添加基础命令行参数解析
-- [ ] **EX-04**: 创建使用示例文档
+- [x] **EX-01**: 提取并适配 CLI 示例程序
+- [x] **EX-02**: 实现视频输出功能（AVI 格式）
+- [x] **EX-03**: 添加基础命令行参数解析
+- [x] **EX-04**: 创建使用示例文档
 
 ## v2 Requirements
 

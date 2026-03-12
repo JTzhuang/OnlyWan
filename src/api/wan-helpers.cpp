@@ -4,6 +4,7 @@
  */
 
 #include "wan-helpers.hpp"
+#include "wan-internal.hpp"
 
 #include <cstdarg>
 #include <cstring>

@@ -8,9 +8,14 @@
 
 #include "wan.h"
 #include "wan-internal.hpp"
+#include "wan-helpers.hpp"
 
 #include <sstream>
 #include <algorithm>
+
+// Access global log callback state
+extern wan_log_cb_t wan_get_log_callback(void);
+extern void* wan_get_log_callback_user_data(void);
 
 /* ============================================================================
  * Validation Constants
@@ -194,8 +199,8 @@ wan_params_t* wan_params_create(void) {
         params->user_data = nullptr;
         return params;
     } catch (const std::exception& e) {
-        if (g_log_callback) {
-            g_log_callback(3, e.what(), g_log_user_data);
+        if (wan_get_log_callback()) {
+            wan_get_log_callback()(3, e.what(), wan_get_log_callback_user_data());
         }
         return nullptr;
     }
@@ -218,9 +223,9 @@ void wan_params_set_steps(wan_params_t* params, int steps) {
         if (!WanConfig::validate_steps(steps)) {
             // Clamp to valid range
             steps = WanConfig::clamp_value(steps, WanConfig::MIN_STEPS, WanConfig::MAX_STEPS, WanConfig::DEFAULT_STEPS);
-            if (g_log_callback) {
+            if (wan_get_log_callback()) {
                 std::string msg = "Steps value out of range, clamping to " + std::to_string(steps);
-                g_log_callback(2, msg.c_str(), g_log_user_data);
+                wan_get_log_callback()(2, msg.c_str(), wan_get_log_callback_user_data());
             }
         }
         params->steps = steps;
@@ -232,10 +237,10 @@ void wan_params_set_cfg(wan_params_t* params, float cfg) {
         if (!WanConfig::validate_cfg(cfg)) {
             // Clamp to valid range
             cfg = WanConfig::clamp_value(cfg, WanConfig::MIN_CFG, WanConfig::MAX_CFG, WanConfig::DEFAULT_CFG);
-            if (g_log_callback) {
+            if (wan_get_log_callback()) {
                 std::ostringstream oss;
                 oss << "CFG value out of range, clamping to " << cfg;
-                g_log_callback(2, oss.str().c_str(), g_log_user_data);
+                wan_get_log_callback()(2, oss.str().c_str(), wan_get_log_callback_user_data());
             }
         }
         params->cfg = cfg;
@@ -248,17 +253,17 @@ void wan_params_set_size(wan_params_t* params, int width, int height) {
             width = WanConfig::clamp_value(width, WanConfig::MIN_WIDTH, WanConfig::MAX_WIDTH, WanConfig::DEFAULT_WIDTH);
             // Adjust to be divisible by 32
             width = ((width + 31) / 32) * 32;
-            if (g_log_callback) {
+            if (wan_get_log_callback()) {
                 std::string msg = "Width value invalid, adjusting to " + std::to_string(width);
-                g_log_callback(2, msg.c_str(), g_log_user_data);
+                wan_get_log_callback()(2, msg.c_str(), wan_get_log_callback_user_data());
             }
         }
         if (!WanConfig::validate_height(height)) {
             height = WanConfig::clamp_value(height, WanConfig::MIN_HEIGHT, WanConfig::MAX_HEIGHT, WanConfig::DEFAULT_HEIGHT);
             height = ((height + 31) / 32) * 32;
-            if (g_log_callback) {
+            if (wan_get_log_callback()) {
                 std::string msg = "Height value invalid, adjusting to " + std::to_string(height);
-                g_log_callback(2, msg.c_str(), g_log_user_data);
+                wan_get_log_callback()(2, msg.c_str(), wan_get_log_callback_user_data());
             }
         }
         params->width = width;
@@ -270,9 +275,9 @@ void wan_params_set_num_frames(wan_params_t* params, int num_frames) {
     if (params) {
         if (!WanConfig::validate_num_frames(num_frames)) {
             num_frames = WanConfig::clamp_value(num_frames, WanConfig::MIN_FRAMES, WanConfig::MAX_FRAMES, WanConfig::DEFAULT_FRAMES);
-            if (g_log_callback) {
+            if (wan_get_log_callback()) {
                 std::string msg = "Num frames value out of range, clamping to " + std::to_string(num_frames);
-                g_log_callback(2, msg.c_str(), g_log_user_data);
+                wan_get_log_callback()(2, msg.c_str(), wan_get_log_callback_user_data());
             }
         }
         params->num_frames = num_frames;
@@ -283,9 +288,9 @@ void wan_params_set_fps(wan_params_t* params, int fps) {
     if (params) {
         if (!WanConfig::validate_fps(fps)) {
             fps = WanConfig::clamp_value(fps, WanConfig::MIN_FPS, WanConfig::MAX_FPS, WanConfig::DEFAULT_FPS);
-            if (g_log_callback) {
+            if (wan_get_log_callback()) {
                 std::string msg = "FPS value out of range, clamping to " + std::to_string(fps);
-                g_log_callback(2, msg.c_str(), g_log_user_data);
+                wan_get_log_callback()(2, msg.c_str(), wan_get_log_callback_user_data());
             }
         }
         params->fps = fps;
@@ -302,9 +307,9 @@ void wan_params_set_n_threads(wan_params_t* params, int n_threads) {
     if (params) {
         if (!WanConfig::validate_n_threads(n_threads)) {
             n_threads = WanConfig::clamp_value(n_threads, WanConfig::MIN_THREADS, WanConfig::MAX_THREADS, 0);
-            if (g_log_callback) {
+            if (wan_get_log_callback()) {
                 std::string msg = "Thread count value out of range, clamping to " + std::to_string(n_threads);
-                g_log_callback(2, msg.c_str(), g_log_user_data);
+                wan_get_log_callback()(2, msg.c_str(), wan_get_log_callback_user_data());
             }
         }
         params->n_threads = n_threads;
@@ -316,9 +321,9 @@ void wan_params_set_backend(wan_params_t* params, const char* backend) {
         std::string backend_str = backend ? backend : "cpu";
         if (!WanConfig::validate_backend(backend_str)) {
             backend_str = "cpu";
-            if (g_log_callback && backend && backend[0] != '\0') {
+            if (wan_get_log_callback() && backend && backend[0] != '\0') {
                 std::string msg = "Invalid backend type, defaulting to CPU";
-                g_log_callback(2, msg.c_str(), g_log_user_data);
+                wan_get_log_callback()(2, msg.c_str(), wan_get_log_callback_user_data());
             }
         }
         params->backend = backend_str;

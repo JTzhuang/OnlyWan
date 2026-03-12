@@ -56,24 +56,6 @@ struct wan_context {
     std::string backend_type;
 };
 
-/**
- * @brief Internal parameters structure for Wan generation
- */
-struct wan_params {
-    int seed;
-    int steps;
-    float cfg;
-    int width;
-    int height;
-    int num_frames;
-    int fps;
-    std::string negative_prompt;
-    int n_threads;
-    std::string backend;
-    wan_progress_cb_t progress_cb;
-    void* user_data;
-};
-
 /* ============================================================================
  * Error Handling
  * ============================================================================ */
