@@ -1,0 +1,32 @@
+# Build directories
+build/
+bin/
+
+# Object files
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+
+# Debug symbols
+*.dSYM
+*.su
+*.idb
+*.pdb
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Model files (optional - uncomment to ignore local models)
+# *.safetensors
+# *.onnx
+# *.gguf
