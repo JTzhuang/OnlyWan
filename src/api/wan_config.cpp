@@ -14,6 +14,28 @@
 #include <algorithm>
 
 /* ============================================================================
+ * Platform-specific API export macros
+ * ============================================================================ */
+
+#if defined(_WIN32) || defined(__CYGWIN__)
+#ifndef WAN_BUILD_SHARED_LIB
+#define WAN_API
+#else
+#ifdef WAN_BUILD_DLL
+#define WAN_API __declspec(dllexport)
+#else
+#define WAN_API __declspec(dllimport)
+#endif
+#endif
+#else
+#if __GNUC__ >= 4
+#define WAN_API __attribute__((visibility("default")))
+#else
+#define WAN_API
+#endif
+#endif
+
+/* ============================================================================
  * Validation Constants
  * ============================================================================ */
 
@@ -114,7 +136,7 @@ static bool validate_backend(const char* backend) {
 
 extern "C" {
 
-wan_params_t* wan_params_create(void) {
+WAN_API wan_params_t* wan_params_create(void) {
     wan_params_t* params = new wan_params_t();
     if (!params) return nullptr;
 
@@ -135,31 +157,31 @@ wan_params_t* wan_params_create(void) {
     return params;
 }
 
-void wan_params_free(wan_params_t* params) {
+WAN_API void wan_params_free(wan_params_t* params) {
     if (params) {
         delete params;
     }
 }
 
-void wan_params_set_seed(wan_params_t* params, int seed) {
+WAN_API void wan_params_set_seed(wan_params_t* params, int seed) {
     if (params && WanConfig::validate_seed(seed)) {
         params->seed = seed;
     }
 }
 
-void wan_params_set_steps(wan_params_t* params, int steps) {
+WAN_API void wan_params_set_steps(wan_params_t* params, int steps) {
     if (params && WanConfig::validate_steps(steps)) {
         params->steps = steps;
     }
 }
 
-void wan_params_set_cfg(wan_params_t* params, float cfg) {
+WAN_API void wan_params_set_cfg(wan_params_t* params, float cfg) {
     if (params && WanConfig::validate_cfg(cfg)) {
         params->cfg = cfg;
     }
 }
 
-void wan_params_set_size(wan_params_t* params, int width, int height) {
+WAN_API void wan_params_set_size(wan_params_t* params, int width, int height) {
     if (params) {
         if (WanConfig::validate_width(width)) {
             params->width = width;
@@ -170,49 +192,43 @@ void wan_params_set_size(wan_params_t* params, int width, int height) {
     }
 }
 
-void wan_params_set_num_frames(wan_params_t* params, int num_frames) {
+WAN_API void wan_params_set_num_frames(wan_params_t* params, int num_frames) {
     if (params && WanConfig::validate_num_frames(num_frames)) {
         params->num_frames = num_frames;
     }
 }
 
-void wan_params_set_fps(wan_params_t* params, int fps) {
+WAN_API void wan_params_set_fps(wan_params_t* params, int fps) {
     if (params && WanConfig::validate_fps(fps)) {
         params->fps = fps;
     }
 }
 
-void wan_params_set_negative_prompt(wan_params_t* params, const char* negative_prompt) {
+WAN_API void wan_params_set_negative_prompt(wan_params_t* params, const char* negative_prompt) {
     if (params) {
         params->negative_prompt = negative_prompt;
     }
 }
 
-void wan_params_set_n_threads(wan_params_t* params, int n_threads) {
+WAN_API void wan_params_set_n_threads(wan_params_t* params, int n_threads) {
     if (params && WanConfig::validate_n_threads(n_threads)) {
         params->n_threads = n_threads;
     }
 }
 
-void wan_params_set_backend(wan_params_t* params, const char* backend) {
+WAN_API void wan_params_set_backend(wan_params_t* params, const char* backend) {
     if (params && WanConfig::validate_backend(backend)) {
         params->backend = backend;
     }
 }
 
-void wan_params_set_progress_callback(wan_params_t* params,
-                                       wan_progress_cb_t callback,
-                                       void* user_data) {
+WAN_API void wan_params_set_progress_callback(wan_params_t* params,
+                                               wan_progress_cb_t callback,
+                                               void* user_data) {
     if (params) {
         params->progress_cb = callback;
         params->user_data = user_data;
     }
-}
-
-// Internal function for log callback (simplified)
-void wan_set_log_callback_internal(wan_log_cb_t callback, void* user_data) {
-    (void)callback;
-    (void)user_data;
 }
 
 } // extern "C"
