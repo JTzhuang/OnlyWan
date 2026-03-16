@@ -160,10 +160,10 @@ This roadmap extracts a standalone C++ library for WAN video generation from sta
 3. T2V/I2V generation stubs removed from `wan-api.cpp` (delegated to `wan_t2v.cpp`/`wan_i2v.cpp`)
 4. CMakeLists.txt glob pattern does not pick up duplicate source files
 5. Library links without duplicate symbol errors
-6. `avi_writer.h` include guard fixed (`__.AVI_WRITER_H__` → `AVI_WRITER_H__`)
+6. `avi_writer.h` include guard fixed (`__.AVI_WRITER_H__` → `AVI_WRITER_H`)
 
-**Plans**: 06-fix-duplicate-symbols (Planned)
-- [ ] 06-fix-duplicate-symbols: Fix linker failures
+**Plans**: 1 plan
+- [ ] 06-01-PLAN.md — Remove duplicate symbol definitions and fix CMake glob to unblock linking
 
 ---
 
@@ -259,4 +259,4 @@ These features are tracked in REQUIREMENTS.md but not part of v1 roadmap.
 
 ---
 *Roadmap created: 2026-03-12*
-*Last updated: 2026-03-15 after Phase 5 addition*
+*Last updated: 2026-03-16 after Phase 6 planning*
