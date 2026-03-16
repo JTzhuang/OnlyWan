@@ -17,7 +17,7 @@ This roadmap extracts a standalone C++ library for WAN video generation from sta
 | 3 - Public API | Completed | 100% | 2026-03-15 |
 | 4 - Examples | Completed | 100% | 2026-03-15 |
 | 5 - Encoders | Completed | 100% | 2026-03-16 |
-| 6 - Fix Duplicate Symbols | Planned | 0% | - |
+| 6 - Fix Duplicate Symbols | Completed | 100% | 2026-03-16 |
 | 7 - Wire Core Model to API | Planned | 0% | - |
 | 8 - Implement Generation + AVI Output | Planned | 0% | - |
 
@@ -163,7 +163,7 @@ This roadmap extracts a standalone C++ library for WAN video generation from sta
 6. `avi_writer.h` include guard fixed (`__.AVI_WRITER_H__` → `AVI_WRITER_H`)
 
 **Plans**: 1 plan
-- [ ] 06-01-PLAN.md — Remove duplicate symbol definitions and fix CMake glob to unblock linking
+- [x] 06-01-PLAN.md — Remove duplicate symbol definitions and fix CMake glob to unblock linking
 
 ---
 
