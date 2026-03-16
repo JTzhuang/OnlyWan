@@ -27,9 +27,9 @@ progress:
 | Field | Value |
 |-------|-------|
 | Phase | 7 - Wire Core Model to API |
-| Plan | 01 |
-| Status | Planned |
-| Progress | 75% |
+| Plan | 02 |
+| Status | In Progress |
+| Progress | 80% |
 
 ## Phase Progress
 
@@ -41,7 +41,7 @@ progress:
 | 4 - Examples | Completed | 1/1 | 04-examples |
 | 5 - Encoders | Completed | 1/1 | 05-encoders |
 | 6 - Fix Duplicate Symbols | Completed | 1/1 | 06-01 |
-| 7 - Wire Core Model to API | Planned | 0/1 | - |
+| 7 - Wire Core Model to API | In Progress | 1/3 | 07-01 |
 | 8 - Implement Generation + AVI Output | Planned | 0/1 | - |
 
 ## Performance Metrics
@@ -71,6 +71,7 @@ progress:
 | CLI with full argument parsing | Phase 4 execution | Complete CLI functionality for users |
 | Explicit CMake source list | Phase 6 execution | GLOB_RECURSE picked up untracked src/wan_i2v.cpp causing duplicate symbols |
 | WAN_API on all wan_params_* | Phase 6 execution | ABI visibility required for correct Windows shared build exports |
+| Forward declarations in wan-internal.hpp | Phase 7 plan 01 | wan.hpp/t5.hpp/clip.hpp contain non-inline defs; forward-declare runner types to prevent ODR violations across TUs |
 
 ### Technical Notes
 
@@ -117,9 +118,9 @@ progress:
 
 ## Session Continuity
 
-**Last Action:** Phase 6 - Fix Duplicate Symbols complete
-**Next Action:** Execute Phase 7 - Wire Core Model to API
-**Context:** Phase 6 eliminated all ODR violations: removed param/generation stubs from wan-api.cpp, added WAN_API to all wan_config.cpp exports, replaced GLOB_RECURSE with explicit source list, fixed avi_writer.h include guard. Library now links cleanly with 0 duplicate symbol errors.
+**Last Action:** Phase 7 Plan 01 - Wire Core Model (wan-internal.hpp restructure) complete
+**Next Action:** Execute Phase 7 Plan 02 - wan_loader.cpp weight loading
+**Context:** Plan 07-01 restructured wan-internal.hpp with real runner members (WAN::WanRunner, WAN::WanVAERunner, T5Embedder, CLIPVisionModelProjectionRunner) using forward declarations to avoid ODR violations. wan_context is now fully defined in wan-internal.hpp. wan-api.cpp and wan_loader.cpp updated. Build produces zero errors.
 
 ---
 *State updated: 2026-03-15*

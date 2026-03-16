@@ -18,7 +18,7 @@ This roadmap extracts a standalone C++ library for WAN video generation from sta
 | 4 - Examples | Completed | 100% | 2026-03-15 |
 | 5 - Encoders | Completed | 100% | 2026-03-16 |
 | 6 - Fix Duplicate Symbols | Completed | Complete    | 2026-03-16 |
-| 7 - Wire Core Model to API | Planned | 0% | - |
+| 7 - Wire Core Model to API | In Progress | 33% | 2026-03-16 |
 | 8 - Implement Generation + AVI Output | Planned | 0% | - |
 
 ## Phases
@@ -186,7 +186,7 @@ This roadmap extracts a standalone C++ library for WAN video generation from sta
 6. CLIP token output from `wan_i2v.cpp` passed to WAN model inference
 
 **Plans**: 3 plans
-- [ ] 07-01-PLAN.md — Restructure wan-internal.hpp: move wan_context definition with WanRunner/WanVAERunner/T5Embedder members
+- [x] 07-01-PLAN.md — Restructure wan-internal.hpp: move wan_context definition with WanRunner/WanVAERunner/T5Embedder members
 - [ ] 07-02-PLAN.md — Rewrite wan_loader.cpp: ModelLoader weight loading for WanRunner, WanVAERunner, T5Embedder
 - [ ] 07-03-PLAN.md — Wire encoders in wan_t2v.cpp and wan_i2v.cpp: T5/CLIP outputs passed to WanRunner::compute
 
