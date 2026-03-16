@@ -42,6 +42,7 @@ option(WAN_MUSA     "wan-cpp: MUSA backend"      OFF)
 # General options
 option(WAN_BUILD_SHARED_LIBS "wan-cpp: build shared libs" OFF)
 option(WAN_BUILD_EXAMPLES     "wan-cpp: build examples"    ${WAN_STANDALONE})
+option(WAN_EMBED_VOCAB "wan-cpp: embed vocabulary arrays in binary (increases build time ~2min, binary +85MB)" OFF)
 
 # Map wan-cpp options to GGML options
 if(WAN_CUDA)
@@ -150,6 +151,14 @@ else()
     message("-- Build static library")
     set(BUILD_SHARED_LIBS OFF)
     add_library(${WAN_LIB} STATIC ${WAN_LIB_HEADERS} ${WAN_LIB_SOURCES})
+endif()
+
+# Vocab embedding — OFF by default to avoid 127MB compile overhead
+if(WAN_EMBED_VOCAB)
+    target_compile_definitions(${WAN_LIB} PRIVATE WAN_EMBED_VOCAB)
+    message(STATUS "wan-cpp: vocab embedding ON (slow build)")
+else()
+    message(STATUS "wan-cpp: vocab embedding OFF (runtime mmap)")
 endif()
 
 # Configure library version properties
