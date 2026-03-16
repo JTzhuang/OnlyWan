@@ -18,7 +18,7 @@ This roadmap extracts a standalone C++ library for WAN video generation from sta
 | 4 - Examples | Completed | 100% | 2026-03-15 |
 | 5 - Encoders | Completed | 100% | 2026-03-16 |
 | 6 - Fix Duplicate Symbols | Completed | Complete    | 2026-03-16 |
-| 7 - Wire Core Model to API | In Progress | 33% | 2026-03-16 |
+| 7 - Wire Core Model to API | 2/3 | In Progress|  |
 | 8 - Implement Generation + AVI Output | Planned | 0% | - |
 
 ## Phases

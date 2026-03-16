@@ -4,12 +4,12 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 07
 status: unknown
-last_updated: "2026-03-16T03:25:54.133Z"
+last_updated: "2026-03-16T05:59:53Z"
 progress:
   total_phases: 8
   completed_phases: 6
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 7
+  completed_plans: 7
 ---
 
 # Project State: wan-cpp
@@ -27,9 +27,9 @@ progress:
 | Field | Value |
 |-------|-------|
 | Phase | 7 - Wire Core Model to API |
-| Plan | 02 |
+| Plan | 03 |
 | Status | In Progress |
-| Progress | 80% |
+| Progress | 87% |
 
 ## Phase Progress
 
@@ -41,7 +41,7 @@ progress:
 | 4 - Examples | Completed | 1/1 | 04-examples |
 | 5 - Encoders | Completed | 1/1 | 05-encoders |
 | 6 - Fix Duplicate Symbols | Completed | 1/1 | 06-01 |
-| 7 - Wire Core Model to API | In Progress | 1/3 | 07-01 |
+| 7 - Wire Core Model to API | In Progress | 2/3 | 07-01, 07-02 |
 | 8 - Implement Generation + AVI Output | Planned | 0/1 | - |
 
 ## Performance Metrics
@@ -54,6 +54,7 @@ progress:
 | 4 - Examples | 04-examples | 5 min | 4 | 4 | 2026-03-15T07:32:16Z | 2026-03-15T07:37:00Z |
 | 5 - Encoders | 05-encoders | - | - | - | - | - |
 | 6 - Fix Duplicate Symbols | 06-01 | 15 min | 3 | 4 | 2026-03-16T03:06:00Z | 2026-03-16T03:21:18Z |
+| 7 - Wire Core Model | 07-02 | 5 min | 1 | 3 | 2026-03-16T05:54:39Z | 2026-03-16T05:59:53Z |
 
 ## Accumulated Context
 
@@ -72,6 +73,7 @@ progress:
 | Explicit CMake source list | Phase 6 execution | GLOB_RECURSE picked up untracked src/wan_i2v.cpp causing duplicate symbols |
 | WAN_API on all wan_params_* | Phase 6 execution | ABI visibility required for correct Windows shared build exports |
 | Forward declarations in wan-internal.hpp | Phase 7 plan 01 | wan.hpp/t5.hpp/clip.hpp contain non-inline defs; forward-declare runner types to prevent ODR violations across TUs |
+| WanModel::load in wan-api.cpp | Phase 7 plan 02 | Runner construction must live in single TU that owns full header includes; wan_loader.cpp stays header-free to avoid ODR |
 
 ### Technical Notes
 
@@ -118,9 +120,9 @@ progress:
 
 ## Session Continuity
 
-**Last Action:** Phase 7 Plan 01 - Wire Core Model (wan-internal.hpp restructure) complete
-**Next Action:** Execute Phase 7 Plan 02 - wan_loader.cpp weight loading
-**Context:** Plan 07-01 restructured wan-internal.hpp with real runner members (WAN::WanRunner, WAN::WanVAERunner, T5Embedder, CLIPVisionModelProjectionRunner) using forward declarations to avoid ODR violations. wan_context is now fully defined in wan-internal.hpp. wan-api.cpp and wan_loader.cpp updated. Build produces zero errors.
+**Last Action:** Phase 7 Plan 02 - Wire Core Model (WanModel::load weight loading) complete
+**Next Action:** Execute Phase 7 Plan 03
+**Context:** Plan 07-02 implemented WanModel::load in wan-api.cpp using ModelLoader for full GGUF weight loading. Constructs WanRunner, WanVAERunner, T5Embedder, CLIPVisionModelProjectionRunner with dynamic prefix detection. wan_load_model now calls Wan::WanModel::load. Build produces zero errors.
 
 ---
 *State updated: 2026-03-15*

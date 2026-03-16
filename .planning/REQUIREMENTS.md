@@ -15,10 +15,10 @@
 
 ### 核心代码提取
 
-- [ ] **CORE-01**: 提取 wan.hpp 及其依赖文件（common_block.hpp、rope.hpp、vae.hpp、flux.hpp）
+- [x] **CORE-01**: 提取 wan.hpp 及其依赖文件（common_block.hpp、rope.hpp、vae.hpp、flux.hpp）
 - [ ] **CORE-02**: 提取图像预处理功能（preprocessing.hpp）
 - [x] **CORE-03**: 提取工具函数（util.h/cpp）
-- [ ] **CORE-04**: 提取模型加载相关代码（model.h/cpp 中的 WAN 部分）
+- [x] **CORE-04**: 提取模型加载相关代码（model.h/cpp 中的 WAN 部分）
 - [x] **CORE-05**: 修正所有相对包含路径以适应新结构
 
 ### 构建系统
@@ -31,7 +31,7 @@
 ### 公共 API
 
 - [x] **API-01**: 创建 C 风格公共头文件（wan.h）
-- [ ] **API-02**: 实现模型加载接口
+- [x] **API-02**: 实现模型加载接口
 - [ ] **API-03**: 实现文本生成视频（T2V）接口
 - [ ] **API-04**: 实现图像生成视频（I2V）接口
 - [ ] **API-05**: 实现配置参数接口（seed、steps、guidance scale 等）
@@ -92,17 +92,17 @@
 | STRUCT-01 | Phase 1 | Completed |
 | STRUCT-02 | Phase 1 | Completed |
 | STRUCT-03 | Phase 1 | Completed |
-| CORE-01 | Phase 7 | Pending |
+| CORE-01 | Phase 7 | Complete |
 | CORE-02 | Phase 7 | Pending |
 | CORE-03 | Phase 1 | Completed |
-| CORE-04 | Phase 7 | Pending |
+| CORE-04 | Phase 7 | Complete |
 | CORE-05 | Phase 1 | Completed |
 | BUILD-01 | Phase 6 | Pending |
 | BUILD-02 | Phase 2 | Completed |
 | BUILD-03 | Phase 2 | Completed |
 | BUILD-04 | Phase 2 | Completed |
 | API-01 | Phase 3 | Completed |
-| API-02 | Phase 7 | Pending |
+| API-02 | Phase 7 | Complete |
 | API-03 | Phase 8 | Pending |
 | API-04 | Phase 8 | Pending |
 | API-05 | Phase 6 | Pending |
