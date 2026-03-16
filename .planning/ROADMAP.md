@@ -178,17 +178,17 @@ This roadmap extracts a standalone C++ library for WAN video generation from sta
 **Gap Closure**: Closes gaps from v1.0 audit
 
 **Success Criteria** (what must be TRUE):
-1. `wan_loader.cpp` instantiates WAN model from `wan.hpp` during model loading
+1. `wan-api.cpp` instantiates WAN model from `wan.hpp` during model loading (WanModel::load owns runner construction to avoid ODR violations)
 2. Model weights loaded from GGUF file (not just metadata)
-3. `preprocessing.hpp` used in I2V pipeline for image preprocessing
-4. `model.h/cpp` functions called from `wan_loader.cpp` for model management
-5. T5 token output from `wan_t2v.cpp` passed to WAN model inference
-6. CLIP token output from `wan_i2v.cpp` passed to WAN model inference
+3. `ggml_extend.hpp` `sd_image_to_ggml_tensor` used in I2V pipeline for image preprocessing
+4. `model.h` ModelLoader called from `wan-api.cpp` for model management
+5. T5 token output passed to WAN model inference
+6. CLIP token output passed to WAN model inference
 
 **Plans**: 3 plans
 - [x] 07-01-PLAN.md — Restructure wan-internal.hpp: move wan_context definition with WanRunner/WanVAERunner/T5Embedder members
-- [ ] 07-02-PLAN.md — Rewrite wan_loader.cpp: ModelLoader weight loading for WanRunner, WanVAERunner, T5Embedder
-- [ ] 07-03-PLAN.md — Wire encoders in wan_t2v.cpp and wan_i2v.cpp: T5/CLIP outputs passed to WanRunner::compute
+- [x] 07-02-PLAN.md — Rewrite wan-api.cpp: ModelLoader weight loading for WanRunner, WanVAERunner, T5Embedder, CLIPVisionModelProjectionRunner
+- [x] 07-03-PLAN.md — Wire encoders in wan-api.cpp: T5/CLIP outputs passed to WanRunner::compute
 
 ---
 
