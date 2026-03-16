@@ -5,6 +5,9 @@
  * This file implements of C API declared in wan.h.
  */
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #include "wan.h"
 #include "wan-internal.hpp"
 
@@ -310,10 +313,21 @@ WAN_API void wan_free(wan_context_t* ctx) {
  * ============================================================================ */
 
 WAN_API wan_error_t wan_load_image(const char* image_path, wan_image_t** out_image) {
-    // TODO: Implement actual image loading
-    (void)image_path;
-    (void)out_image;
-    return WAN_ERROR_UNSUPPORTED_OPERATION;
+    if (!image_path || !out_image) {
+        return WAN_ERROR_INVALID_ARGUMENT;
+    }
+    int w, h, c;
+    uint8_t* data = stbi_load(image_path, &w, &h, &c, 3);  // force 3-channel RGB
+    if (!data) {
+        return WAN_ERROR_IMAGE_LOAD_FAILED;
+    }
+    wan_image_t* img = new wan_image_t();
+    img->width    = w;
+    img->height   = h;
+    img->channels = 3;
+    img->data     = data;  // stbi_load allocates with malloc; wan_free_image calls free()
+    *out_image = img;
+    return WAN_SUCCESS;
 }
 
 WAN_API void wan_free_image(wan_image_t* image) {
