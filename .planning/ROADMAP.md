@@ -18,8 +18,8 @@ This roadmap extracts a standalone C++ library for WAN video generation from sta
 | 4 - Examples | Completed | 100% | 2026-03-15 |
 | 5 - Encoders | Completed | 100% | 2026-03-16 |
 | 6 - Fix Duplicate Symbols | Completed | Complete    | 2026-03-16 |
-| 7 - Wire Core Model to API | 3/3 | Complete   | 2026-03-16 |
-| 8 - Implement Generation + AVI Output | Planned | 0% | - |
+| 7 - Wire Core Model to API | 3/3 | Complete    | 2026-03-16 |
+| 8 - Implement Generation + AVI Output | In Progress | 1/1 | 2026-03-16 |
 
 ## Phases
 
@@ -211,8 +211,8 @@ This roadmap extracts a standalone C++ library for WAN video generation from sta
 6. CLI end-to-end T2V flow produces a valid AVI file
 7. CLI end-to-end I2V flow produces a valid AVI file
 
-**Plans**: 08-implement-generation (Planned)
-- [ ] 08-implement-generation: Implement generation pipeline and AVI output
+**Plans**: 08-implement-generation (In Progress)
+- [x] 08-01-PLAN.md — Implement wan_load_image (stb_image) and complete avi_writer.c (RIFF/DIB)
 
 ---
 

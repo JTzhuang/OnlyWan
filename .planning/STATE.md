@@ -26,10 +26,10 @@ progress:
 
 | Field | Value |
 |-------|-------|
-| Phase | 7 - Wire Core Model to API |
-| Plan | 03 (complete) |
-| Status | Completed |
-| Progress | 93% |
+| Phase | 8 - Implement Generation + AVI Output |
+| Plan | 01 (complete) |
+| Status | In Progress |
+| Progress | 96% |
 
 ## Phase Progress
 
@@ -42,7 +42,7 @@ progress:
 | 5 - Encoders | Completed | 1/1 | 05-encoders |
 | 6 - Fix Duplicate Symbols | Completed | 1/1 | 06-01 |
 | 7 - Wire Core Model to API | Completed | 3/3 | 07-01, 07-02, 07-03 |
-| 8 - Implement Generation + AVI Output | Planned | 0/1 | - |
+| 8 - Implement Generation + AVI Output | In Progress | 1/1 | 08-01 |
 
 ## Performance Metrics
 
@@ -77,6 +77,8 @@ progress:
 | WanModel::load in wan-api.cpp | Phase 7 plan 02 | Runner construction must live in single TU that owns full header includes; wan_loader.cpp stays header-free to avoid ODR |
 | _ex generation in wan-api.cpp | Phase 7 plan 03 | wan_generate_video_t2v_ex and i2v_ex moved to wan-api.cpp; calling runner methods requires complete types, only available in single-TU owning all headers |
 | ggml_extend.hpp not preprocessing.hpp | Phase 7 plan 03 | preprocessing.hpp has non-inline convolve/gaussian_kernel already emitted by util.cpp; ggml_extend.hpp provides sd_image_to_ggml_tensor as __STATIC_INLINE__ safe for multiple TUs |
+| STB_IMAGE_IMPLEMENTATION in wan-api.cpp only | Phase 8 plan 01 | Single TU rule — defining in wan-api.cpp avoids ODR violations; stbi_load force-RGB (desired_channels=3) simplifies downstream handling |
+| AVI codec DIB /BI_RGB not MJPG | Phase 8 plan 01 | Raw uncompressed RGB eliminates JPEG encoder dependency; 00dc chunk tag is standard AVI convention even for uncompressed streams |
 
 ### Technical Notes
 
@@ -123,9 +125,9 @@ progress:
 
 ## Session Continuity
 
-**Last Action:** Phase 7 Plan 03 - Wire Core Model (encoder-to-model wiring) complete
-**Next Action:** Execute Phase 8 - Implement Generation + AVI Output
-**Context:** Plan 07-03 wired T5 tokenize+compute and CLIP sd_image_to_ggml_tensor+compute to WanRunner::compute. Both _ex implementations live in wan-api.cpp (single TU owning all runner headers). wan_t2v.cpp and wan_i2v.cpp reduced to legacy stubs. Build produces zero errors. Phase 7 fully complete.
+**Last Action:** Phase 8 Plan 01 - wan_load_image and avi_writer.c complete
+**Next Action:** Execute Phase 8 Plan 02 - Implement T2V/I2V generation pipeline
+**Context:** Plan 08-01 implemented wan_load_image via stbi_load (force 3-channel RGB) in wan-api.cpp and rewrote avi_writer.c with complete RIFF/hdrl/strl/movi structure, 00dc frame chunks, and fseek-based size patching. Build produces zero errors.
 
 ---
 *State updated: 2026-03-16*

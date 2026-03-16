@@ -16,7 +16,7 @@
 ### 核心代码提取
 
 - [x] **CORE-01**: 提取 wan.hpp 及其依赖文件（common_block.hpp、rope.hpp、vae.hpp、flux.hpp）
-- [ ] **CORE-02**: 提取图像预处理功能（preprocessing.hpp）
+- [x] **CORE-02**: 提取图像预处理功能（preprocessing.hpp）
 - [x] **CORE-03**: 提取工具函数（util.h/cpp）
 - [x] **CORE-04**: 提取模型加载相关代码（model.h/cpp 中的 WAN 部分）
 - [x] **CORE-05**: 修正所有相对包含路径以适应新结构
@@ -33,20 +33,20 @@
 - [x] **API-01**: 创建 C 风格公共头文件（wan.h）
 - [x] **API-02**: 实现模型加载接口
 - [ ] **API-03**: 实现文本生成视频（T2V）接口
-- [ ] **API-04**: 实现图像生成视频（I2V）接口
+- [x] **API-04**: 实现图像生成视频（I2V）接口
 - [ ] **API-05**: 实现配置参数接口（seed、steps、guidance scale 等）
 
 ### 示例程序
 
 - [x] **EX-01**: 提取并适配 CLI 示例程序
-- [ ] **EX-02**: 实现视频输出功能（AVI 格式）
+- [x] **EX-02**: 实现视频输出功能（AVI 格式）
 - [x] **EX-03**: 添加基础命令行参数解析
 - [x] **EX-04**: 创建使用示例文档
 
 ### 编码器集成
 
-- [ ] **ENCODER-01**: 集成 T5 文本编码器
-- [ ] **ENCODER-02**: 集成 CLIP 图像编码器
+- [x] **ENCODER-01**: 集成 T5 文本编码器
+- [x] **ENCODER-02**: 集成 CLIP 图像编码器
 
 ## v2 Requirements
 
@@ -93,7 +93,7 @@
 | STRUCT-02 | Phase 1 | Completed |
 | STRUCT-03 | Phase 1 | Completed |
 | CORE-01 | Phase 7 | Complete |
-| CORE-02 | Phase 7 | Pending |
+| CORE-02 | Phase 7 | Complete |
 | CORE-03 | Phase 1 | Completed |
 | CORE-04 | Phase 7 | Complete |
 | CORE-05 | Phase 1 | Completed |
@@ -104,14 +104,14 @@
 | API-01 | Phase 3 | Completed |
 | API-02 | Phase 7 | Complete |
 | API-03 | Phase 8 | Pending |
-| API-04 | Phase 8 | Pending |
+| API-04 | Phase 8 | Complete |
 | API-05 | Phase 6 | Pending |
 | EX-01 | Phase 4 | Completed |
-| EX-02 | Phase 8 | Pending |
+| EX-02 | Phase 8 | Complete |
 | EX-03 | Phase 4 | Completed |
 | EX-04 | Phase 4 | Completed |
-| ENCODER-01 | Phase 7 | Pending |
-| ENCODER-02 | Phase 7 | Pending |
+| ENCODER-01 | Phase 7 | Complete |
+| ENCODER-02 | Phase 7 | Complete |
 
 **覆盖率：**
 - v1 需求总计: 22
