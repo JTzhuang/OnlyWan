@@ -8,6 +8,13 @@
 #include "wan.h"
 #include "wan-internal.hpp"
 
+// Full runner headers required here — wan_context holds shared_ptr members
+// whose destructors need complete types at the point of destruction.
+#include "wan.hpp"
+#include "t5.hpp"
+#include "clip.hpp"
+#include "model.h"
+
 #include <cstdarg>
 #include <cstring>
 #include <memory>
@@ -35,26 +42,6 @@
 #endif
 #endif
 
-/* ============================================================================
- * Internal Context Structure
- * ============================================================================ */
-
-/**
- * @brief Internal context structure for Wan operations
- *
- * This structure holds all state needed for Wan model operations.
- * It's opaque to C API user.
- */
-struct wan_context {
-    std::string last_error;
-    std::string model_path;
-    WanModelPtr model;           // Internal Wan model wrapper
-    WanBackendPtr backend;        // GGML backend
-    WanVAEPtr vae;              // VAE for encoding/decoding
-    WanParams params;            // Generation parameters
-    int n_threads;
-    std::string backend_type;
-};
 
 /* ============================================================================
  * Error Handling
@@ -129,13 +116,19 @@ WAN_API wan_error_t wan_load_model(const char* model_path,
     ctx->backend_type = backend_type ? backend_type : "cpu";
 
     // Load model
-    WanModelLoadResult result = Wan::WanModel::load(model_path);
+    WanModelLoadResult result;
+    result.success = false;
+    result.error_message = "Model loading not yet implemented";
     if (!result.success) {
         set_last_error(ctx.get(), result.error_message.c_str());
         return WAN_ERROR_MODEL_LOAD_FAILED;
     }
 
-    ctx->model = result.model;
+    ctx->wan_runner  = result.wan_runner;
+    ctx->vae_runner  = result.vae_runner;
+    ctx->t5_embedder = result.t5_embedder;
+    ctx->clip_runner = result.clip_runner;
+    ctx->model_type  = result.model_type;
     ctx->params.model_version = result.model_version;
 
     // Create backend
@@ -165,7 +158,7 @@ WAN_API wan_error_t wan_load_model_from_file(const char* model_path,
 WAN_API wan_error_t wan_get_model_info(wan_context_t* ctx,
                                               char* out_version,
                                               size_t version_size) {
-    if (!ctx || !ctx->model) {
+    if (!ctx || !ctx->wan_runner) {
         return WAN_ERROR_INVALID_STATE;
     }
 

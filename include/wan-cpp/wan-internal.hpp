@@ -21,43 +21,22 @@
 #include "ggml-backend.h"
 #include "gguf.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+// Forward-declare runner types so wan-internal.hpp can be included by multiple
+// translation units without pulling in the heavy header-only implementations
+// (wan.hpp, t5.hpp, clip.hpp) that contain non-inline function definitions.
+// Translation units that construct these types must include the full headers.
+namespace WAN {
+struct WanRunner;
+struct WanVAERunner;
+} // namespace WAN
 
-/* ============================================================================
- * Forward Declarations
- * ============================================================================ */
-
-namespace Wan {
-
-struct WanModel;
-struct WanVAE;
-struct WanBackend;
-
-} // namespace Wan
-
-#ifdef __cplusplus
-}
-#endif
-
-/* ============================================================================
- * Smart Pointer Types
- * ============================================================================ */
-
-using WanModelPtr = std::shared_ptr<Wan::WanModel>;
-using WanVAEPtr = std::shared_ptr<Wan::WanVAE>;
-using WanBackendPtr = std::unique_ptr<Wan::WanBackend>;
+struct T5Embedder;
+struct CLIPVisionModelProjectionRunner;
 
 /* ============================================================================
  * Internal Parameters Structure
  * ============================================================================ */
 
-/**
- * @brief Internal parameters structure for Wan generation
- *
- * This is a C++ implementation backing the C API params.
- */
 struct WanParams {
     int seed = -1;
     int steps = 30;
@@ -79,7 +58,6 @@ struct WanParams {
     std::string backend = "cpu";
     std::string model_version;  // "WAN2.1", "WAN2.2", etc.
     wan_progress_cb_t progress_cb = nullptr;
-;
     void* user_data = nullptr;
 };
 
@@ -88,89 +66,22 @@ struct WanParams {
  * ============================================================================ */
 
 struct WanModelLoadResult {
-    bool success;
-    WanModelPtr model;
-    WanVAEPtr vae;
+    bool success = false;
+    std::shared_ptr<WAN::WanRunner>                  wan_runner;
+    std::shared_ptr<WAN::WanVAERunner>               vae_runner;
+    std::shared_ptr<T5Embedder>                      t5_embedder;
+    std::shared_ptr<CLIPVisionModelProjectionRunner> clip_runner;
+    std::string model_type;     // "t2v", "i2v", "ti2v"
     std::string error_message;
     std::string model_version;  // "WAN2.1", "WAN2.2", etc.
-};
-
-/* ============================================================================
- * Internal Model Loader
- * ============================================================================ */
-
-namespace Wan {
-
-/**
- * @brief Internal Wan model structure
- *
- * Contains a reference to the loaded GGUF file and metadata.
- */
-struct WanModel {
-    WanParams params;
-    std::string model_path;
-    std::string model_type;  // "t2v", "i2v", etc.
-    std::string model_version;  // "WAN2.1", "WAN2.2", etc.
-    gguf_context* gguf_ctx;
-    ggml_context* params_ctx;
-
-    WanModel() : gguf_ctx(nullptr), params_ctx(nullptr) {}
-
-    ~WanModel() {
-        if (gguf_ctx) {
-            gguf_free(gguf_ctx);
-            gguf_ctx = nullptr;
-        }
-        if (params_ctx) {
-            ggml_free(params_ctx);
-            params_ctx = nullptr;
-        }
-    }
-
-    /**
-     * @brief Load a Wan model from a GGUF file
-     *
-     * @param file_path Path to GGUF model file
-     * @param backend GGML backend for computation
-     * @return Loading result with model or error information
-     */
-    static WanModelLoadResult load(const std::string& file_path);
-
-    /**
-     * @brief Check if model is a valid Wan model
-     */
-    bool is_valid() const {
-        return gguf_ctx != nullptr && !model_version.empty();
-    }
-};
-
-/**
- * @brief Internal VAE structure
- *
- * Contains VAE encoder/decoder for latent space operations.
- */
-struct WanVAE {
-    /**
-     * @brief Decode latent tensors to RGB images
-     */
-    std::vector<uint8_t> decode(struct ggml_tensor* latent);
-
-    /**
-     * @brief Encode RGB images to latent tensors
-     */
-    struct ggml_tensor* encode(const std::vector<uint8_t>& image,
-                              int width, int height);
 };
 
 /* ============================================================================
  * Internal Backend
  * ============================================================================ */
 
-/**
- * @brief Internal backend structure
- *
- * Manages GGML backend initialization and resource allocation.
- */
+namespace Wan {
+
 struct WanBackend {
     ggml_backend_t backend;
     ggml_backend_buffer_t buffer;
@@ -192,17 +103,30 @@ struct WanBackend {
         }
     }
 
-    /**
-     * @brief Create a new GGML backend
-     *
-     * @param type Backend type ("cpu", "cuda", "metal", "vulkan", etc.)
-     * @param n_threads Number of threads (for CPU backend)
-     * @return Backend instance or nullptr on failure
-     */
     static WanBackend* create(const std::string& type, int n_threads);
 };
 
 } // namespace Wan
+
+using WanBackendPtr = std::unique_ptr<Wan::WanBackend>;
+
+/* ============================================================================
+ * Internal Context Structure
+ * ============================================================================ */
+
+struct wan_context {
+    std::string last_error;
+    std::string model_path;
+    std::string model_type;    // "t2v", "i2v", "ti2v"
+    std::shared_ptr<WAN::WanRunner>                  wan_runner;
+    std::shared_ptr<WAN::WanVAERunner>               vae_runner;
+    std::shared_ptr<T5Embedder>                      t5_embedder;
+    std::shared_ptr<CLIPVisionModelProjectionRunner> clip_runner;  // null for T2V
+    WanBackendPtr backend;
+    WanParams params;
+    int n_threads = 0;
+    std::string backend_type;
+};
 
 /* ============================================================================
  * Image Loading Utilities
@@ -210,30 +134,8 @@ struct WanBackend {
 
 namespace WanImage {
 
-/**
- * @brief Load an image from file
- *
- * @param file_path Path to image file (PNG, JPEG, etc.)
- * @return Image data or nullptr on failure
- */
 wan_image_t* load_from_file(const std::string& file_path);
-
-/**
- * @brief Resize an image
- *
- * @param image Source image
- * @param new_width Target width
- * @param new_height Target height
- * @return Resized image (caller must free)
- */
 wan_image_t* resize(const wan_image_t* image, int new_width, int new_height);
-
-/**
- * @brief Convert image to RGB if it's RGBA
- *
- * @param image Source image
- * @return RGB image (caller must free)
- */
 wan_image_t* to_rgb(const wan_image_t* image);
 
 } // namespace WanImage
@@ -244,16 +146,6 @@ wan_image_t* to_rgb(const wan_image_t* image);
 
 namespace WanVideo {
 
-/**
- * @brief Save frames as AVI video file
- *
- * @param frames Vector of image data
- * @param width Frame width
- * @param height Frame height
- * @param fps Frames per second
- * @param output_path Output file path
- * @return true on success
- */
 bool save_as_avi(const std::vector<std::vector<uint8_t>>& frames,
                   int width, int height, int fps,
                   const std::string& output_path);

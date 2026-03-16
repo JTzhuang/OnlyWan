@@ -13,6 +13,10 @@
 #include "ggml.h"
 #include "ggml-cpu.h"
 
+#ifdef WAN_USE_CUDA
+#include "ggml-cuda.h"
+#endif
+
 namespace Wan {
 
 /* ============================================================================
@@ -77,7 +81,6 @@ static bool is_wan_gguf(const std::string& file_path, std::string& model_type, s
 
     // Default version if not found
     if (is_wan && model_version.empty()) {
-        // Try to infer version from model size or architecture
         if (model_type == "i2v") {
             model_version = "WAN2.2";  // I2V is typically WAN2.2
         } else {
@@ -87,63 +90,6 @@ static bool is_wan_gguf(const std::string& file_path, std::string& model_type, s
 
     gguf_free(ctx);
     return is_wan;
-}
-
-/* ============================================================================
- * WanModel Implementation
- * ============================================================================ */
-
-WanModelLoadResult WanModel::load(const std::string& file_path) {
-    WanModelLoadResult result;
-    result.success = false;
-
-    // Check if file exists
-    std::ifstream test_file(file_path);
-    if (!test_file.good()) {
-        result.error_message = "Model file not found: " + file_path;
-        return result;
-    }
-    test_file.close();
-
-    // Validate GGUF file
-    std::string model_type, model_version;
-    if (!is_wan_gguf(file_path, model_type, model_version)) {
-        result.error_message = "Not a valid Wan GGUF model: " + file_path;
-        return result;
-    }
-
-    // Initialize GGML context
-    ggml_init_params ctx_params = {
-        /* .mem_size = */   0,  // Auto-detect
-        /* .mem_buffer = */ nullptr,
-        /* .no_alloc = */   true,  // We'll allocate manually
-    };
-
-    std::unique_ptr<WanModel> model(new WanModel());
-    model->model_path = file_path;
-    model->model_type = model_type;
-    model->model_version = model_version;
-
-    // Initialize GGUF context
-    gguf_init_params gguf_params = {
-        /* .no_alloc = */ 0,
-        /* .ctx = */      nullptr,
-    };
-
-    model->gguf_ctx = gguf_init_from_file(file_path.c_str(), gguf_params);
-    if (!model->gguf_ctx) {
-        result.error_message = "Failed to initialize GGUF context";
-        return result;
-    }
-
-    // Allocate parameter context (will be populated during load)
-    // For now, we just mark as successful
-    // Full tensor loading would be done with ModelLoader
-    result.success = true;
-    result.model = WanModelPtr(model.release());
-    result.model_version = model_version;
-
-    return result;
 }
 
 /* ============================================================================
@@ -181,7 +127,6 @@ WanBackend* WanBackend::create(const std::string& type, int n_threads) {
 #endif
 #ifdef WAN_USE_SYCL
     else if (type == "sycl") {
-        // SYCL backend initialization (implementation depends on SYCL version)
         backend->backend = ggml_backend_cpu_init();  // Fallback
     }
 #endif
@@ -204,7 +149,6 @@ WanBackend* WanBackend::create(const std::string& type, int n_threads) {
     }
 
     // Allocate backend buffer
-    // Start with a reasonable size, will grow if needed
     size_t buffer_size = 256 * 1024 * 1024;  // 256 MB
     backend->buffer = ggml_backend_alloc_buffer(backend->backend, buffer_size);
 
