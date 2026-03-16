@@ -17,6 +17,7 @@
 
 #include <cstdarg>
 #include <cstring>
+#include <fstream>
 #include <memory>
 #include <string>
 
@@ -94,6 +95,129 @@ WAN_API void wan_set_log_callback(wan_log_cb_t callback, void* user_data) {
 }
 
 /* ============================================================================
+ * WanModel::load — Full GGUF weight loading via ModelLoader
+ * Implemented here (not wan_loader.cpp) to avoid ODR violations: wan.hpp,
+ * t5.hpp, and clip.hpp contain non-inline definitions that must appear in
+ * exactly one TU. wan-api.cpp already includes all three headers.
+ * ============================================================================ */
+
+WanModelLoadResult Wan::WanModel::load(const std::string& file_path) {
+    WanModelLoadResult result;
+    result.success = false;
+
+    // Validate file exists
+    {
+        std::ifstream test_file(file_path);
+        if (!test_file.good()) {
+            result.error_message = "Model file not found: " + file_path;
+            return result;
+        }
+    }
+
+    // Validate GGUF and read metadata (model_type, model_version)
+    std::string model_type, model_version;
+    if (!Wan::is_wan_gguf(file_path, model_type, model_version)) {
+        result.error_message = "Not a valid Wan GGUF model: " + file_path;
+        return result;
+    }
+
+    // Map model_type string to SDVersion
+    SDVersion sd_version = VERSION_WAN2;
+    if (model_type == "i2v")  sd_version = VERSION_WAN2_2_I2V;
+    if (model_type == "ti2v") sd_version = VERSION_WAN2_2_TI2V;
+
+    // Initialize CPU backend for weight loading
+    ggml_backend_t backend = ggml_backend_cpu_init();
+    if (!backend) {
+        result.error_message = "Failed to initialize CPU backend for model loading";
+        return result;
+    }
+
+    // Load all tensors from GGUF via ModelLoader
+    ModelLoader model_loader;
+    if (!model_loader.init_from_file_and_convert_name(file_path, "model.diffusion_model.")) {
+        result.error_message = "ModelLoader failed to init from: " + file_path;
+        ggml_backend_free(backend);
+        return result;
+    }
+    auto& tensor_storage_map = model_loader.get_tensor_storage_map();
+
+    // --- DiT (WanRunner) ---
+    auto wan_runner = std::make_shared<WAN::WanRunner>(
+        backend, /*offload_params_to_cpu=*/false,
+        tensor_storage_map, "model.diffusion_model", sd_version);
+    wan_runner->alloc_params_buffer();
+    {
+        std::map<std::string, ggml_tensor*> tensors;
+        wan_runner->get_param_tensors(tensors, "model.diffusion_model");
+        if (!model_loader.load_tensors(tensors)) {
+            result.error_message = "Failed to load DiT tensors from: " + file_path;
+            ggml_backend_free(backend);
+            return result;
+        }
+    }
+
+    // --- VAE (WanVAERunner) — prefix "first_stage_model" (no trailing dot) ---
+    auto vae_runner = std::make_shared<WAN::WanVAERunner>(
+        backend, /*offload_params_to_cpu=*/false,
+        tensor_storage_map, "", /*decode_only=*/false, sd_version);
+    vae_runner->alloc_params_buffer();
+    {
+        std::map<std::string, ggml_tensor*> vae_tensors;
+        vae_runner->get_param_tensors(vae_tensors, "first_stage_model");
+        // best-effort: VAE may be in a separate file
+        model_loader.load_tensors(vae_tensors);
+    }
+
+    // --- T5 encoder — detect prefix dynamically (varies by GGUF file) ---
+    std::string t5_prefix;
+    for (auto& [name, _] : tensor_storage_map) {
+        if (name.find("cond_stage_model.") == 0)    { t5_prefix = "cond_stage_model.";    break; }
+        if (name.find("text_encoders.t5xxl.") == 0) { t5_prefix = "text_encoders.t5xxl."; break; }
+    }
+    std::shared_ptr<T5Embedder> t5_embedder;
+    if (!t5_prefix.empty()) {
+        t5_embedder = std::make_shared<T5Embedder>(
+            backend, false, tensor_storage_map, t5_prefix, /*is_umt5=*/true);
+        t5_embedder->alloc_params_buffer();
+        std::map<std::string, ggml_tensor*> t5_tensors;
+        t5_embedder->get_param_tensors(t5_tensors, t5_prefix);
+        model_loader.load_tensors(t5_tensors);
+    } else {
+        // T5 not bundled in this GGUF — construct tokenizer-only embedder
+        t5_embedder = std::make_shared<T5Embedder>(
+            backend, false, tensor_storage_map, "", /*is_umt5=*/true);
+    }
+
+    // --- CLIP vision encoder — only for i2v / ti2v models ---
+    std::shared_ptr<CLIPVisionModelProjectionRunner> clip_runner;
+    if (model_type == "i2v" || model_type == "ti2v") {
+        std::string clip_prefix;
+        for (auto& [name, _] : tensor_storage_map) {
+            if (name.find("cond_stage_model.visual.") == 0) { clip_prefix = "cond_stage_model.visual."; break; }
+            if (name.find("clip_vision_model.") == 0)       { clip_prefix = "clip_vision_model.";       break; }
+        }
+        if (!clip_prefix.empty()) {
+            clip_runner = std::make_shared<CLIPVisionModelProjectionRunner>(
+                backend, false, tensor_storage_map, clip_prefix, OPEN_CLIP_VIT_H_14);
+            clip_runner->alloc_params_buffer();
+            std::map<std::string, ggml_tensor*> clip_tensors;
+            clip_runner->get_param_tensors(clip_tensors, clip_prefix);
+            model_loader.load_tensors(clip_tensors);
+        }
+    }
+
+    result.success       = true;
+    result.wan_runner    = wan_runner;
+    result.vae_runner    = vae_runner;
+    result.t5_embedder   = t5_embedder;
+    result.clip_runner   = clip_runner;  // nullptr for t2v
+    result.model_type    = model_type;
+    result.model_version = model_version;
+    return result;
+}
+
+/* ============================================================================
  * Model Loading
  * ============================================================================ */
 
@@ -115,10 +239,8 @@ WAN_API wan_error_t wan_load_model(const char* model_path,
     ctx->n_threads = n_threads;
     ctx->backend_type = backend_type ? backend_type : "cpu";
 
-    // Load model
-    WanModelLoadResult result;
-    result.success = false;
-    result.error_message = "Model loading not yet implemented";
+    // Load model weights via ModelLoader
+    WanModelLoadResult result = Wan::WanModel::load(ctx->model_path);
     if (!result.success) {
         set_last_error(ctx.get(), result.error_message.c_str());
         return WAN_ERROR_MODEL_LOAD_FAILED;

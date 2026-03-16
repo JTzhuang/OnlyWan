@@ -1,6 +1,11 @@
 /**
  * @file wan_loader.cpp
- * @brief Wan model loading implementation
+ * @brief Wan backend creation and GGUF validation utilities
+ *
+ * WanModel::load() is implemented in wan-api.cpp which already includes
+ * the full runner headers (wan.hpp, t5.hpp, clip.hpp). Keeping those
+ * includes out of this TU avoids ODR violations from non-inline definitions
+ * in the header-only runner files.
  */
 
 #include "wan-internal.hpp"
@@ -24,11 +29,11 @@ namespace Wan {
  * ============================================================================ */
 
 /**
- * @brief Check if a GGUF file is a valid Wan model
+ * @brief Check if a GGUF file is a valid Wan model and read metadata.
  *
- * Reads metadata from GGUF file and checks for Wan-specific keys.
+ * Sets model_type ("t2v", "i2v", "ti2v") and model_version ("WAN2.1", etc.).
  */
-static bool is_wan_gguf(const std::string& file_path, std::string& model_type, std::string& model_version) {
+bool is_wan_gguf(const std::string& file_path, std::string& model_type, std::string& model_version) {
     gguf_init_params params = {
         /* .no_alloc = */ 0,
         /* .ctx = */      nullptr,
@@ -67,10 +72,10 @@ static bool is_wan_gguf(const std::string& file_path, std::string& model_type, s
         const char* arch_str = gguf_get_val_str(ctx, key_idx);
         if (arch_str) {
             std::string arch = arch_str;
-            if (arch.find("I2V") != std::string::npos || arch.find("i2v") != std::string::npos) {
-                model_type = "i2v";
-            } else if (arch.find("TI2V") != std::string::npos || arch.find("ti2v") != std::string::npos) {
+            if (arch.find("TI2V") != std::string::npos || arch.find("ti2v") != std::string::npos) {
                 model_type = "ti2v";
+            } else if (arch.find("I2V") != std::string::npos || arch.find("i2v") != std::string::npos) {
+                model_type = "i2v";
             } else if (arch.find("T2V") != std::string::npos || arch.find("t2v") != std::string::npos) {
                 model_type = "t2v";
             } else {
@@ -81,11 +86,7 @@ static bool is_wan_gguf(const std::string& file_path, std::string& model_type, s
 
     // Default version if not found
     if (is_wan && model_version.empty()) {
-        if (model_type == "i2v") {
-            model_version = "WAN2.2";  // I2V is typically WAN2.2
-        } else {
-            model_version = "WAN2.1";  // Default
-        }
+        model_version = (model_type == "i2v") ? "WAN2.2" : "WAN2.1";
     }
 
     gguf_free(ctx);
@@ -101,7 +102,6 @@ WanBackend* WanBackend::create(const std::string& type, int n_threads) {
     backend->backend_type = type;
     backend->n_threads = n_threads;
 
-    // Initialize the appropriate GGML backend
     if (type == "cpu" || type == "" || type == "default") {
         backend->backend = ggml_backend_cpu_init();
     }
@@ -148,7 +148,6 @@ WanBackend* WanBackend::create(const std::string& type, int n_threads) {
         return nullptr;
     }
 
-    // Allocate backend buffer
     size_t buffer_size = 256 * 1024 * 1024;  // 256 MB
     backend->buffer = ggml_backend_alloc_buffer(backend->backend, buffer_size);
 

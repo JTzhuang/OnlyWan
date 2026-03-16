@@ -76,6 +76,16 @@ struct WanModelLoadResult {
     std::string model_version;  // "WAN2.1", "WAN2.2", etc.
 };
 
+// WanModel::load — implemented in wan-api.cpp (needs full runner headers)
+// is_wan_gguf — implemented in wan_loader.cpp
+namespace Wan {
+bool is_wan_gguf(const std::string& file_path, std::string& model_type, std::string& model_version);
+
+struct WanModel {
+    static WanModelLoadResult load(const std::string& file_path);
+};
+} // namespace Wan
+
 /* ============================================================================
  * Internal Backend
  * ============================================================================ */
