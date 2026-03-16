@@ -60,12 +60,12 @@
 
 ### API 修复
 
-- [ ] **FIX-01**: 移除 `wan_generate_video_t2v` / `wan_generate_video_i2v` 遗留 stub，调用实际 `_ex` 实现
-- [ ] **FIX-02**: `progress_cb` 在 Euler 去噪循环每步实际触发，传入当前步数和总步数
+- [x] **FIX-01**: 移除 `wan_generate_video_t2v` / `wan_generate_video_i2v` 遗留 stub，调用实际 `_ex` 实现
+- [x] **FIX-02**: `progress_cb` 在 Euler 去噪循环每步实际触发，传入当前步数和总步数
 
 ### 性能优化
 
-- [ ] **PERF-01**: 词汇表文件（umt5/clip，~85MB）改为运行时 mmap 加载，消除编译时头文件嵌入
+- [x] **PERF-01**: 词汇表文件（umt5/clip，~85MB）改为运行时 mmap 加载，消除编译时头文件嵌入
 
 ## v2 Requirements
 

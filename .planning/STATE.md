@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: 模型格式扩展
-current_phase: 0
-status: defining_requirements
-last_updated: "2026-03-16T00:00:00.000Z"
+current_phase: Not started (defining requirements)
+status: unknown
+last_updated: "2026-03-16T16:10:47.872Z"
 progress:
-  total_phases: 0
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_phases: 3
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 2
 ---
 
 # Project State: wan-cpp
@@ -26,7 +26,7 @@ progress:
 
 | Field | Value |
 |-------|-------|
-| Phase | 8 - Implement Generation + AVI Output |
+| Phase | 9 - API Fixes + Vocab + Mmap |
 | Plan | 02 (complete) |
 | Status | Complete |
 | Progress | 100% |
@@ -43,6 +43,7 @@ progress:
 | 6 - Fix Duplicate Symbols | Completed | 1/1 | 06-01 |
 | 7 - Wire Core Model to API | Completed | 3/3 | 07-01, 07-02, 07-03 |
 | 8 - Implement Generation + AVI Output | Completed | 2/2 | 08-01, 08-02 |
+| 9 - API Fixes + Vocab + Mmap | Completed | 2/2 | 09-01, 09-02 |
 
 ## Performance Metrics
 
@@ -57,6 +58,8 @@ progress:
 | 7 - Wire Core Model | 07-02 | 5 min | 1 | 3 | 2026-03-16T05:54:39Z | 2026-03-16T05:59:53Z |
 | 7 - Wire Core Model | 07-03 | 5 min | 2 | 3 | 2026-03-16T06:02:56Z | 2026-03-16T06:07:53Z |
 | 8 - Implement Generation | 08-02 | 15 min | 2 | 3 | 2026-03-16T11:38:00Z | 2026-03-16T11:53:00Z |
+| 9 - API Fixes + Vocab + Mmap | 09-01 | 3 min | 3 | 3 | 2026-03-16T16:07:00Z | 2026-03-16T16:10:00Z |
+| 9 - API Fixes + Vocab + Mmap | 09-02 | 4 min | 3 | 3 | 2026-03-16T16:06:08Z | 2026-03-17T00:10:00Z |
 
 ## Accumulated Context
 
@@ -82,6 +85,9 @@ progress:
 | AVI codec DIB /BI_RGB not MJPG | Phase 8 plan 01 | Raw uncompressed RGB eliminates JPEG encoder dependency; 00dc chunk tag is standard AVI convention even for uncompressed streams |
 | avi_writer.c in CLI CMake sources | Phase 8 plan 02 | Function defined in .c file must be compiled into executable, not static library |
 | avi_writer.h uses C headers not C++ | Phase 8 plan 02 | File compiled as C; cstdint/cstdio not valid in C compilation units |
+| Shared load_vocab_file() helper | Phase 9 plan 02 | Centralizes mmap_read call — one call site instead of six per-function calls |
+| WAN_EMBED_VOCAB defaults OFF | Phase 9 plan 02 | Default build excludes 127MB of .hpp arrays; embedded path preserved for backward compat |
+| Windows FILE* fallback in vocab.cpp | Phase 9 plan 02 | Avoids Win32 MapViewOfFile complexity; FILE* sufficient for vocab loading |
 
 ### Technical Notes
 
@@ -127,9 +133,9 @@ progress:
 
 ## Session Continuity
 
-**Last Action:** Phase 8 Plan 02 - Full T2V/I2V denoising pipeline complete
-**Next Action:** All phases complete — v1.0 milestone reached
-**Context:** Plan 08-02 implemented Euler flow-matching loop, CFG, latent normalization, VAE decode, float->uint8 conversion, and AVI write for both wan_generate_video_t2v_ex and wan_generate_video_i2v_ex. Both functions now return WAN_SUCCESS. Build produces zero errors.
+**Last Action:** Phase 9 Plan 02 - Vocab mmap loading complete
+**Next Action:** Phase 9 complete — all plans done
+**Context:** Plan 09-02 replaced embedded 127MB vocab arrays with runtime mmap loading. vocab.cpp now uses mmap_read() by default; embedded .hpp arrays only compiled when WAN_EMBED_VOCAB=ON. CMakeLists.txt has WAN_EMBED_VOCAB option defaulting to OFF. libwan-cpp.a reduced from ~88MB to 3.1MB.
 
 ---
-*State updated: 2026-03-16*
+*State updated: 2026-03-17*
