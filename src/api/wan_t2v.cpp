@@ -1,11 +1,9 @@
 /**
  * @file wan_t2v.cpp
- * @brief Text-to-video generation — legacy stub entry points
+ * @brief Text-to-video generation — legacy flat-arg entry point
  *
- * wan_generate_video_t2v_ex (the real implementation with T5 encode +
- * WanRunner::compute) lives in wan-api.cpp, which is the single TU that
- * owns the full runner headers (wan.hpp, t5.hpp, clip.hpp) to avoid ODR
- * violations from their non-inline definitions.
+ * Delegates to wan_generate_video_t2v_ex in wan-api.cpp, which owns the
+ * full runner headers to avoid ODR violations.
  */
 
 #include "wan-internal.hpp"
@@ -24,19 +22,17 @@ wan_error_t wan_generate_video_t2v(wan_context_t* ctx,
                                    int fps,
                                    wan_progress_cb_t progress_cb,
                                    void* user_data) {
-    (void)ctx;
-    (void)prompt;
-    (void)output_path;
-    (void)steps;
-    (void)cfg;
-    (void)seed;
-    (void)width;
-    (void)height;
-    (void)num_frames;
-    (void)fps;
-    (void)progress_cb;
-    (void)user_data;
-    return WAN_ERROR_UNSUPPORTED_OPERATION;
+    wan_params_t p = {};
+    p.steps       = steps;
+    p.cfg         = cfg;
+    p.seed        = seed;
+    p.width       = width;
+    p.height      = height;
+    p.num_frames  = num_frames;
+    p.fps         = fps;
+    p.progress_cb = progress_cb;
+    p.user_data   = user_data;
+    return wan_generate_video_t2v_ex(ctx, prompt, &p, output_path);
 }
 
 } // extern "C"
