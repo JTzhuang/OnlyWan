@@ -48,6 +48,25 @@
 - [x] **ENCODER-01**: 集成 T5 文本编码器
 - [x] **ENCODER-02**: 集成 CLIP 图像编码器
 
+## v1.1 Requirements
+
+**里程碑目标：** 支持 safetensors 格式模型，修复 v1.0 遗留问题
+
+### Safetensors 支持
+
+- [ ] **SAFE-01**: 用户可直接加载 .safetensors 格式的 WAN 模型文件（无需预转换）
+- [ ] **SAFE-02**: 提供 safetensors → GGUF 转换工具（独立 CLI 可执行文件）
+- [ ] **SAFE-03**: 转换工具支持 WAN2.1/2.2 所有子模型（DiT、VAE、T5、CLIP）
+
+### API 修复
+
+- [ ] **FIX-01**: 移除 `wan_generate_video_t2v` / `wan_generate_video_i2v` 遗留 stub，调用实际 `_ex` 实现
+- [ ] **FIX-02**: `progress_cb` 在 Euler 去噪循环每步实际触发，传入当前步数和总步数
+
+### 性能优化
+
+- [ ] **PERF-01**: 词汇表文件（umt5/clip，~85MB）改为运行时 mmap 加载，消除编译时头文件嵌入
+
 ## v2 Requirements
 
 延迟到未来发布。已追踪但不在当前路线图中。
