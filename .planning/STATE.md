@@ -1,21 +1,21 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_phase: 8
-status: unknown
-last_updated: "2026-03-16T12:09:13.001Z"
+milestone: v1.1
+milestone_name: 模型格式扩展
+current_phase: 0
+status: defining_requirements
+last_updated: "2026-03-16T00:00:00.000Z"
 progress:
-  total_phases: 8
-  completed_phases: 8
-  total_plans: 11
-  completed_plans: 11
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State: wan-cpp
 
 **Last Updated:** 2026-03-16
-**Current Phase:** 8
+**Current Phase:** Not started (defining requirements)
 
 ## Project Reference
 
