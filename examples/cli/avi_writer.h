@@ -8,10 +8,10 @@
 #ifndef AVI_WRITER_H
 #define AVI_WRITER_H
 
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -19,11 +19,15 @@
 #include "ggml_extend.hpp"
 #include "model.h"
 
+#include "../../examples/cli/avi_writer.h"
+
 #include <cstdarg>
 #include <cstring>
 #include <fstream>
 #include <memory>
+#include <random>
 #include <string>
+#include <vector>
 
 /* ============================================================================
  * Platform-specific API export macros
@@ -340,6 +344,17 @@ WAN_API void wan_free_image(wan_image_t* image) {
 }
 
 /* ============================================================================
+ * WAN 16-channel latent normalization constants (from stable-diffusion.cpp:2424-2427)
+ * ============================================================================ */
+
+static const float wan_latents_mean[16] = {
+    -0.7571f, -0.7089f, -0.9113f,  0.1075f, -0.1745f,  0.9653f, -0.1517f,  1.5508f,
+     0.4134f, -0.0715f,  0.5517f, -0.3632f, -0.1922f, -0.9497f,  0.2503f, -0.2921f};
+static const float wan_latents_std[16] = {
+    2.8184f, 1.4541f, 2.3275f, 2.6558f, 1.2196f, 1.7708f, 2.6052f, 2.0743f,
+    3.2687f, 2.1526f, 2.8652f, 1.5579f, 1.6382f, 1.1253f, 2.8251f, 1.9160f};
+
+/* ============================================================================
  * T2V Generation — T5 encode + WanRunner::compute
  * Implemented here (not wan_t2v.cpp) to avoid ODR violations: wan.hpp and
  * t5.hpp contain non-inline definitions that must appear in exactly one TU.
@@ -401,20 +416,155 @@ WAN_API wan_error_t wan_generate_video_t2v_ex(wan_context_t* ctx,
         return WAN_ERROR_INVALID_STATE;
     }
 
-    // --- WanRunner::compute (single denoising step stub — full loop in Phase 8) ---
-    ggml_tensor* output = nullptr;
-    ctx->wan_runner->compute(n_threads,
-        /*x=*/nullptr, /*timesteps=*/nullptr,
-        context,
-        /*clip_fea=*/nullptr,
-        /*c_concat=*/nullptr, /*time_dim_concat=*/nullptr,
-        /*vace_context=*/nullptr, /*vace_strength=*/1.f,
-        &output, output_ctx);
+    // --- Latent dimensions ---
+    int64_t lW = params->width  / 8;
+    int64_t lH = params->height / 8;
+    int64_t lT = (params->num_frames - 1) / 4 + 1;
+    int steps  = params->steps > 0 ? params->steps : 20;
 
+    // --- Linear sigma schedule: 1.0 -> 0.0 ---
+    std::vector<float> sigmas(steps + 1);
+    for (int i = 0; i <= steps; i++)
+        sigmas[i] = 1.0f - (float)i / (float)steps;
+
+    // --- Denoising work context ---
+    size_t denoise_mem = (size_t)(lW * lH * lT * 16 * 4) * 32 + 64 * 1024 * 1024;
+    ggml_init_params denoise_params = { denoise_mem, nullptr, false };
+    ggml_context* denoise_ctx = ggml_init(denoise_params);
+    if (!denoise_ctx) { ggml_free(output_ctx); return WAN_ERROR_OUT_OF_MEMORY; }
+
+    // --- Initialize noise latent [lW, lH, lT, 16] with randn * sigma[0] ---
+    ggml_tensor* x = ggml_new_tensor_4d(denoise_ctx, GGML_TYPE_F32, lW, lH, lT, 16);
+    {
+        std::mt19937 rng(params->seed >= 0 ? (uint32_t)params->seed : 42u);
+        std::normal_distribution<float> nd(0.0f, 1.0f);
+        float* xd = (float*)x->data;
+        int64_t n = ggml_nelements(x);
+        for (int64_t i = 0; i < n; i++) xd[i] = nd(rng) * sigmas[0];
+    }
+
+    // --- process_latent_in: normalize channel-wise ---
+    for (int64_t c = 0; c < 16; c++)
+        for (int64_t t = 0; t < lT; t++)
+            for (int64_t h = 0; h < lH; h++)
+                for (int64_t w = 0; w < lW; w++) {
+                    float* v = (float*)((char*)x->data +
+                        w*x->nb[0] + h*x->nb[1] + t*x->nb[2] + c*x->nb[3]);
+                    *v = (*v - wan_latents_mean[c]) / wan_latents_std[c];
+                }
+
+    // --- Unconditional T5 context for CFG (empty prompt) ---
+    ggml_tensor* uncond_context = nullptr;
+    {
+        ggml_init_params uc_params = { 64 * 1024 * 1024, nullptr, false };
+        ggml_context* uc_work = ggml_init(uc_params);
+        if (uc_work) {
+            auto [uc_tok, uc_w, uc_mask] =
+                ctx->t5_embedder->tokenize(std::string(""), 512, true);
+            if (!uc_tok.empty()) {
+                ggml_tensor* uc_ids = ggml_new_tensor_2d(uc_work, GGML_TYPE_I32,
+                                                          (int64_t)uc_tok.size(), 1);
+                memcpy(uc_ids->data, uc_tok.data(), uc_tok.size() * sizeof(int32_t));
+                ggml_tensor* uc_attn = ggml_new_tensor_2d(uc_work, GGML_TYPE_F32,
+                                                           (int64_t)uc_mask.size(), 1);
+                memcpy(uc_attn->data, uc_mask.data(), uc_mask.size() * sizeof(float));
+                ctx->t5_embedder->model.compute(n_threads, uc_ids, uc_attn,
+                                                &uncond_context, output_ctx);
+            }
+            ggml_free(uc_work);
+        }
+    }
+
+    // --- Euler loop ---
+    float cfg_scale = params->cfg;
+    for (int i = 0; i < steps; i++) {
+        float sigma    = sigmas[i];
+        float sigma_dt = sigmas[i + 1] - sigma;
+
+        ggml_init_params step_params = { denoise_mem, nullptr, false };
+        ggml_context* step_ctx = ggml_init(step_params);
+        if (!step_ctx) {
+            ggml_free(denoise_ctx); ggml_free(output_ctx);
+            return WAN_ERROR_OUT_OF_MEMORY;
+        }
+
+        ggml_tensor* ts = ggml_new_tensor_1d(step_ctx, GGML_TYPE_F32, 1);
+        ggml_set_f32(ts, sigma);
+
+        ggml_tensor* cond_out = nullptr;
+        ctx->wan_runner->compute(n_threads, x, ts, context,
+                                 nullptr, nullptr, nullptr, nullptr, 1.f,
+                                 &cond_out, step_ctx);
+
+        ggml_tensor* uncond_out = nullptr;
+        if (uncond_context && cfg_scale != 1.0f) {
+            ctx->wan_runner->compute(n_threads, x, ts, uncond_context,
+                                     nullptr, nullptr, nullptr, nullptr, 1.f,
+                                     &uncond_out, step_ctx);
+        }
+
+        float* xd  = (float*)x->data;
+        float* cd  = cond_out  ? (float*)cond_out->data  : nullptr;
+        float* ucd = uncond_out ? (float*)uncond_out->data : cd;
+        if (cd) {
+            int64_t n = ggml_nelements(x);
+            for (int64_t j = 0; j < n; j++) {
+                float denoised = ucd[j] + cfg_scale * (cd[j] - ucd[j]);
+                float d        = (xd[j] - denoised) / (sigma > 1e-6f ? sigma : 1e-6f);
+                xd[j]          = xd[j] + d * sigma_dt;
+            }
+        }
+        ggml_free(step_ctx);
+    }
+
+    // --- process_latent_out: inverse normalize ---
+    for (int64_t c = 0; c < 16; c++)
+        for (int64_t t = 0; t < lT; t++)
+            for (int64_t h = 0; h < lH; h++)
+                for (int64_t w = 0; w < lW; w++) {
+                    float* v = (float*)((char*)x->data +
+                        w*x->nb[0] + h*x->nb[1] + t*x->nb[2] + c*x->nb[3]);
+                    *v = *v * wan_latents_std[c] + wan_latents_mean[c];
+                }
+
+    // --- VAE decode ---
+    ggml_init_params vae_params = { 512 * 1024 * 1024, nullptr, false };
+    ggml_context* vae_ctx = ggml_init(vae_params);
+    if (!vae_ctx) {
+        ggml_free(denoise_ctx); ggml_free(output_ctx);
+        return WAN_ERROR_OUT_OF_MEMORY;
+    }
+    ggml_tensor* decoded = nullptr;
+    ctx->vae_runner->compute(n_threads, x, /*decode_graph=*/true, &decoded, vae_ctx);
+    if (!decoded) {
+        ggml_free(vae_ctx); ggml_free(denoise_ctx); ggml_free(output_ctx);
+        return WAN_ERROR_BACKEND_FAILED;
+    }
+    ggml_ext_tensor_clamp_inplace(decoded, 0.f, 1.f);
+
+    // --- Float -> uint8 frames ---
+    int T_out = (int)decoded->ne[2];
+    int W     = (int)decoded->ne[0];
+    int H     = (int)decoded->ne[1];
+    std::vector<std::vector<uint8_t>> frame_bufs(T_out, std::vector<uint8_t>(W * H * 3));
+    for (int t = 0; t < T_out; t++)
+        for (int h = 0; h < H; h++)
+            for (int w = 0; w < W; w++)
+                for (int c = 0; c < 3; c++) {
+                    float v = ggml_get_f32_nd(decoded, w, h, t, c);
+                    frame_bufs[t][(h * W + w) * 3 + c] = (uint8_t)(v * 255.0f + 0.5f);
+                }
+
+    // --- Write AVI ---
+    std::vector<const uint8_t*> frame_ptrs(T_out);
+    for (int t = 0; t < T_out; t++) frame_ptrs[t] = frame_bufs[t].data();
+    int fps = params->fps > 0 ? params->fps : 16;
+    int ret = create_mjpg_avi_from_rgb_frames(output_path, frame_ptrs.data(),
+                                               T_out, W, H, fps, 90);
+    ggml_free(vae_ctx);
+    ggml_free(denoise_ctx);
     ggml_free(output_ctx);
-
-    // Phase 8 will: run full denoising loop, decode latents, write AVI
-    return WAN_ERROR_UNSUPPORTED_OPERATION;
+    return (ret == 0) ? WAN_SUCCESS : WAN_ERROR_BACKEND_FAILED;
 }
 
 /* ============================================================================
@@ -486,19 +636,202 @@ WAN_API wan_error_t wan_generate_video_i2v_ex(wan_context_t* ctx,
         return WAN_ERROR_INVALID_STATE;
     }
 
-    // --- WanRunner::compute with real clip_fea (ENCODER-02) ---
-    ggml_tensor* output = nullptr;
-    ctx->wan_runner->compute(n_threads,
-        /*x=*/nullptr, /*timesteps=*/nullptr,
-        /*context=*/nullptr,
-        clip_fea,
-        /*c_concat=*/nullptr, /*time_dim_concat=*/nullptr,
-        /*vace_context=*/nullptr, /*vace_strength=*/1.f,
-        &output, output_ctx);
+    // --- T5 encode prompt (optional for I2V) ---
+    ggml_tensor* context = nullptr;
+    if (ctx->t5_embedder && prompt && prompt[0] != '\0') {
+        ggml_init_params t5_work_params = { 64 * 1024 * 1024, nullptr, false };
+        ggml_context* t5_work = ggml_init(t5_work_params);
+        if (t5_work) {
+            auto [tok, wts, mask] = ctx->t5_embedder->tokenize(std::string(prompt), 512, true);
+            if (!tok.empty()) {
+                ggml_tensor* t5_ids = ggml_new_tensor_2d(t5_work, GGML_TYPE_I32,
+                                                          (int64_t)tok.size(), 1);
+                memcpy(t5_ids->data, tok.data(), tok.size() * sizeof(int32_t));
+                ggml_tensor* t5_attn = ggml_new_tensor_2d(t5_work, GGML_TYPE_F32,
+                                                           (int64_t)mask.size(), 1);
+                memcpy(t5_attn->data, mask.data(), mask.size() * sizeof(float));
+                ctx->t5_embedder->model.compute(n_threads, t5_ids, t5_attn,
+                                                &context, output_ctx);
+            }
+            ggml_free(t5_work);
+        }
+    }
 
+    // --- VAE-encode input image to get c_concat ---
+    ggml_init_params img_enc_params = { 128 * 1024 * 1024, nullptr, false };
+    ggml_context* img_enc_ctx = ggml_init(img_enc_params);
+    if (!img_enc_ctx) { ggml_free(output_ctx); return WAN_ERROR_OUT_OF_MEMORY; }
+
+    int iW = image->width, iH = image->height;
+    ggml_tensor* img_tensor = ggml_new_tensor_4d(img_enc_ctx, GGML_TYPE_F32, iW, iH, 3, 1);
+    {
+        float* dst = (float*)img_tensor->data;
+        const uint8_t* src = image->data;
+        for (int c = 0; c < 3; c++)
+            for (int h = 0; h < iH; h++)
+                for (int w = 0; w < iW; w++)
+                    dst[c * iH * iW + h * iW + w] =
+                        (float)src[(h * iW + w) * 3 + c] / 127.5f - 1.0f;
+    }
+    ggml_tensor* c_concat = nullptr;
+    ctx->vae_runner->compute(n_threads, img_tensor, /*decode_graph=*/false, &c_concat, img_enc_ctx);
+    if (!c_concat) {
+        ggml_free(img_enc_ctx); ggml_free(output_ctx);
+        return WAN_ERROR_BACKEND_FAILED;
+    }
+
+    // --- Latent dimensions and sigma schedule ---
+    int64_t lW = params->width  / 8;
+    int64_t lH = params->height / 8;
+    int64_t lT = (params->num_frames - 1) / 4 + 1;
+    int steps  = params->steps > 0 ? params->steps : 20;
+    std::vector<float> sigmas(steps + 1);
+    for (int i = 0; i <= steps; i++)
+        sigmas[i] = 1.0f - (float)i / (float)steps;
+
+    // --- Denoising work context ---
+    size_t denoise_mem = (size_t)(lW * lH * lT * 16 * 4) * 32 + 64 * 1024 * 1024;
+    ggml_init_params denoise_params = { denoise_mem, nullptr, false };
+    ggml_context* denoise_ctx = ggml_init(denoise_params);
+    if (!denoise_ctx) {
+        ggml_free(img_enc_ctx); ggml_free(output_ctx);
+        return WAN_ERROR_OUT_OF_MEMORY;
+    }
+
+    // --- Initialize noise latent ---
+    ggml_tensor* x = ggml_new_tensor_4d(denoise_ctx, GGML_TYPE_F32, lW, lH, lT, 16);
+    {
+        std::mt19937 rng(params->seed >= 0 ? (uint32_t)params->seed : 42u);
+        std::normal_distribution<float> nd(0.0f, 1.0f);
+        float* xd = (float*)x->data;
+        int64_t n = ggml_nelements(x);
+        for (int64_t i = 0; i < n; i++) xd[i] = nd(rng) * sigmas[0];
+    }
+
+    // --- process_latent_in: normalize channel-wise ---
+    for (int64_t c = 0; c < 16; c++)
+        for (int64_t t = 0; t < lT; t++)
+            for (int64_t h = 0; h < lH; h++)
+                for (int64_t w = 0; w < lW; w++) {
+                    float* v = (float*)((char*)x->data +
+                        w*x->nb[0] + h*x->nb[1] + t*x->nb[2] + c*x->nb[3]);
+                    *v = (*v - wan_latents_mean[c]) / wan_latents_std[c];
+                }
+
+    // --- Unconditional T5 context for CFG ---
+    ggml_tensor* uncond_context = nullptr;
+    if (ctx->t5_embedder) {
+        ggml_init_params uc_params = { 64 * 1024 * 1024, nullptr, false };
+        ggml_context* uc_work = ggml_init(uc_params);
+        if (uc_work) {
+            auto [uc_tok, uc_w, uc_mask] =
+                ctx->t5_embedder->tokenize(std::string(""), 512, true);
+            if (!uc_tok.empty()) {
+                ggml_tensor* uc_ids = ggml_new_tensor_2d(uc_work, GGML_TYPE_I32,
+                                                          (int64_t)uc_tok.size(), 1);
+                memcpy(uc_ids->data, uc_tok.data(), uc_tok.size() * sizeof(int32_t));
+                ggml_tensor* uc_attn = ggml_new_tensor_2d(uc_work, GGML_TYPE_F32,
+                                                           (int64_t)uc_mask.size(), 1);
+                memcpy(uc_attn->data, uc_mask.data(), uc_mask.size() * sizeof(float));
+                ctx->t5_embedder->model.compute(n_threads, uc_ids, uc_attn,
+                                                &uncond_context, output_ctx);
+            }
+            ggml_free(uc_work);
+        }
+    }
+
+    // --- Euler loop (I2V: pass clip_fea and c_concat on conditional pass) ---
+    float cfg_scale = params->cfg;
+    for (int i = 0; i < steps; i++) {
+        float sigma    = sigmas[i];
+        float sigma_dt = sigmas[i + 1] - sigma;
+
+        ggml_init_params step_params = { denoise_mem, nullptr, false };
+        ggml_context* step_ctx = ggml_init(step_params);
+        if (!step_ctx) {
+            ggml_free(denoise_ctx); ggml_free(img_enc_ctx); ggml_free(output_ctx);
+            return WAN_ERROR_OUT_OF_MEMORY;
+        }
+
+        ggml_tensor* ts = ggml_new_tensor_1d(step_ctx, GGML_TYPE_F32, 1);
+        ggml_set_f32(ts, sigma);
+
+        ggml_tensor* cond_out = nullptr;
+        ctx->wan_runner->compute(n_threads, x, ts, context,
+                                 clip_fea, c_concat,
+                                 nullptr, nullptr, 1.f,
+                                 &cond_out, step_ctx);
+
+        ggml_tensor* uncond_out = nullptr;
+        if (uncond_context && cfg_scale != 1.0f) {
+            ctx->wan_runner->compute(n_threads, x, ts, uncond_context,
+                                     nullptr, nullptr,
+                                     nullptr, nullptr, 1.f,
+                                     &uncond_out, step_ctx);
+        }
+
+        float* xd  = (float*)x->data;
+        float* cd  = cond_out  ? (float*)cond_out->data  : nullptr;
+        float* ucd = uncond_out ? (float*)uncond_out->data : cd;
+        if (cd) {
+            int64_t n = ggml_nelements(x);
+            for (int64_t j = 0; j < n; j++) {
+                float denoised = ucd[j] + cfg_scale * (cd[j] - ucd[j]);
+                float d        = (xd[j] - denoised) / (sigma > 1e-6f ? sigma : 1e-6f);
+                xd[j]          = xd[j] + d * sigma_dt;
+            }
+        }
+        ggml_free(step_ctx);
+    }
+
+    // --- process_latent_out: inverse normalize ---
+    for (int64_t c = 0; c < 16; c++)
+        for (int64_t t = 0; t < lT; t++)
+            for (int64_t h = 0; h < lH; h++)
+                for (int64_t w = 0; w < lW; w++) {
+                    float* v = (float*)((char*)x->data +
+                        w*x->nb[0] + h*x->nb[1] + t*x->nb[2] + c*x->nb[3]);
+                    *v = *v * wan_latents_std[c] + wan_latents_mean[c];
+                }
+
+    // --- VAE decode ---
+    ggml_init_params vae_params = { 512 * 1024 * 1024, nullptr, false };
+    ggml_context* vae_ctx = ggml_init(vae_params);
+    if (!vae_ctx) {
+        ggml_free(denoise_ctx); ggml_free(img_enc_ctx); ggml_free(output_ctx);
+        return WAN_ERROR_OUT_OF_MEMORY;
+    }
+    ggml_tensor* decoded = nullptr;
+    ctx->vae_runner->compute(n_threads, x, /*decode_graph=*/true, &decoded, vae_ctx);
+    if (!decoded) {
+        ggml_free(vae_ctx); ggml_free(denoise_ctx); ggml_free(img_enc_ctx); ggml_free(output_ctx);
+        return WAN_ERROR_BACKEND_FAILED;
+    }
+    ggml_ext_tensor_clamp_inplace(decoded, 0.f, 1.f);
+
+    // --- Float -> uint8 frames ---
+    int T_out = (int)decoded->ne[2];
+    int W     = (int)decoded->ne[0];
+    int H     = (int)decoded->ne[1];
+    std::vector<std::vector<uint8_t>> frame_bufs(T_out, std::vector<uint8_t>(W * H * 3));
+    for (int t = 0; t < T_out; t++)
+        for (int h = 0; h < H; h++)
+            for (int w = 0; w < W; w++)
+                for (int c = 0; c < 3; c++) {
+                    float v = ggml_get_f32_nd(decoded, w, h, t, c);
+                    frame_bufs[t][(h * W + w) * 3 + c] = (uint8_t)(v * 255.0f + 0.5f);
+                }
+
+    // --- Write AVI ---
+    std::vector<const uint8_t*> frame_ptrs(T_out);
+    for (int t = 0; t < T_out; t++) frame_ptrs[t] = frame_bufs[t].data();
+    int fps = params->fps > 0 ? params->fps : 16;
+    int ret = create_mjpg_avi_from_rgb_frames(output_path, frame_ptrs.data(),
+                                               T_out, W, H, fps, 90);
+    ggml_free(vae_ctx);
+    ggml_free(denoise_ctx);
+    ggml_free(img_enc_ctx);
     ggml_free(output_ctx);
-
-    // Phase 8 will: run full denoising loop, decode latents, write AVI
-    return WAN_ERROR_UNSUPPORTED_OPERATION;
+    return (ret == 0) ? WAN_SUCCESS : WAN_ERROR_BACKEND_FAILED;
 }
 

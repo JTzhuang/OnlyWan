@@ -2,6 +2,7 @@
 
 set(CLI_SOURCES
     main.cpp
+    avi_writer.c
 )
 
 # Create wan-cli executable
