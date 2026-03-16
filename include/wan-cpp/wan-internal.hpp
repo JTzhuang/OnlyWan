@@ -2,7 +2,7 @@
  * @file wan-internal.hpp
  * @brief Internal headers for Wan C API implementation
  *
- * This file contains internal structures and declarations used by the
+ * This file contains internal structures and declarations used by
  * C API implementation. It is not part of public API.
  */
 
@@ -19,6 +19,7 @@
 #include "ggml.h"
 #include "ggml-alloc.h"
 #include "ggml-backend.h"
+#include "gguf.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -76,7 +77,9 @@ struct WanParams {
     float slg_layer_end = 1.0f;
     int n_threads = 0;
     std::string backend = "cpu";
+    std::string model_version;  // "WAN2.1", "WAN2.2", etc.
     wan_progress_cb_t progress_cb = nullptr;
+;
     void* user_data = nullptr;
 };
 
@@ -101,13 +104,28 @@ namespace Wan {
 /**
  * @brief Internal Wan model structure
  *
- * Contains the loaded Wan diffusion model with all its components.
+ * Contains a reference to the loaded GGUF file and metadata.
  */
 struct WanModel {
     WanParams params;
     std::string model_path;
     std::string model_type;  // "t2v", "i2v", etc.
     std::string model_version;  // "WAN2.1", "WAN2.2", etc.
+    gguf_context* gguf_ctx;
+    ggml_context* params_ctx;
+
+    WanModel() : gguf_ctx(nullptr), params_ctx(nullptr) {}
+
+    ~WanModel() {
+        if (gguf_ctx) {
+            gguf_free(gguf_ctx);
+            gguf_ctx = nullptr;
+        }
+        if (params_ctx) {
+            ggml_free(params_ctx);
+            params_ctx = nullptr;
+        }
+    }
 
     /**
      * @brief Load a Wan model from a GGUF file
@@ -116,13 +134,14 @@ struct WanModel {
      * @param backend GGML backend for computation
      * @return Loading result with model or error information
      */
-    static WanModelLoadResult load(const std::string& file_path,
-                                  Wan::WanBackend* backend);
+    static WanModelLoadResult load(const std::string& file_path);
 
     /**
      * @brief Check if model is a valid Wan model
      */
-    bool is_valid() const;
+    bool is_valid() const {
+        return gguf_ctx != nullptr && !model_version.empty();
+    }
 };
 
 /**
@@ -158,6 +177,20 @@ struct WanBackend {
     ggml_context* ctx;
     int n_threads;
     std::string backend_type;
+
+    WanBackend() : backend(nullptr), buffer(nullptr), ctx(nullptr),
+                   n_threads(0), backend_type("cpu") {}
+
+    ~WanBackend() {
+        if (buffer) {
+            ggml_backend_buffer_free(buffer);
+            buffer = nullptr;
+        }
+        if (backend) {
+            ggml_backend_free(backend);
+            backend = nullptr;
+        }
+    }
 
     /**
      * @brief Create a new GGML backend

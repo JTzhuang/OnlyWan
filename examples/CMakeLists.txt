@@ -1,6 +1,5 @@
-# Examples for wan-cpp
+# Examples build configuration
 
-# Add CLI example
 if(WAN_BUILD_EXAMPLES)
     add_subdirectory(cli)
 endif()

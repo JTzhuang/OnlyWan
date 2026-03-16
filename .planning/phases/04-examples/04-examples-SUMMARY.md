@@ -27,8 +27,9 @@ Implemented a complete CLI example program (`wan-cli`) for the wan-cpp library d
 
 | File | Purpose | Lines |
 |-------|---------|-------|
-| `examples/cli/main.cpp` | CLI implementation with argument parsing | ~250 |
-| `examples/cli/avi_writer.h` | AVI video output helper | ~220 |
+| `examples/cli/main.cpp` | Full CLI implementation with comprehensive argument parsing | ~380 |
+| `examples/cli/avi_writer.h` | AVI video output header | ~80 |
+| `examples/cli/avi_writer.c` | AVI video output implementation (stub) | ~90 |
 | `examples/cli/CMakeLists.txt` | Build configuration for CLI | ~35 |
 | `examples/README.md` | Comprehensive usage documentation | ~200 |
 

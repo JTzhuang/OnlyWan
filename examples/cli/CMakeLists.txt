@@ -4,21 +4,16 @@ set(CLI_SOURCES
     main.cpp
 )
 
-set(CLI_HEADERS
-    avi_writer.h
-)
-
-# Create the wan-cli executable
+# Create wan-cli executable
 add_executable(wan-cli ${CLI_SOURCES})
 
-# Link against the wan-cpp library
+# Link against wan-cpp library
 target_link_libraries(wan-cli PRIVATE wan-cpp)
 
 # Include directories
 target_include_directories(wan-cli PRIVATE
     ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/examples/cli
+    ${CMAKE_SOURCE_DIR}/include/wan-cpp
     ${CMAKE_SOURCE_DIR}/thirdparty
     ${GGML_INCLUDE_DIRS}
 )

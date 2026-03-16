@@ -1,0 +1,2 @@
+/usr/bin/ar qc libwan-cpp.a "CMakeFiles/wan-cpp.dir/src/api/wan-api.cpp.o" "CMakeFiles/wan-cpp.dir/src/api/wan_config.cpp.o" "CMakeFiles/wan-cpp.dir/src/api/wan_i2v.cpp.o" "CMakeFiles/wan-cpp.dir/src/api/wan_loader.cpp.o" "CMakeFiles/wan-cpp.dir/src/api/wan_t2v.cpp.o" "CMakeFiles/wan-cpp.dir/src/model.cpp.o" "CMakeFiles/wan-cpp.dir/src/name_conversion.cpp.o" "CMakeFiles/wan-cpp.dir/src/util.cpp.o" thirdparty/CMakeFiles/zip.dir/zip.c.o
+/usr/bin/ranlib libwan-cpp.a
