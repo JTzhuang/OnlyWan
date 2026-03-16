@@ -5,8 +5,8 @@
  * This creates Motion JPEG (MJPG) AVI files from RGB frame data.
  */
 
-#ifndef __AVI_WRITER_H__
-#define __.AVI_WRITER_H__
+#ifndef AVI_WRITER_H
+#define AVI_WRITER_H
 
 #include <cstdint>
 #include <cstdio>
@@ -76,4 +76,4 @@ int create_mjpg_avi_from_rgb_frames(const char* filename,
 }
 #endif
 
-#endif /* __AVI_WRITER_H__ */
+#endif /* AVI_WRITER_H */

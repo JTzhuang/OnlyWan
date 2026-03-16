@@ -97,9 +97,18 @@ file(GLOB WAN_LIB_HEADERS
     "include/wan-cpp/*.hpp"
 )
 
-# Main library source files (recursive)
-file(GLOB_RECURSE WAN_LIB_SOURCES
-    "src/*.cpp"
+# Main library source files (explicit — avoids duplicate symbol pickup)
+set(WAN_LIB_SOURCES
+    src/util.cpp
+    src/model.cpp
+    src/name_conversion.cpp
+    src/tokenize_util.cpp
+    src/vocab/vocab.cpp
+    src/api/wan-api.cpp
+    src/api/wan_config.cpp
+    src/api/wan_t2v.cpp
+    src/api/wan_i2v.cpp
+    src/api/wan_loader.cpp
 )
 
 # Get version from git if available
@@ -171,6 +180,7 @@ target_include_directories(${WAN_LIB} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/wan-cpp>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/vocab>
 )
 
 # Set C++ standard
