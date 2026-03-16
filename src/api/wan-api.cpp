@@ -13,6 +13,7 @@
 #include "wan.hpp"
 #include "t5.hpp"
 #include "clip.hpp"
+#include "ggml_extend.hpp"
 #include "model.h"
 
 #include <cstdarg>
@@ -324,4 +325,166 @@ WAN_API void wan_free_image(wan_image_t* image) {
     }
 }
 
+/* ============================================================================
+ * T2V Generation — T5 encode + WanRunner::compute
+ * Implemented here (not wan_t2v.cpp) to avoid ODR violations: wan.hpp and
+ * t5.hpp contain non-inline definitions that must appear in exactly one TU.
+ * ============================================================================ */
+
+WAN_API wan_error_t wan_generate_video_t2v_ex(wan_context_t* ctx,
+                                              const char* prompt,
+                                              const wan_params_t* params,
+                                              const char* output_path) {
+    if (!ctx || !prompt || !output_path || !params) {
+        return WAN_ERROR_INVALID_ARGUMENT;
+    }
+    if (!ctx->wan_runner) {
+        return WAN_ERROR_INVALID_STATE;
+    }
+    if (!ctx->t5_embedder) {
+        return WAN_ERROR_INVALID_STATE;
+    }
+
+    int n_threads = ctx->n_threads > 0 ? ctx->n_threads : 1;
+
+    // --- T5 encode ---
+    ggml_init_params work_params = { 64 * 1024 * 1024, nullptr, false };
+    ggml_context* work_ctx = ggml_init(work_params);
+    if (!work_ctx) return WAN_ERROR_OUT_OF_MEMORY;
+
+    auto [tokens, weights, attention_mask] =
+        ctx->t5_embedder->tokenize(std::string(prompt), 512, true);
+
+    if (tokens.empty()) {
+        ggml_free(work_ctx);
+        return WAN_ERROR_INVALID_ARGUMENT;
+    }
+
+    ggml_tensor* input_ids = ggml_new_tensor_2d(work_ctx, GGML_TYPE_I32,
+                                                 (int64_t)tokens.size(), 1);
+    memcpy(input_ids->data, tokens.data(), tokens.size() * sizeof(int32_t));
+
+    ggml_tensor* attn_mask = ggml_new_tensor_2d(work_ctx, GGML_TYPE_F32,
+                                                 (int64_t)attention_mask.size(), 1);
+    memcpy(attn_mask->data, attention_mask.data(),
+           attention_mask.size() * sizeof(float));
+
+    ggml_init_params out_params = { 256 * 1024 * 1024, nullptr, false };
+    ggml_context* output_ctx = ggml_init(out_params);
+    if (!output_ctx) {
+        ggml_free(work_ctx);
+        return WAN_ERROR_OUT_OF_MEMORY;
+    }
+
+    ggml_tensor* context = nullptr;
+    ctx->t5_embedder->model.compute(n_threads, input_ids, attn_mask,
+                                    &context, output_ctx);
+
+    ggml_free(work_ctx);
+
+    if (!context) {
+        ggml_free(output_ctx);
+        return WAN_ERROR_INVALID_STATE;
+    }
+
+    // --- WanRunner::compute (single denoising step stub — full loop in Phase 8) ---
+    ggml_tensor* output = nullptr;
+    ctx->wan_runner->compute(n_threads,
+        /*x=*/nullptr, /*timesteps=*/nullptr,
+        context,
+        /*clip_fea=*/nullptr,
+        /*c_concat=*/nullptr, /*time_dim_concat=*/nullptr,
+        /*vace_context=*/nullptr, /*vace_strength=*/1.f,
+        &output, output_ctx);
+
+    ggml_free(output_ctx);
+
+    // Phase 8 will: run full denoising loop, decode latents, write AVI
+    return WAN_ERROR_UNSUPPORTED_OPERATION;
+}
+
+/* ============================================================================
+ * I2V Generation — CLIP encode + WanRunner::compute
+ * Implemented here (not wan_i2v.cpp) to avoid ODR violations: clip.hpp and
+ * preprocessing.hpp contain non-inline definitions that must appear in
+ * exactly one TU.
+ * ============================================================================ */
+
+WAN_API wan_error_t wan_generate_video_i2v_ex(wan_context_t* ctx,
+                                              const wan_image_t* image,
+                                              const char* prompt,
+                                              const wan_params_t* params,
+                                              const char* output_path) {
+    if (!ctx || !image || !output_path || !params) {
+        return WAN_ERROR_INVALID_ARGUMENT;
+    }
+    if (!ctx->wan_runner) {
+        return WAN_ERROR_INVALID_STATE;
+    }
+    if (!ctx->clip_runner) {
+        return WAN_ERROR_INVALID_STATE;
+    }
+    if (!image->data || image->width <= 0 || image->height <= 0) {
+        return WAN_ERROR_INVALID_ARGUMENT;
+    }
+
+    int n_threads = ctx->n_threads > 0 ? ctx->n_threads : 1;
+
+    // --- Convert wan_image_t to sd_image_t (identical layout) ---
+    sd_image_t sd_img;
+    sd_img.width   = image->width;
+    sd_img.height  = image->height;
+    sd_img.channel = image->channels;
+    sd_img.data    = image->data;
+
+    // --- Build pixel_values tensor for CLIP ---
+    ggml_init_params work_params = { 128 * 1024 * 1024, nullptr, false };
+    ggml_context* work_ctx = ggml_init(work_params);
+    if (!work_ctx) return WAN_ERROR_OUT_OF_MEMORY;
+
+    ggml_tensor* pixel_values = ggml_new_tensor_4d(work_ctx, GGML_TYPE_F32,
+                                                    sd_img.width, sd_img.height,
+                                                    sd_img.channel, 1);
+    if (!pixel_values) {
+        ggml_free(work_ctx);
+        return WAN_ERROR_IMAGE_LOAD_FAILED;
+    }
+    sd_image_to_ggml_tensor(sd_img, pixel_values);
+
+    // --- CLIP vision encode via ctx->clip_runner (weights loaded by wan_loader.cpp) ---
+    // clip_fea shape: [N, 257, 1280] with return_pooled=false
+    ggml_init_params out_params = { 256 * 1024 * 1024, nullptr, false };
+    ggml_context* output_ctx = ggml_init(out_params);
+    if (!output_ctx) {
+        ggml_free(work_ctx);
+        return WAN_ERROR_OUT_OF_MEMORY;
+    }
+
+    ggml_tensor* clip_fea = nullptr;
+    ctx->clip_runner->compute(n_threads, pixel_values,
+                              /*return_pooled=*/false, /*clip_skip=*/-1,
+                              &clip_fea, output_ctx);
+
+    ggml_free(work_ctx);
+
+    if (!clip_fea) {
+        ggml_free(output_ctx);
+        return WAN_ERROR_INVALID_STATE;
+    }
+
+    // --- WanRunner::compute with real clip_fea (ENCODER-02) ---
+    ggml_tensor* output = nullptr;
+    ctx->wan_runner->compute(n_threads,
+        /*x=*/nullptr, /*timesteps=*/nullptr,
+        /*context=*/nullptr,
+        clip_fea,
+        /*c_concat=*/nullptr, /*time_dim_concat=*/nullptr,
+        /*vace_context=*/nullptr, /*vace_strength=*/1.f,
+        &output, output_ctx);
+
+    ggml_free(output_ctx);
+
+    // Phase 8 will: run full denoising loop, decode latents, write AVI
+    return WAN_ERROR_UNSUPPORTED_OPERATION;
+}
 
