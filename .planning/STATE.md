@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 07
 status: unknown
-last_updated: "2026-03-16T05:59:53Z"
+last_updated: "2026-03-16T06:07:53Z"
 progress:
   total_phases: 8
   completed_phases: 6
@@ -20,16 +20,16 @@ progress:
 ## Project Reference
 
 **Core Value:** Provide independent, lightweight, cross-platform WAN video generation inference capabilities
-**Current Focus:** Phase 5 - Encoders (T5 and CLIP encoder integration)
+**Current Focus:** Phase 7 - Wire Core Model to API (complete)
 
 ## Current Position
 
 | Field | Value |
 |-------|-------|
 | Phase | 7 - Wire Core Model to API |
-| Plan | 03 |
-| Status | In Progress |
-| Progress | 87% |
+| Plan | 03 (complete) |
+| Status | Completed |
+| Progress | 93% |
 
 ## Phase Progress
 
@@ -41,7 +41,7 @@ progress:
 | 4 - Examples | Completed | 1/1 | 04-examples |
 | 5 - Encoders | Completed | 1/1 | 05-encoders |
 | 6 - Fix Duplicate Symbols | Completed | 1/1 | 06-01 |
-| 7 - Wire Core Model to API | In Progress | 2/3 | 07-01, 07-02 |
+| 7 - Wire Core Model to API | Completed | 3/3 | 07-01, 07-02, 07-03 |
 | 8 - Implement Generation + AVI Output | Planned | 0/1 | - |
 
 ## Performance Metrics
@@ -55,6 +55,7 @@ progress:
 | 5 - Encoders | 05-encoders | - | - | - | - | - |
 | 6 - Fix Duplicate Symbols | 06-01 | 15 min | 3 | 4 | 2026-03-16T03:06:00Z | 2026-03-16T03:21:18Z |
 | 7 - Wire Core Model | 07-02 | 5 min | 1 | 3 | 2026-03-16T05:54:39Z | 2026-03-16T05:59:53Z |
+| 7 - Wire Core Model | 07-03 | 5 min | 2 | 3 | 2026-03-16T06:02:56Z | 2026-03-16T06:07:53Z |
 
 ## Accumulated Context
 
@@ -74,6 +75,8 @@ progress:
 | WAN_API on all wan_params_* | Phase 6 execution | ABI visibility required for correct Windows shared build exports |
 | Forward declarations in wan-internal.hpp | Phase 7 plan 01 | wan.hpp/t5.hpp/clip.hpp contain non-inline defs; forward-declare runner types to prevent ODR violations across TUs |
 | WanModel::load in wan-api.cpp | Phase 7 plan 02 | Runner construction must live in single TU that owns full header includes; wan_loader.cpp stays header-free to avoid ODR |
+| _ex generation in wan-api.cpp | Phase 7 plan 03 | wan_generate_video_t2v_ex and i2v_ex moved to wan-api.cpp; calling runner methods requires complete types, only available in single-TU owning all headers |
+| ggml_extend.hpp not preprocessing.hpp | Phase 7 plan 03 | preprocessing.hpp has non-inline convolve/gaussian_kernel already emitted by util.cpp; ggml_extend.hpp provides sd_image_to_ggml_tensor as __STATIC_INLINE__ safe for multiple TUs |
 
 ### Technical Notes
 
@@ -120,9 +123,9 @@ progress:
 
 ## Session Continuity
 
-**Last Action:** Phase 7 Plan 02 - Wire Core Model (WanModel::load weight loading) complete
-**Next Action:** Execute Phase 7 Plan 03
-**Context:** Plan 07-02 implemented WanModel::load in wan-api.cpp using ModelLoader for full GGUF weight loading. Constructs WanRunner, WanVAERunner, T5Embedder, CLIPVisionModelProjectionRunner with dynamic prefix detection. wan_load_model now calls Wan::WanModel::load. Build produces zero errors.
+**Last Action:** Phase 7 Plan 03 - Wire Core Model (encoder-to-model wiring) complete
+**Next Action:** Execute Phase 8 - Implement Generation + AVI Output
+**Context:** Plan 07-03 wired T5 tokenize+compute and CLIP sd_image_to_ggml_tensor+compute to WanRunner::compute. Both _ex implementations live in wan-api.cpp (single TU owning all runner headers). wan_t2v.cpp and wan_i2v.cpp reduced to legacy stubs. Build produces zero errors. Phase 7 fully complete.
 
 ---
-*State updated: 2026-03-15*
+*State updated: 2026-03-16*
