@@ -19,7 +19,7 @@ This roadmap extracts a standalone C++ library for WAN video generation from sta
 | 5 - Encoders | Completed | 100% | 2026-03-16 |
 | 6 - Fix Duplicate Symbols | Completed | Complete    | 2026-03-16 |
 | 7 - Wire Core Model to API | 3/3 | Complete    | 2026-03-16 |
-| 8 - Implement Generation + AVI Output | In Progress | 1/1 | 2026-03-16 |
+| 8 - Implement Generation + AVI Output | 2/2 | Complete   | 2026-03-16 |
 
 ## Phases
 
@@ -30,7 +30,7 @@ This roadmap extracts a standalone C++ library for WAN video generation from sta
 - [x] **Phase 5: Encoders** - T5 and CLIP text/image encoder integration
 - [x] **Phase 6: Fix Duplicate Symbols** - Resolve linker failures from duplicate symbol definitions (completed 2026-03-16)
 - [x] **Phase 7: Wire Core Model to API** - Connect wan.hpp model to API layer and encoder outputs (completed 2026-03-16)
-- [ ] **Phase 8: Implement Generation + AVI Output** - Implement T2V/I2V generation pipeline and wire AVI writer
+- [x] **Phase 8: Implement Generation + AVI Output** - Implement T2V/I2V generation pipeline and wire AVI writer (completed 2026-03-16)
 
 ## Phase Details
 

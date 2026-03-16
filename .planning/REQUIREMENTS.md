@@ -32,7 +32,7 @@
 
 - [x] **API-01**: 创建 C 风格公共头文件（wan.h）
 - [x] **API-02**: 实现模型加载接口
-- [ ] **API-03**: 实现文本生成视频（T2V）接口
+- [x] **API-03**: 实现文本生成视频（T2V）接口
 - [x] **API-04**: 实现图像生成视频（I2V）接口
 - [ ] **API-05**: 实现配置参数接口（seed、steps、guidance scale 等）
 
@@ -103,7 +103,7 @@
 | BUILD-04 | Phase 2 | Completed |
 | API-01 | Phase 3 | Completed |
 | API-02 | Phase 7 | Complete |
-| API-03 | Phase 8 | Pending |
+| API-03 | Phase 8 | Complete |
 | API-04 | Phase 8 | Complete |
 | API-05 | Phase 6 | Pending |
 | EX-01 | Phase 4 | Completed |

@@ -4,12 +4,12 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 08
 status: unknown
-last_updated: "2026-03-16T06:21:11.245Z"
+last_updated: "2026-03-16T11:38:23.647Z"
 progress:
   total_phases: 8
-  completed_phases: 7
-  total_plans: 9
-  completed_plans: 9
+  completed_phases: 8
+  total_plans: 11
+  completed_plans: 11
 ---
 
 # Project State: wan-cpp
@@ -27,9 +27,9 @@ progress:
 | Field | Value |
 |-------|-------|
 | Phase | 8 - Implement Generation + AVI Output |
-| Plan | 01 (complete) |
-| Status | In Progress |
-| Progress | 96% |
+| Plan | 02 (complete) |
+| Status | Complete |
+| Progress | 100% |
 
 ## Phase Progress
 
@@ -42,7 +42,7 @@ progress:
 | 5 - Encoders | Completed | 1/1 | 05-encoders |
 | 6 - Fix Duplicate Symbols | Completed | 1/1 | 06-01 |
 | 7 - Wire Core Model to API | Completed | 3/3 | 07-01, 07-02, 07-03 |
-| 8 - Implement Generation + AVI Output | In Progress | 1/1 | 08-01 |
+| 8 - Implement Generation + AVI Output | Completed | 2/2 | 08-01, 08-02 |
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ progress:
 | 6 - Fix Duplicate Symbols | 06-01 | 15 min | 3 | 4 | 2026-03-16T03:06:00Z | 2026-03-16T03:21:18Z |
 | 7 - Wire Core Model | 07-02 | 5 min | 1 | 3 | 2026-03-16T05:54:39Z | 2026-03-16T05:59:53Z |
 | 7 - Wire Core Model | 07-03 | 5 min | 2 | 3 | 2026-03-16T06:02:56Z | 2026-03-16T06:07:53Z |
+| 8 - Implement Generation | 08-02 | 15 min | 2 | 3 | 2026-03-16T11:38:00Z | 2026-03-16T11:53:00Z |
 
 ## Accumulated Context
 
@@ -79,6 +80,8 @@ progress:
 | ggml_extend.hpp not preprocessing.hpp | Phase 7 plan 03 | preprocessing.hpp has non-inline convolve/gaussian_kernel already emitted by util.cpp; ggml_extend.hpp provides sd_image_to_ggml_tensor as __STATIC_INLINE__ safe for multiple TUs |
 | STB_IMAGE_IMPLEMENTATION in wan-api.cpp only | Phase 8 plan 01 | Single TU rule — defining in wan-api.cpp avoids ODR violations; stbi_load force-RGB (desired_channels=3) simplifies downstream handling |
 | AVI codec DIB /BI_RGB not MJPG | Phase 8 plan 01 | Raw uncompressed RGB eliminates JPEG encoder dependency; 00dc chunk tag is standard AVI convention even for uncompressed streams |
+| avi_writer.c in CLI CMake sources | Phase 8 plan 02 | Function defined in .c file must be compiled into executable, not static library |
+| avi_writer.h uses C headers not C++ | Phase 8 plan 02 | File compiled as C; cstdint/cstdio not valid in C compilation units |
 
 ### Technical Notes
 
@@ -120,14 +123,13 @@ progress:
 
 ### Pending
 
-- Execute Phase 5 plan to integrate T5 and CLIP encoders
-- Complete T2V/I2V generation with encoder integration
+- None — all phases complete
 
 ## Session Continuity
 
-**Last Action:** Phase 8 Plan 01 - wan_load_image and avi_writer.c complete
-**Next Action:** Execute Phase 8 Plan 02 - Implement T2V/I2V generation pipeline
-**Context:** Plan 08-01 implemented wan_load_image via stbi_load (force 3-channel RGB) in wan-api.cpp and rewrote avi_writer.c with complete RIFF/hdrl/strl/movi structure, 00dc frame chunks, and fseek-based size patching. Build produces zero errors.
+**Last Action:** Phase 8 Plan 02 - Full T2V/I2V denoising pipeline complete
+**Next Action:** All phases complete — v1.0 milestone reached
+**Context:** Plan 08-02 implemented Euler flow-matching loop, CFG, latent normalization, VAE decode, float->uint8 conversion, and AVI write for both wan_generate_video_t2v_ex and wan_generate_video_i2v_ex. Both functions now return WAN_SUCCESS. Build produces zero errors.
 
 ---
 *State updated: 2026-03-16*
