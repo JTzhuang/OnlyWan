@@ -185,8 +185,10 @@ This roadmap extracts a standalone C++ library for WAN video generation from sta
 5. T5 token output from `wan_t2v.cpp` passed to WAN model inference
 6. CLIP token output from `wan_i2v.cpp` passed to WAN model inference
 
-**Plans**: 07-wire-core-model (Planned)
-- [ ] 07-wire-core-model: Wire WAN model to API layer
+**Plans**: 3 plans
+- [ ] 07-01-PLAN.md — Restructure wan-internal.hpp: move wan_context definition with WanRunner/WanVAERunner/T5Embedder members
+- [ ] 07-02-PLAN.md — Rewrite wan_loader.cpp: ModelLoader weight loading for WanRunner, WanVAERunner, T5Embedder
+- [ ] 07-03-PLAN.md — Wire encoders in wan_t2v.cpp and wan_i2v.cpp: T5/CLIP outputs passed to WanRunner::compute
 
 ---
 
@@ -259,4 +261,4 @@ These features are tracked in REQUIREMENTS.md but not part of v1 roadmap.
 
 ---
 *Roadmap created: 2026-03-12*
-*Last updated: 2026-03-16 after Phase 6 planning*
+*Last updated: 2026-03-16 after Phase 7 planning*
