@@ -515,6 +515,16 @@ WAN_API wan_error_t wan_generate_video_t2v_ex(wan_context_t* ctx,
             }
         }
         ggml_free(step_ctx);
+        if (params->progress_cb) {
+            int abort = params->progress_cb(i, steps,
+                                            (float)(i + 1) / (float)steps,
+                                            params->user_data);
+            if (abort) {
+                ggml_free(denoise_ctx);
+                ggml_free(output_ctx);
+                return WAN_ERROR_GENERATION_FAILED;
+            }
+        }
     }
 
     // --- process_latent_out: inverse normalize ---
@@ -782,6 +792,17 @@ WAN_API wan_error_t wan_generate_video_i2v_ex(wan_context_t* ctx,
             }
         }
         ggml_free(step_ctx);
+        if (params->progress_cb) {
+            int abort = params->progress_cb(i, steps,
+                                            (float)(i + 1) / (float)steps,
+                                            params->user_data);
+            if (abort) {
+                ggml_free(denoise_ctx);
+                ggml_free(img_enc_ctx);
+                ggml_free(output_ctx);
+                return WAN_ERROR_GENERATION_FAILED;
+            }
+        }
     }
 
     // --- process_latent_out: inverse normalize ---
