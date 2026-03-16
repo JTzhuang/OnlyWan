@@ -43,7 +43,10 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
   2. 生成过程中 progress_cb 在每个 Euler 步骤触发，传入正确的 step/total 值
   3. 库编译时不再嵌入 ~85MB 词汇表头文件；词汇表从外部文件 mmap 加载
   4. 现有 T2V/I2V 生成结果与 v1.0 _ex 接口输出一致（无回归）
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 09-01-PLAN.md — Fix T2V/I2V stubs (FIX-01) + wire progress_cb into both Euler loops (FIX-02)
+- [ ] 09-02-PLAN.md — Replace embedded vocab arrays with mmap loading + WAN_EMBED_VOCAB CMake option (PERF-01)
 
 ### Phase 10: Safetensors Runtime Loading
 **Goal**: 用户可直接用 .safetensors 文件调用 wan_load_model，无需预转换
@@ -77,9 +80,9 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
 | 6. Fix Duplicate Symbols | v1.0 | 1/1 | Complete | 2026-03-16 |
 | 7. Wire Core Model to API | v1.0 | 3/3 | Complete | 2026-03-16 |
 | 8. Implement Generation + AVI Output | v1.0 | 2/2 | Complete | 2026-03-16 |
-| 9. API Fixes + Vocab mmap | v1.1 | 0/? | Not started | - |
+| 9. API Fixes + Vocab mmap | v1.1 | 0/2 | Not started | - |
 | 10. Safetensors Runtime Loading | v1.1 | 0/? | Not started | - |
 | 11. Safetensors Conversion Tool | v1.1 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-16 — v1.1 roadmap created*
+*Last updated: 2026-03-16 — Phase 9 plans created*
