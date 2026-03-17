@@ -11,6 +11,12 @@ add_executable(wan-cli ${CLI_SOURCES})
 # Link against wan-cpp library
 target_link_libraries(wan-cli PRIVATE wan-cpp)
 
+# Propagate WAN_EMBED_VOCAB to CLI so #ifndef WAN_EMBED_VOCAB guards work correctly.
+# The macro is PRIVATE on wan-cpp and does not propagate automatically.
+if(WAN_EMBED_VOCAB)
+    target_compile_definitions(wan-cli PRIVATE WAN_EMBED_VOCAB)
+endif()
+
 # Include directories
 target_include_directories(wan-cli PRIVATE
     ${CMAKE_SOURCE_DIR}/include

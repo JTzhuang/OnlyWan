@@ -26,6 +26,7 @@ typedef struct {
     char* output_path;             // Output video path
     char* backend;                 // Backend type (cpu, cuda, metal, vulkan)
     char* negative_prompt;         // Negative prompt
+    char* vocab_dir;               // Vocab directory (required for WAN_EMBED_VOCAB=OFF builds)
 
     /* Parameters */
     int threads;                   // Number of threads (0 = auto)
@@ -97,6 +98,7 @@ static void print_usage(const char* program_name) {
     printf("  -i, --input <path>         Input image for I2V mode\n");
     printf("  -o, --output <path>        Output video path (default: output.avi)\n");
     printf("  -b, --backend <type>       Backend: cpu, cuda, metal, vulkan (default: cpu)\n");
+    printf("  --vocab-dir <path>         Vocab files directory (required for WAN_EMBED_VOCAB=OFF builds)\n");
     printf("  -t, --threads <num>        Number of threads (0 = auto, default: 0)\n");
     printf("\nGeneration Parameters:\n");
     printf("  -W, --width <pixels>        Output width (default: %d)\n", DEFAULT_WIDTH);
@@ -131,6 +133,7 @@ static void init_options(cli_options_t* opts) {
     opts->output_path = NULL;
     opts->backend = NULL;
     opts->negative_prompt = NULL;
+    opts->vocab_dir = NULL;
 
     opts->threads = DEFAULT_THREADS;
     opts->width = DEFAULT_WIDTH;
@@ -249,6 +252,12 @@ static int parse_args(cli_options_t* opts, int argc, char** argv) {
         if ((strcmp(arg, "-n") == 0 || strcmp(arg, "--negative") == 0 ||
              strcmp(arg, "--negative-prompt") == 0) && i + 1 < argc) {
             opts->negative_prompt = argv[++i];
+            continue;
+        }
+
+        /* Vocab dir */
+        if (strcmp(arg, "--vocab-dir") == 0 && i + 1 < argc) {
+            opts->vocab_dir = argv[++i];
             continue;
         }
 
@@ -400,6 +409,19 @@ int main(int argc, char** argv) {
 
     /* Print generation info */
     print_generation_info(&opts);
+
+    /* Set vocab directory before loading model */
+#ifndef WAN_EMBED_VOCAB
+    if (!opts.vocab_dir) {
+        fprintf(stderr, "Warning: WAN_EMBED_VOCAB=OFF build but --vocab-dir not provided; vocab loading will fail\n");
+    } else {
+        wan_set_vocab_dir(opts.vocab_dir);
+    }
+#else
+    if (opts.vocab_dir) {
+        wan_set_vocab_dir(opts.vocab_dir);  /* returns WAN_ERROR_INVALID_ARGUMENT; ignored */
+    }
+#endif
 
     /* Load model */
     wan_context_t* ctx = NULL;
