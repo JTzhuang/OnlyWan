@@ -1,2 +1,0 @@
-/usr/bin/ar qc libavi_writer.a CMakeFiles/avi_writer.dir/avi_writer.c.o
-/usr/bin/ranlib libavi_writer.a
