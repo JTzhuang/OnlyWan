@@ -82,7 +82,9 @@ Plans:
   1. `wan.h` 声明 `wan_set_vocab_dir(const char* dir)` 函数
   2. `wan-cli` 支持 `--vocab-dir` 参数，调用 `wan_set_vocab_dir` 后 T2V/I2V 生成成功
   3. 使用 `WAN_EMBED_VOCAB=OFF` 构建时，提供词汇表目录后生成不返回 `WAN_ERROR_INVALID_ARGUMENT`
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 12-01-PLAN.md — Add vocab accessors + wan_set_vocab_dir public API + --vocab-dir CLI arg (PERF-01, ENCODER-01, ENCODER-02, API-03, API-04)
 
 ### Phase 13: Document wan-convert Sub-model Scope
 **Goal**: 用户清楚了解 wan-convert 各 --type 值的适用范围，SAFE-03 限制有文档说明
@@ -109,8 +111,8 @@ Plans:
 | 9. API Fixes + Vocab mmap | v1.1 | 2/2 | Complete | 2026-03-16 |
 | 10. Safetensors Runtime Loading | v1.1 | 1/1 | Complete | 2026-03-17 |
 | 11. Safetensors Conversion Tool | v1.1 | 1/1 | Complete | 2026-03-17 |
-| 12. Wire Vocab Dir to Public API | v1.1 | 0/? | Not started | - |
+| 12. Wire Vocab Dir to Public API | v1.1 | 0/1 | Not started | - |
 | 13. Document wan-convert Sub-model Scope | v1.1 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-17 — Phase 11 complete*
+*Last updated: 2026-03-17 — Phase 12 planned*
