@@ -48,6 +48,7 @@ progress:
 | 11 - Safetensors Conversion Tool | Completed | 1/1 | 11-01 |
 | 12 - Wire Vocab Dir to Public API | Completed | 1/1 | 12-01 |
 | 13 - Document wan-convert Sub-model Scope | Completed | 1/1 | 13-01 |
+| 14 - 性能优化 - CUDA Graph 和算子融合 | Pending | 0/? | - |
 
 ## Performance Metrics
 
@@ -70,6 +71,10 @@ progress:
 | 13 - Document wan-convert Sub-model Scope | 13-01 | 2 min | 3 | 2 | 2026-03-17T06:30:19Z | 2026-03-17T06:32:01Z |
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 14 added: 性能优化 - CUDA Graph 和算子融合（基于优化 TODO 列表，重点关注 Quick Wins）
 
 ### Key Decisions
 

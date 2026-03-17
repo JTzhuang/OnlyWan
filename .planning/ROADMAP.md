@@ -116,5 +116,15 @@ Plans:
 | 12. Wire Vocab Dir to Public API | v1.1 | 1/1 | Complete | 2026-03-17 |
 | 13. Document wan-convert Sub-model Scope | 1/1 | Complete    | 2026-03-17 | - |
 
+### Phase 14: 性能优化 - CUDA Graph 和算子融合
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 13
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 14 to break down)
+
 ---
 *Last updated: 2026-03-17 — Phase 13 planned*
