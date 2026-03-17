@@ -4,12 +4,12 @@ milestone: v1.1
 milestone_name: 模型格式扩展
 current_phase: 13
 status: unknown
-last_updated: "2026-03-17T06:39:29.540Z"
+last_updated: "2026-03-17T09:46:56.139Z"
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 5
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 8
+  completed_plans: 7
 ---
 
 # Project State: wan-cpp
@@ -69,6 +69,7 @@ progress:
 | 11 - Safetensors Conversion Tool | 11-01 | 6 min | 2 | 5 | 2026-03-17T02:57:54Z | 2026-03-17T03:03:56Z |
 | 12 - Wire Vocab Dir to Public API | 12-01 | 3 min | 2 | 6 | 2026-03-17T04:51:40Z | 2026-03-17T04:54:47Z |
 | 13 - Document wan-convert Sub-model Scope | 13-01 | 2 min | 3 | 2 | 2026-03-17T06:30:19Z | 2026-03-17T06:32:01Z |
+| Phase 14 P01 | 681 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
