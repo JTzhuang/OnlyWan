@@ -94,7 +94,9 @@ Plans:
   1. `wan-convert --help` 输出说明哪些 `--type` 值（dit-t2v/dit-i2v/dit-ti2v）产生可被 `wan_load_model` 加载的文件
   2. README 或 examples/convert/ 文档说明 vae/t5/clip 类型为未来多文件加载预留
   3. REQUIREMENTS.md SAFE-03 追踪性更新，反映当前部分满足状态及限制
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 13-01-PLAN.md — Annotate print_usage() + create examples/convert/README.md + verify SAFE-03 traceability (SAFE-03)
 
 ## Progress
 
@@ -111,8 +113,8 @@ Plans:
 | 9. API Fixes + Vocab mmap | v1.1 | 2/2 | Complete | 2026-03-16 |
 | 10. Safetensors Runtime Loading | v1.1 | 1/1 | Complete | 2026-03-17 |
 | 11. Safetensors Conversion Tool | v1.1 | 1/1 | Complete | 2026-03-17 |
-| 12. Wire Vocab Dir to Public API | 1/1 | Complete    | 2026-03-17 | - |
-| 13. Document wan-convert Sub-model Scope | v1.1 | 0/? | Not started | - |
+| 12. Wire Vocab Dir to Public API | v1.1 | 1/1 | Complete | 2026-03-17 |
+| 13. Document wan-convert Sub-model Scope | v1.1 | 0/1 | Not started | - |
 
 ---
-*Last updated: 2026-03-17 — Phase 12 planned*
+*Last updated: 2026-03-17 — Phase 13 planned*
