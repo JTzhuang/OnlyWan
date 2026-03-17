@@ -122,17 +122,17 @@ WanModelLoadResult Wan::WanModel::load(const std::string& file_path) {
         }
     }
 
-    // Validate GGUF and read metadata (model_type, model_version)
+    // Detect format: safetensors takes priority over GGUF
     std::string model_type, model_version;
-    if (!Wan::is_wan_gguf(file_path, model_type, model_version)) {
-        result.error_message = "Not a valid Wan GGUF model: " + file_path;
+    SDVersion sd_version = VERSION_WAN2;
+
+    bool is_st   = is_safetensors_file(file_path);
+    bool is_gguf = !is_st && Wan::is_wan_gguf(file_path, model_type, model_version);
+
+    if (!is_st && !is_gguf) {
+        result.error_message = "Not a valid WAN GGUF or safetensors file: " + file_path;
         return result;
     }
-
-    // Map model_type string to SDVersion
-    SDVersion sd_version = VERSION_WAN2;
-    if (model_type == "i2v")  sd_version = VERSION_WAN2_2_I2V;
-    if (model_type == "ti2v") sd_version = VERSION_WAN2_2_TI2V;
 
     // Initialize CPU backend for weight loading
     ggml_backend_t backend = ggml_backend_cpu_init();
@@ -141,12 +141,40 @@ WanModelLoadResult Wan::WanModel::load(const std::string& file_path) {
         return result;
     }
 
-    // Load all tensors from GGUF via ModelLoader
     ModelLoader model_loader;
-    if (!model_loader.init_from_file_and_convert_name(file_path, "model.diffusion_model.")) {
-        result.error_message = "ModelLoader failed to init from: " + file_path;
-        ggml_backend_free(backend);
-        return result;
+
+    if (is_st) {
+        // Safetensors path: HF WAN checkpoints already use "model.diffusion_model.*" names.
+        // Do NOT pass a prefix — adding it would double the prefix and break all lookups.
+        if (!model_loader.init_from_file(file_path)) {
+            result.error_message = "Failed to parse safetensors file: " + file_path;
+            ggml_backend_free(backend);
+            return result;
+        }
+        // Normalize any variant (diffusers-style) tensor names
+        model_loader.convert_tensors_name();
+
+        // Infer WAN model type from tensor names (no metadata in safetensors)
+        SDVersion sv = model_loader.get_sd_version();
+        if (!sd_version_is_wan(sv)) {
+            result.error_message = "safetensors file does not contain a WAN model: " + file_path;
+            ggml_backend_free(backend);
+            return result;
+        }
+        sd_version = sv;
+        if (sv == VERSION_WAN2_2_I2V)       { model_type = "i2v";   model_version = "WAN2.2"; }
+        else if (sv == VERSION_WAN2_2_TI2V) { model_type = "ti2v";  model_version = "WAN2.2"; }
+        else                                { model_type = "t2v";   model_version = "WAN2.1"; }
+    } else {
+        // GGUF path: existing logic — model_type and model_version already set by is_wan_gguf()
+        if (model_type == "i2v")  sd_version = VERSION_WAN2_2_I2V;
+        if (model_type == "ti2v") sd_version = VERSION_WAN2_2_TI2V;
+
+        if (!model_loader.init_from_file_and_convert_name(file_path, "model.diffusion_model.")) {
+            result.error_message = "ModelLoader failed to init from: " + file_path;
+            ggml_backend_free(backend);
+            return result;
+        }
     }
     auto& tensor_storage_map = model_loader.get_tensor_storage_map();
 

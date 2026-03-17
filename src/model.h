@@ -289,6 +289,8 @@ typedef std::function<bool(const TensorStorage&, ggml_tensor**)> on_new_tensor_c
 
 typedef OrderedMap<std::string, TensorStorage> String2TensorStorage;
 
+bool is_safetensors_file(const std::string& file_path);
+
 class ModelLoader {
 protected:
     SDVersion version_ = VERSION_COUNT;
