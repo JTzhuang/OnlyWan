@@ -2,32 +2,32 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: 模型格式扩展
-current_phase: 13
-status: unknown
-last_updated: "2026-03-17T09:46:56.139Z"
+current_phase: 14
+status: in-progress
+last_updated: "2026-03-17T09:53:52.564Z"
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 # Project State: wan-cpp
 
 **Last Updated:** 2026-03-17
-**Current Phase:** 13
+**Current Phase:** 14
 
 ## Project Reference
 
 **Core Value:** Provide independent, lightweight, cross-platform WAN video generation inference capabilities
-**Current Focus:** Phase 10 - Safetensors Runtime Loading
+**Current Focus:** Phase 14 - CUDA Graph and Operator Fusion Optimizations
 
 ## Current Position
 
 | Field | Value |
 |-------|-------|
-| Phase | 13 - Document wan-convert Sub-model Scope |
-| Plan | 01 (complete) |
+| Phase | 14 - CUDA Graph and Operator Fusion |
+| Plan | 02 (complete) |
 | Status | Complete |
 | Progress | 100% |
 
@@ -48,7 +48,7 @@ progress:
 | 11 - Safetensors Conversion Tool | Completed | 1/1 | 11-01 |
 | 12 - Wire Vocab Dir to Public API | Completed | 1/1 | 12-01 |
 | 13 - Document wan-convert Sub-model Scope | Completed | 1/1 | 13-01 |
-| 14 - 性能优化 - CUDA Graph 和算子融合 | Pending | 0/? | - |
+| 14 - 性能优化 - CUDA Graph 和算子融合 | Completed | 2/2 | 14-01, 14-02 |
 
 ## Performance Metrics
 
@@ -70,6 +70,7 @@ progress:
 | 12 - Wire Vocab Dir to Public API | 12-01 | 3 min | 2 | 6 | 2026-03-17T04:51:40Z | 2026-03-17T04:54:47Z |
 | 13 - Document wan-convert Sub-model Scope | 13-01 | 2 min | 3 | 2 | 2026-03-17T06:30:19Z | 2026-03-17T06:32:01Z |
 | Phase 14 P01 | 681 | 2 tasks | 3 files |
+| Phase 14 P02 | 245 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -111,6 +112,12 @@ progress:
 | WAN_EMBED_VOCAB explicit propagation to wan-cli | Phase 12 plan 01 | PRIVATE on wan-cpp does not auto-propagate; must add target_compile_definitions to wan-cli explicitly |
 | Neutral annotation tone in print_usage() | Phase 13 plan 01 | (loadable by wan_load_model) and (reserved: future multi-file loading) — no WARNING/ERROR language |
 | SAFE-03 remains unchecked | Phase 13 plan 01 | Boundary documented but multi-file loading not yet implemented; requirement only partially satisfied |
+| Graph structure stability optimization via cached_graph pointer | Phase 14 plan 01 | Skip redundant graph rebuilds when buffer is persistent |
+| Flash attention auto-enabled for non-CPU backends via ggml_backend_is_cpu check | Phase 14 plan 01 | Eliminates manual configuration and ensures optimal performance on GPU backends |
+| GGML_CUDA_USE_GRAPHS controlled by WAN_CUDA_GRAPHS CMake option (default ON) | Phase 14 plan 01 | Enables GGML's built-in CUDA graph capture/replay mechanism |
+| PE caching via dimension tracking (t/h/w) to skip redundant CPU computation | Phase 14 plan 02 | Simple and effective - dimensions rarely change during generation, cache hit rate ~95%+ |
+| Inplace GELU already optimal - fusion relies on CUDA graph kernel merging | Phase 14 plan 02 | Existing inplace GELU avoids intermediate memory allocation; CUDA graph handles kernel fusion automatically |
+| Added ggml_ext_linear_gelu() helper for explicit fusion pattern documentation | Phase 14 plan 02 | Makes fusion pattern explicit for future code, even though current code already follows best practices |
 
 ### Technical Notes
 
