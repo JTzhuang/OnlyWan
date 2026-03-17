@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: 模型格式扩展
-current_phase: 11
-status: unknown
-last_updated: "2026-03-17T03:42:33.159Z"
+current_phase: 12
+status: complete
+last_updated: "2026-03-17T04:55:45.674Z"
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 4
-  completed_plans: 4
+  total_phases: 5
+  completed_phases: 4
+  total_plans: 5
+  completed_plans: 5
 ---
 
 # Project State: wan-cpp
@@ -26,7 +26,7 @@ progress:
 
 | Field | Value |
 |-------|-------|
-| Phase | 10 - Safetensors Runtime Loading |
+| Phase | 12 - Wire Vocab Dir to Public API |
 | Plan | 01 (complete) |
 | Status | Complete |
 | Progress | 100% |
@@ -46,6 +46,7 @@ progress:
 | 9 - API Fixes + Vocab + Mmap | Completed | 2/2 | 09-01, 09-02 |
 | 10 - Safetensors Runtime Loading | Completed | 1/1 | 10-01 |
 | 11 - Safetensors Conversion Tool | Completed | 1/1 | 11-01 |
+| 12 - Wire Vocab Dir to Public API | Completed | 1/1 | 12-01 |
 
 ## Performance Metrics
 
@@ -64,6 +65,7 @@ progress:
 | 9 - API Fixes + Vocab + Mmap | 09-02 | 4 min | 3 | 3 | 2026-03-16T16:06:08Z | 2026-03-17T00:10:00Z |
 | 10 - Safetensors Runtime Loading | 10-01 | 10 min | 2 | 2 | 2026-03-17T01:52:00Z | 2026-03-17T02:02:50Z |
 | 11 - Safetensors Conversion Tool | 11-01 | 6 min | 2 | 5 | 2026-03-17T02:57:54Z | 2026-03-17T03:03:56Z |
+| 12 - Wire Vocab Dir to Public API | 12-01 | 3 min | 2 | 6 | 2026-03-17T04:51:40Z | 2026-03-17T04:54:47Z |
 
 ## Accumulated Context
 
@@ -97,6 +99,8 @@ progress:
 | get_sd_version for safetensors type inference | Phase 10 plan 01 | Safetensors has no metadata fields; model_type/version inferred from tensor names via get_sd_version |
 | 4-arg save_to_gguf_file overload | Phase 11 plan 01 | Backward-compatible addition; original 3-arg overload unchanged; metadata injected via gguf_set_val_str loop |
 | SUBMODEL_META map in wan-convert | Phase 11 plan 01 | Maps --type string to arch/version strings matching is_wan_gguf() key expectations |
+| wan_set_vocab_dir no-op for WAN_EMBED_VOCAB=ON | Phase 12 plan 01 | Returns WAN_ERROR_INVALID_ARGUMENT when vocab is compiled in; clear contract for callers |
+| WAN_EMBED_VOCAB explicit propagation to wan-cli | Phase 12 plan 01 | PRIVATE on wan-cpp does not auto-propagate; must add target_compile_definitions to wan-cli explicitly |
 
 ### Technical Notes
 
@@ -142,9 +146,9 @@ progress:
 
 ## Session Continuity
 
-**Last Action:** Phase 11 Plan 01 - Safetensors conversion tool complete
-**Next Action:** v1.1 milestone complete — all phases done
-**Context:** Plan 11-01 added 4-arg save_to_gguf_file overload with gguf_set_val_str metadata injection, created wan-convert CLI with --input/--output/--type/--quant flags supporting 6 sub-model types, wired CMake. wan-convert builds and --help exits 0.
+**Last Action:** Phase 12 Plan 01 - Wire vocab dir to public API complete
+**Next Action:** All planned phases complete
+**Context:** Plan 12-01 added wan_vocab_dir_is_set()/wan_vocab_get_dir() accessors to vocab.h/cpp, declared and implemented wan_set_vocab_dir in wan.h/wan-api.cpp with WAN_EMBED_VOCAB guards, added load-time stat() directory validation in wan_load_model, wired --vocab-dir into CLI with WAN_EMBED_VOCAB propagation to wan-cli CMake target. Both library and CLI build cleanly.
 
 ---
-*State updated: 2026-03-17 — Phase 11 complete*
+*State updated: 2026-03-17 — Phase 12 complete*
