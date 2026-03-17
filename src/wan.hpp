@@ -1571,6 +1571,9 @@ namespace WAN {
             y = ggml_add(ctx->ggml_ctx, y, modulate_mul(ctx->ggml_ctx, y, es[4]));
             y = modulate_add(ctx->ggml_ctx, y, es[3]);
 
+            // FUS-02: FFN with inplace GELU for operator fusion
+            // The inplace GELU allows CUDA graph (CG-02) to automatically merge
+            // Linear + GELU kernels, reducing memory allocation and launch overhead
             y = ffn_0->forward(ctx, y);
             y = ggml_ext_gelu(ctx->ggml_ctx, y, true);
             y = ffn_2->forward(ctx, y);
@@ -2014,6 +2017,10 @@ namespace WAN {
         std::vector<float> pe_vec;
         SDVersion version;
 
+        // OP-02: PE caching to avoid redundant CPU computation and CPU->GPU transfer
+        bool pe_cached = false;
+        int cached_pe_t = 0, cached_pe_h = 0, cached_pe_w = 0;
+
         WanRunner(ggml_backend_t backend,
                   bool offload_params_to_cpu,
                   const String2TensorStorage& tensor_storage_map = {},
@@ -2151,21 +2158,25 @@ namespace WAN {
             time_dim_concat = to_backend(time_dim_concat);
             vace_context    = to_backend(vace_context);
 
-            pe_vec      = Rope::gen_wan_pe(static_cast<int>(x->ne[2]),
-                                           static_cast<int>(x->ne[1]),
-                                           static_cast<int>(x->ne[0]),
-                                           std::get<0>(wan_params.patch_size),
-                                           std::get<1>(wan_params.patch_size),
-                                           std::get<2>(wan_params.patch_size),
-                                           1,
-                                           wan_params.theta,
-                                           wan_params.axes_dim);
+            // OP-02: Cache PE to avoid redundant CPU computation and CPU->GPU transfer each step
+            int cur_t = static_cast<int>(x->ne[2]);
+            int cur_h = static_cast<int>(x->ne[1]);
+            int cur_w = static_cast<int>(x->ne[0]);
+            if (!pe_cached || cached_pe_t != cur_t || cached_pe_h != cur_h || cached_pe_w != cur_w) {
+                pe_vec = Rope::gen_wan_pe(cur_t, cur_h, cur_w,
+                                         std::get<0>(wan_params.patch_size),
+                                         std::get<1>(wan_params.patch_size),
+                                         std::get<2>(wan_params.patch_size),
+                                         1,
+                                         wan_params.theta,
+                                         wan_params.axes_dim);
+                pe_cached    = true;
+                cached_pe_t  = cur_t;
+                cached_pe_h  = cur_h;
+                cached_pe_w  = cur_w;
+            }
             int pos_len = static_cast<int>(pe_vec.size() / wan_params.axes_dim_sum / 2);
-            // LOG_DEBUG("pos_len %d", pos_len);
             auto pe = ggml_new_tensor_4d(compute_ctx, GGML_TYPE_F32, 2, 2, wan_params.axes_dim_sum / 2, pos_len);
-            // pe->data = pe_vec.data();
-            // print_ggml_tensor(pe);
-            // pe->data = nullptr;
             set_backend_tensor_data(pe, pe_vec.data());
 
             if (c_concat != nullptr) {
