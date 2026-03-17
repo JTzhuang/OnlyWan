@@ -86,7 +86,7 @@ Plans:
 | 8. Implement Generation + AVI Output | v1.0 | 2/2 | Complete | 2026-03-16 |
 | 9. API Fixes + Vocab mmap | v1.1 | 2/2 | Complete | 2026-03-16 |
 | 10. Safetensors Runtime Loading | v1.1 | 1/1 | Complete | 2026-03-17 |
-| 11. Safetensors Conversion Tool | v1.1 | 1/1 | Complete | 2026-03-17 |
+| 11. Safetensors Conversion Tool | v1.1 | Complete    | 2026-03-17 | 2026-03-17 |
 
 ---
 *Last updated: 2026-03-17 — Phase 11 complete*

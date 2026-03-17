@@ -4,12 +4,12 @@ milestone: v1.1
 milestone_name: 模型格式扩展
 current_phase: 11
 status: unknown
-last_updated: "2026-03-17T02:12:03.417Z"
+last_updated: "2026-03-17T03:42:33.159Z"
 progress:
   total_phases: 3
-  completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
+  completed_phases: 3
+  total_plans: 4
+  completed_plans: 4
 ---
 
 # Project State: wan-cpp
