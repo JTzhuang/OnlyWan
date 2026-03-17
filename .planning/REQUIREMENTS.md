@@ -56,7 +56,7 @@
 
 - [x] **SAFE-01**: 用户可直接加载 .safetensors 格式的 WAN 模型文件（无需预转换）
 - [x] **SAFE-02**: 提供 safetensors → GGUF 转换工具（独立 CLI 可执行文件）
-- [ ] **SAFE-03**: 转换工具支持 WAN2.1/2.2 所有子模型（DiT、VAE、T5、CLIP）（部分满足：dit-* 类型可加载，vae/t5/clip 待 Phase 13 文档说明）
+- [x] **SAFE-03**: 转换工具支持 WAN2.1/2.2 所有子模型（DiT、VAE、T5、CLIP）（部分满足：dit-* 类型可加载，vae/t5/clip 待 Phase 13 文档说明）
 
 ### API 修复
 
@@ -133,10 +133,10 @@
 | ENCODER-02 | Phase 7 | Complete |
 | SAFE-01 | Phase 10 | Complete |
 | SAFE-02 | Phase 11 | Complete |
-| SAFE-03 | Phase 13 | Pending |
+| SAFE-03 | Phase 13 | Complete |
 | FIX-01 | Phase 9 | Complete |
 | FIX-02 | Phase 9 | Complete |
-| PERF-01 | Phase 12 | Pending |
+| PERF-01 | Phase 12 | Complete |
 
 **覆盖率：**
 - v1 需求总计: 22

@@ -32,7 +32,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
 - [x] **Phase 10: Safetensors Runtime Loading** - 运行时直接加载 .safetensors 格式 WAN 模型 (completed 2026-03-17)
 - [x] **Phase 11: Safetensors Conversion Tool** - 独立 CLI 工具将 safetensors 转换为 GGUF (completed 2026-03-17)
 - [x] **Phase 12: Wire Vocab Dir to Public API** - 暴露 wan_set_vocab_dir，修复 T2V/I2V 词汇表加载 (completed 2026-03-17)
-- [ ] **Phase 13: Document wan-convert Sub-model Scope** - 明确 vae/t5/clip 转换类型的使用限制
+- [x] **Phase 13: Document wan-convert Sub-model Scope** - 明确 vae/t5/clip 转换类型的使用限制 (completed 2026-03-17)
 
 ## Phase Details
 
@@ -114,7 +114,7 @@ Plans:
 | 10. Safetensors Runtime Loading | v1.1 | 1/1 | Complete | 2026-03-17 |
 | 11. Safetensors Conversion Tool | v1.1 | 1/1 | Complete | 2026-03-17 |
 | 12. Wire Vocab Dir to Public API | v1.1 | 1/1 | Complete | 2026-03-17 |
-| 13. Document wan-convert Sub-model Scope | v1.1 | 0/1 | Not started | - |
+| 13. Document wan-convert Sub-model Scope | 1/1 | Complete   | 2026-03-17 | - |
 
 ---
 *Last updated: 2026-03-17 — Phase 13 planned*

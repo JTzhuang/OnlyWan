@@ -4,12 +4,12 @@ milestone: v1.1
 milestone_name: 模型格式扩展
 current_phase: 13
 status: unknown
-last_updated: "2026-03-17T05:52:28.289Z"
+last_updated: "2026-03-17T06:32:01Z"
 progress:
   total_phases: 5
-  completed_phases: 4
-  total_plans: 5
-  completed_plans: 5
+  completed_phases: 5
+  total_plans: 6
+  completed_plans: 6
 ---
 
 # Project State: wan-cpp
@@ -26,7 +26,7 @@ progress:
 
 | Field | Value |
 |-------|-------|
-| Phase | 12 - Wire Vocab Dir to Public API |
+| Phase | 13 - Document wan-convert Sub-model Scope |
 | Plan | 01 (complete) |
 | Status | Complete |
 | Progress | 100% |
@@ -47,6 +47,7 @@ progress:
 | 10 - Safetensors Runtime Loading | Completed | 1/1 | 10-01 |
 | 11 - Safetensors Conversion Tool | Completed | 1/1 | 11-01 |
 | 12 - Wire Vocab Dir to Public API | Completed | 1/1 | 12-01 |
+| 13 - Document wan-convert Sub-model Scope | Completed | 1/1 | 13-01 |
 
 ## Performance Metrics
 
@@ -66,6 +67,7 @@ progress:
 | 10 - Safetensors Runtime Loading | 10-01 | 10 min | 2 | 2 | 2026-03-17T01:52:00Z | 2026-03-17T02:02:50Z |
 | 11 - Safetensors Conversion Tool | 11-01 | 6 min | 2 | 5 | 2026-03-17T02:57:54Z | 2026-03-17T03:03:56Z |
 | 12 - Wire Vocab Dir to Public API | 12-01 | 3 min | 2 | 6 | 2026-03-17T04:51:40Z | 2026-03-17T04:54:47Z |
+| 13 - Document wan-convert Sub-model Scope | 13-01 | 2 min | 3 | 2 | 2026-03-17T06:30:19Z | 2026-03-17T06:32:01Z |
 
 ## Accumulated Context
 
@@ -101,6 +103,8 @@ progress:
 | SUBMODEL_META map in wan-convert | Phase 11 plan 01 | Maps --type string to arch/version strings matching is_wan_gguf() key expectations |
 | wan_set_vocab_dir no-op for WAN_EMBED_VOCAB=ON | Phase 12 plan 01 | Returns WAN_ERROR_INVALID_ARGUMENT when vocab is compiled in; clear contract for callers |
 | WAN_EMBED_VOCAB explicit propagation to wan-cli | Phase 12 plan 01 | PRIVATE on wan-cpp does not auto-propagate; must add target_compile_definitions to wan-cli explicitly |
+| Neutral annotation tone in print_usage() | Phase 13 plan 01 | (loadable by wan_load_model) and (reserved: future multi-file loading) — no WARNING/ERROR language |
+| SAFE-03 remains unchecked | Phase 13 plan 01 | Boundary documented but multi-file loading not yet implemented; requirement only partially satisfied |
 
 ### Technical Notes
 
@@ -146,9 +150,9 @@ progress:
 
 ## Session Continuity
 
-**Last Action:** Phase 12 Plan 01 - Wire vocab dir to public API complete
+**Last Action:** Phase 13 Plan 01 - Document wan-convert sub-model scope complete
 **Next Action:** All planned phases complete
-**Context:** Plan 12-01 added wan_vocab_dir_is_set()/wan_vocab_get_dir() accessors to vocab.h/cpp, declared and implemented wan_set_vocab_dir in wan.h/wan-api.cpp with WAN_EMBED_VOCAB guards, added load-time stat() directory validation in wan_load_model, wired --vocab-dir into CLI with WAN_EMBED_VOCAB propagation to wan-cli CMake target. Both library and CLI build cleanly.
+**Context:** Plan 13-01 annotated print_usage() in examples/convert/main.cpp with (loadable by wan_load_model) for dit-* types and (reserved: future multi-file loading) for vae/t5/clip, created examples/convert/README.md with type table and limitations paragraph, verified SAFE-03 traceability comment already present in REQUIREMENTS.md (no edit needed).
 
 ---
 *State updated: 2026-03-17 — Phase 12 complete*
