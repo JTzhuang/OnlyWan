@@ -1,5 +1,23 @@
 # Milestones
 
+## v1.1 模型格式扩展 (Shipped: 2026-03-17)
+
+**Phases completed:** 5 phases, 6 plans
+
+**Key accomplishments:**
+- Safetensors runtime loading — users can load .safetensors WAN models directly via `wan_load_model` without pre-conversion
+- Standalone `wan-convert` CLI tool for safetensors → GGUF conversion with metadata injection
+- API fixes — T2V/I2V flat API delegates to _ex implementations; progress_cb properly wired on each Euler step
+- Vocab optimization — vocab files loaded via mmap at runtime, not embedded at compile time (~85MB reduction)
+- Public API extension — `wan_set_vocab_dir()` exposed for runtime vocab directory configuration
+- Documentation — sub-model conversion scope clearly documented with loadability annotations
+
+**Stats:** 32 commits, 1 day (2026-03-16 → 2026-03-17)
+
+**Requirements:** 6/6 satisfied (SAFE-01, SAFE-02, SAFE-03, FIX-01, FIX-02, PERF-01)
+
+---
+
 ## v1.0 MVP (Shipped: 2026-03-16)
 
 **Phases completed:** 8 phases, 11 plans, 6 tasks
