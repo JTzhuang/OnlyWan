@@ -148,11 +148,17 @@ progress:
 
 - None — all phases complete
 
+## Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260317-nl6 | 分析各个子模型的优化空间：CUDA Graph 优化、算子实现效率、第三方库使用、算子融合机会。整理成 TODO 列表保存到 .planning/OPTIMIZATION_TODOS.md | 2026-03-17 | 20d9aab | [260317-nl6](./quick/260317-nl6-cuda-graph-todo-planning-optimization-to/) |
+
 ## Session Continuity
 
-**Last Action:** Phase 13 Plan 01 - Document wan-convert sub-model scope complete
-**Next Action:** All planned phases complete
-**Context:** Plan 13-01 annotated print_usage() in examples/convert/main.cpp with (loadable by wan_load_model) for dit-* types and (reserved: future multi-file loading) for vae/t5/clip, created examples/convert/README.md with type table and limitations paragraph, verified SAFE-03 traceability comment already present in REQUIREMENTS.md (no edit needed).
+**Last Action:** Quick Task 260317-nl6 - 子模型优化空间分析 TODO 列表完成
+**Next Action:** 可继续执行其他快速任务或规划新阶段
+**Context:** 分析了 5 个子模型（WAN DiT、Flux DiT、T5、CLIP、VAE），识别了 28 个优化机会，分布在 CUDA Graph、算子效率、第三方库、算子融合 4 个维度。生成了结构化的 TODO 列表，包含优先级、预期收益、难度、代码位置等信息。
 
 ---
-*State updated: 2026-03-17 — Phase 12 complete*
+*State updated: 2026-03-17 — Quick Task 260317-nl6 complete*
