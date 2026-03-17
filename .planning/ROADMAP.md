@@ -6,7 +6,7 @@
 ## Milestones
 
 - ✅ **v1.0 MVP** — Phases 1-8 (shipped 2026-03-16)
-- 🔄 **v1.1 模型格式扩展** — Phases 9-11 (in progress)
+- 🔄 **v1.1 模型格式扩展** — Phases 9-13 (in progress)
 
 ## Phases
 
@@ -26,11 +26,13 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
 
 </details>
 
-### v1.1 模型格式扩展 (Phases 9-11)
+### v1.1 模型格式扩展 (Phases 9-13)
 
 - [x] **Phase 9: API Fixes + Vocab mmap** - 移除遗留 stub，接通 progress_cb，词汇表改为 mmap 加载 (completed 2026-03-16)
 - [x] **Phase 10: Safetensors Runtime Loading** - 运行时直接加载 .safetensors 格式 WAN 模型 (completed 2026-03-17)
 - [x] **Phase 11: Safetensors Conversion Tool** - 独立 CLI 工具将 safetensors 转换为 GGUF (completed 2026-03-17)
+- [ ] **Phase 12: Wire Vocab Dir to Public API** - 暴露 wan_set_vocab_dir，修复 T2V/I2V 词汇表加载
+- [ ] **Phase 13: Document wan-convert Sub-model Scope** - 明确 vae/t5/clip 转换类型的使用限制
 
 ## Phase Details
 
@@ -72,6 +74,26 @@ Plans:
 Plans:
 - [x] 11-01-PLAN.md — Extend save_to_gguf_file with metadata map + wan-convert CLI + CMake wiring (SAFE-02, SAFE-03)
 
+### Phase 12: Wire Vocab Dir to Public API
+**Goal**: T2V/I2V 生成在 WAN_EMBED_VOCAB=OFF 时正常工作，词汇表目录通过公共 API 设置
+**Depends on**: Phase 11
+**Requirements**: PERF-01, ENCODER-01, ENCODER-02, API-03, API-04
+**Success Criteria** (what must be TRUE):
+  1. `wan.h` 声明 `wan_set_vocab_dir(const char* dir)` 函数
+  2. `wan-cli` 支持 `--vocab-dir` 参数，调用 `wan_set_vocab_dir` 后 T2V/I2V 生成成功
+  3. 使用 `WAN_EMBED_VOCAB=OFF` 构建时，提供词汇表目录后生成不返回 `WAN_ERROR_INVALID_ARGUMENT`
+**Plans**: TBD
+
+### Phase 13: Document wan-convert Sub-model Scope
+**Goal**: 用户清楚了解 wan-convert 各 --type 值的适用范围，SAFE-03 限制有文档说明
+**Depends on**: Phase 12
+**Requirements**: SAFE-03
+**Success Criteria** (what must be TRUE):
+  1. `wan-convert --help` 输出说明哪些 `--type` 值（dit-t2v/dit-i2v/dit-ti2v）产生可被 `wan_load_model` 加载的文件
+  2. README 或 examples/convert/ 文档说明 vae/t5/clip 类型为未来多文件加载预留
+  3. REQUIREMENTS.md SAFE-03 追踪性更新，反映当前部分满足状态及限制
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -86,7 +108,9 @@ Plans:
 | 8. Implement Generation + AVI Output | v1.0 | 2/2 | Complete | 2026-03-16 |
 | 9. API Fixes + Vocab mmap | v1.1 | 2/2 | Complete | 2026-03-16 |
 | 10. Safetensors Runtime Loading | v1.1 | 1/1 | Complete | 2026-03-17 |
-| 11. Safetensors Conversion Tool | v1.1 | Complete    | 2026-03-17 | 2026-03-17 |
+| 11. Safetensors Conversion Tool | v1.1 | 1/1 | Complete | 2026-03-17 |
+| 12. Wire Vocab Dir to Public API | v1.1 | 0/? | Not started | - |
+| 13. Document wan-convert Sub-model Scope | v1.1 | 0/? | Not started | - |
 
 ---
 *Last updated: 2026-03-17 — Phase 11 complete*

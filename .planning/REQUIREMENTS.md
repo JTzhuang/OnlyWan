@@ -23,7 +23,7 @@
 
 ### 构建系统
 
-- [ ] **BUILD-01**: 创建 CMakeLists.txt 支持多平台编译
+- [x] **BUILD-01**: 创建 CMakeLists.txt 支持多平台编译
 - [x] **BUILD-02**: 配置 GGML 子模块编译
 - [x] **BUILD-03**: 支持多种后端（CUDA、Metal、Vulkan、CPU）
 - [x] **BUILD-04**: 配置第三方依赖（json.hpp、zip.h）
@@ -34,7 +34,7 @@
 - [x] **API-02**: 实现模型加载接口
 - [x] **API-03**: 实现文本生成视频（T2V）接口
 - [x] **API-04**: 实现图像生成视频（I2V）接口
-- [ ] **API-05**: 实现配置参数接口（seed、steps、guidance scale 等）
+- [x] **API-05**: 实现配置参数接口（seed、steps、guidance scale 等）
 
 ### 示例程序
 
@@ -55,8 +55,8 @@
 ### Safetensors 支持
 
 - [x] **SAFE-01**: 用户可直接加载 .safetensors 格式的 WAN 模型文件（无需预转换）
-- [ ] **SAFE-02**: 提供 safetensors → GGUF 转换工具（独立 CLI 可执行文件）
-- [ ] **SAFE-03**: 转换工具支持 WAN2.1/2.2 所有子模型（DiT、VAE、T5、CLIP）
+- [x] **SAFE-02**: 提供 safetensors → GGUF 转换工具（独立 CLI 可执行文件）
+- [ ] **SAFE-03**: 转换工具支持 WAN2.1/2.2 所有子模型（DiT、VAE、T5、CLIP）（部分满足：dit-* 类型可加载，vae/t5/clip 待 Phase 13 文档说明）
 
 ### API 修复
 
@@ -65,7 +65,7 @@
 
 ### 性能优化
 
-- [x] **PERF-01**: 词汇表文件（umt5/clip，~85MB）改为运行时 mmap 加载，消除编译时头文件嵌入
+- [x] **PERF-01**: 词汇表文件（umt5/clip，~85MB）改为运行时 mmap 加载，消除编译时头文件嵌入（Phase 12 修复公共 API 暴露）
 
 ## v2 Requirements
 
@@ -116,7 +116,7 @@
 | CORE-03 | Phase 1 | Completed |
 | CORE-04 | Phase 7 | Complete |
 | CORE-05 | Phase 1 | Completed |
-| BUILD-01 | Phase 6 | Pending |
+| BUILD-01 | Phase 6 | Complete |
 | BUILD-02 | Phase 2 | Completed |
 | BUILD-03 | Phase 2 | Completed |
 | BUILD-04 | Phase 2 | Completed |
@@ -124,13 +124,19 @@
 | API-02 | Phase 7 | Complete |
 | API-03 | Phase 8 | Complete |
 | API-04 | Phase 8 | Complete |
-| API-05 | Phase 6 | Pending |
+| API-05 | Phase 6 | Complete |
 | EX-01 | Phase 4 | Completed |
 | EX-02 | Phase 8 | Complete |
 | EX-03 | Phase 4 | Completed |
 | EX-04 | Phase 4 | Completed |
 | ENCODER-01 | Phase 7 | Complete |
 | ENCODER-02 | Phase 7 | Complete |
+| SAFE-01 | Phase 10 | Complete |
+| SAFE-02 | Phase 11 | Complete |
+| SAFE-03 | Phase 13 | Pending |
+| FIX-01 | Phase 9 | Complete |
+| FIX-02 | Phase 9 | Complete |
+| PERF-01 | Phase 12 | Pending |
 
 **覆盖率：**
 - v1 需求总计: 22
