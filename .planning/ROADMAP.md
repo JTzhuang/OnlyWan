@@ -83,7 +83,7 @@ Plans:
 | 7. Wire Core Model to API | v1.0 | 3/3 | Complete | 2026-03-16 |
 | 8. Implement Generation + AVI Output | v1.0 | 2/2 | Complete | 2026-03-16 |
 | 9. API Fixes + Vocab mmap | v1.1 | 2/2 | Complete | 2026-03-16 |
-| 10. Safetensors Runtime Loading | 1/1 | Complete   | 2026-03-17 | - |
+| 10. Safetensors Runtime Loading | 1/1 | Complete    | 2026-03-17 | - |
 | 11. Safetensors Conversion Tool | v1.1 | 0/? | Not started | - |
 
 ---
