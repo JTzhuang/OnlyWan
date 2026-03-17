@@ -111,7 +111,7 @@ Plans:
 | 9. API Fixes + Vocab mmap | v1.1 | 2/2 | Complete | 2026-03-16 |
 | 10. Safetensors Runtime Loading | v1.1 | 1/1 | Complete | 2026-03-17 |
 | 11. Safetensors Conversion Tool | v1.1 | 1/1 | Complete | 2026-03-17 |
-| 12. Wire Vocab Dir to Public API | 1/1 | Complete   | 2026-03-17 | - |
+| 12. Wire Vocab Dir to Public API | 1/1 | Complete    | 2026-03-17 | - |
 | 13. Document wan-convert Sub-model Scope | v1.1 | 0/? | Not started | - |
 
 ---
