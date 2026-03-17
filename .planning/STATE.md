@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: 模型格式扩展
 current_phase: 14
-status: in-progress
-last_updated: "2026-03-17T09:53:52.564Z"
+status: unknown
+last_updated: "2026-03-17T09:56:33.155Z"
 progress:
   total_phases: 6
   completed_phases: 6

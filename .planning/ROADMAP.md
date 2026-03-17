@@ -115,7 +115,7 @@ Plans:
 | 11. Safetensors Conversion Tool | v1.1 | 1/1 | Complete | 2026-03-17 |
 | 12. Wire Vocab Dir to Public API | v1.1 | 1/1 | Complete | 2026-03-17 |
 | 13. Document wan-convert Sub-model Scope | v1.1 | 1/1 | Complete | 2026-03-17 |
-| 14. 性能优化 - CUDA Graph 和算子融合 | 2/2 | Complete   | 2026-03-17 | - |
+| 14. 性能优化 - CUDA Graph 和算子融合 | 2/2 | Complete    | 2026-03-17 | - |
 
 ### Phase 14: 性能优化 - CUDA Graph 和算子融合
 
