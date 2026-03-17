@@ -68,7 +68,9 @@ Plans:
   1. `wan-convert` CLI 可执行文件存在，`--help` 输出用法说明
   2. 转换 DiT、VAE、T5、CLIP 子模型各自的 safetensors 文件，生成可被 wan_load_model 加载的 GGUF 文件
   3. 转换后的 GGUF 文件执行 T2V/I2V 生成，输出与原始 safetensors 直接加载结果一致
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 11-01-PLAN.md — Extend save_to_gguf_file with metadata map + wan-convert CLI + CMake wiring (SAFE-02, SAFE-03)
 
 ## Progress
 
@@ -83,8 +85,8 @@ Plans:
 | 7. Wire Core Model to API | v1.0 | 3/3 | Complete | 2026-03-16 |
 | 8. Implement Generation + AVI Output | v1.0 | 2/2 | Complete | 2026-03-16 |
 | 9. API Fixes + Vocab mmap | v1.1 | 2/2 | Complete | 2026-03-16 |
-| 10. Safetensors Runtime Loading | 1/1 | Complete    | 2026-03-17 | - |
-| 11. Safetensors Conversion Tool | v1.1 | 0/? | Not started | - |
+| 10. Safetensors Runtime Loading | v1.1 | 1/1 | Complete | 2026-03-17 |
+| 11. Safetensors Conversion Tool | v1.1 | 0/1 | Not started | - |
 
 ---
-*Last updated: 2026-03-17 — Phase 10 plan created*
+*Last updated: 2026-03-17 — Phase 11 plan created*
