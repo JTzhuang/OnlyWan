@@ -45,6 +45,7 @@ progress:
 | 8 - Implement Generation + AVI Output | Completed | 2/2 | 08-01, 08-02 |
 | 9 - API Fixes + Vocab + Mmap | Completed | 2/2 | 09-01, 09-02 |
 | 10 - Safetensors Runtime Loading | Completed | 1/1 | 10-01 |
+| 11 - Safetensors Conversion Tool | Completed | 1/1 | 11-01 |
 
 ## Performance Metrics
 
@@ -62,6 +63,7 @@ progress:
 | 9 - API Fixes + Vocab + Mmap | 09-01 | 3 min | 3 | 3 | 2026-03-16T16:07:00Z | 2026-03-16T16:10:00Z |
 | 9 - API Fixes + Vocab + Mmap | 09-02 | 4 min | 3 | 3 | 2026-03-16T16:06:08Z | 2026-03-17T00:10:00Z |
 | 10 - Safetensors Runtime Loading | 10-01 | 10 min | 2 | 2 | 2026-03-17T01:52:00Z | 2026-03-17T02:02:50Z |
+| 11 - Safetensors Conversion Tool | 11-01 | 6 min | 2 | 5 | 2026-03-17T02:57:54Z | 2026-03-17T03:03:56Z |
 
 ## Accumulated Context
 
@@ -93,6 +95,8 @@ progress:
 | is_safetensors_file declared in model.h | Phase 10 plan 01 | Defined in model.cpp but missing header declaration; required for wan-api.cpp to call it |
 | Safetensors branch no prefix in init_from_file | Phase 10 plan 01 | HF WAN checkpoints already have model.diffusion_model.* names; doubling prefix breaks all tensor lookups |
 | get_sd_version for safetensors type inference | Phase 10 plan 01 | Safetensors has no metadata fields; model_type/version inferred from tensor names via get_sd_version |
+| 4-arg save_to_gguf_file overload | Phase 11 plan 01 | Backward-compatible addition; original 3-arg overload unchanged; metadata injected via gguf_set_val_str loop |
+| SUBMODEL_META map in wan-convert | Phase 11 plan 01 | Maps --type string to arch/version strings matching is_wan_gguf() key expectations |
 
 ### Technical Notes
 
@@ -138,9 +142,9 @@ progress:
 
 ## Session Continuity
 
-**Last Action:** Phase 10 Plan 01 - Safetensors runtime loading complete
-**Next Action:** Phase 10 complete — all plans done
-**Context:** Plan 10-01 added two-branch format dispatch to WanModel::load. Safetensors path uses init_from_file (no prefix) + convert_tensors_name + get_sd_version for type inference. GGUF path unchanged. Also added missing is_safetensors_file declaration to model.h. libwan-cpp.a builds cleanly.
+**Last Action:** Phase 11 Plan 01 - Safetensors conversion tool complete
+**Next Action:** v1.1 milestone complete — all phases done
+**Context:** Plan 11-01 added 4-arg save_to_gguf_file overload with gguf_set_val_str metadata injection, created wan-convert CLI with --input/--output/--type/--quant flags supporting 6 sub-model types, wired CMake. wan-convert builds and --help exits 0.
 
 ---
-*State updated: 2026-03-17*
+*State updated: 2026-03-17 — Phase 11 complete*

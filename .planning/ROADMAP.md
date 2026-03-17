@@ -30,7 +30,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
 
 - [x] **Phase 9: API Fixes + Vocab mmap** - 移除遗留 stub，接通 progress_cb，词汇表改为 mmap 加载 (completed 2026-03-16)
 - [x] **Phase 10: Safetensors Runtime Loading** - 运行时直接加载 .safetensors 格式 WAN 模型 (completed 2026-03-17)
-- [ ] **Phase 11: Safetensors Conversion Tool** - 独立 CLI 工具将 safetensors 转换为 GGUF
+- [x] **Phase 11: Safetensors Conversion Tool** - 独立 CLI 工具将 safetensors 转换为 GGUF (completed 2026-03-17)
 
 ## Phase Details
 
@@ -58,7 +58,7 @@ Plans:
   3. 传入无效或损坏的 safetensors 文件时返回明确错误码，不崩溃
 **Plans**: 1 plan
 Plans:
-- [ ] 10-01-PLAN.md — Add safetensors dispatch branch to WanModel::load (SAFE-01)
+- [x] 10-01-PLAN.md — Add safetensors dispatch branch to WanModel::load (SAFE-01)
 
 ### Phase 11: Safetensors Conversion Tool
 **Goal**: 用户可将 WAN2.1/2.2 所有子模型从 safetensors 批量转换为 GGUF
@@ -70,7 +70,7 @@ Plans:
   3. 转换后的 GGUF 文件执行 T2V/I2V 生成，输出与原始 safetensors 直接加载结果一致
 **Plans**: 1 plan
 Plans:
-- [ ] 11-01-PLAN.md — Extend save_to_gguf_file with metadata map + wan-convert CLI + CMake wiring (SAFE-02, SAFE-03)
+- [x] 11-01-PLAN.md — Extend save_to_gguf_file with metadata map + wan-convert CLI + CMake wiring (SAFE-02, SAFE-03)
 
 ## Progress
 
@@ -86,7 +86,7 @@ Plans:
 | 8. Implement Generation + AVI Output | v1.0 | 2/2 | Complete | 2026-03-16 |
 | 9. API Fixes + Vocab mmap | v1.1 | 2/2 | Complete | 2026-03-16 |
 | 10. Safetensors Runtime Loading | v1.1 | 1/1 | Complete | 2026-03-17 |
-| 11. Safetensors Conversion Tool | v1.1 | 0/1 | Not started | - |
+| 11. Safetensors Conversion Tool | v1.1 | 1/1 | Complete | 2026-03-17 |
 
 ---
-*Last updated: 2026-03-17 — Phase 11 plan created*
+*Last updated: 2026-03-17 — Phase 11 complete*
