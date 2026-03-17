@@ -15,4 +15,10 @@ std::string load_umt5_tokenizer_json();
 // (or falls back to embedded arrays when WAN_EMBED_VOCAB is defined).
 void wan_vocab_set_dir(const std::string& dir);
 
+// Returns true if a vocab directory has been set (i.e. g_vocab_dir is non-empty).
+bool wan_vocab_dir_is_set();
+
+// Returns the currently set vocab directory path (may be empty if not set).
+const std::string& wan_vocab_get_dir();
+
 #endif  // __VOCAB_H__

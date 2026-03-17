@@ -326,6 +326,19 @@ void wan_params_set_progress_callback(wan_params_t* params,
                                        wan_progress_cb_t callback,
                                        void* user_data);
 
+/** Set vocabulary directory for runtime vocab file loading.
+ *
+ * Must be called before wan_load_model() / wan_load_model_from_file().
+ * Has no effect and returns WAN_ERROR_INVALID_ARGUMENT when built with
+ * WAN_EMBED_VOCAB=ON (vocab is compiled in; external dir is ignored).
+ *
+ * @param dir Path to directory containing vocab files
+ *            (umt5_tokenizer.json, t5_tokenizer.json, clip_merges.txt, etc.)
+ * @return WAN_SUCCESS on success,
+ *         WAN_ERROR_INVALID_ARGUMENT if dir is NULL or if WAN_EMBED_VOCAB=ON
+ */
+wan_error_t wan_set_vocab_dir(const char* dir);
+
 /* ============================================================================
  * Utility Functions
  * ============================================================================ */

@@ -29,6 +29,14 @@
 #include <string>
 #include <vector>
 
+#ifndef _WIN32
+#  include <sys/stat.h>
+#else
+#  include <windows.h>
+#endif
+
+#include "../../src/vocab/vocab.h"
+
 /* ============================================================================
  * Platform-specific API export macros
  * ============================================================================ */
@@ -100,6 +108,17 @@ WAN_API void wan_set_log_callback(wan_log_cb_t callback, void* user_data) {
     // Store callback in global state
     g_log_callback = callback;
     g_log_user_data = user_data;
+}
+
+WAN_API wan_error_t wan_set_vocab_dir(const char* dir) {
+#ifdef WAN_EMBED_VOCAB
+    return WAN_ERROR_INVALID_ARGUMENT;
+#endif
+    if (!dir) {
+        return WAN_ERROR_INVALID_ARGUMENT;
+    }
+    wan_vocab_set_dir(std::string(dir));
+    return WAN_SUCCESS;
 }
 
 /* ============================================================================
@@ -264,6 +283,26 @@ WAN_API wan_error_t wan_load_model(const char* model_path,
     if (!model_path || !out_ctx) {
         return WAN_ERROR_INVALID_ARGUMENT;
     }
+
+#ifndef WAN_EMBED_VOCAB
+    if (!wan_vocab_dir_is_set()) {
+        return WAN_ERROR_INVALID_ARGUMENT;
+    }
+    {
+        const std::string& vdir = wan_vocab_get_dir();
+#ifndef _WIN32
+        struct stat st;
+        if (stat(vdir.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) {
+            return WAN_ERROR_INVALID_ARGUMENT;
+        }
+#else
+        DWORD attr = GetFileAttributesA(vdir.c_str());
+        if (attr == INVALID_FILE_ATTRIBUTES || !(attr & FILE_ATTRIBUTE_DIRECTORY)) {
+            return WAN_ERROR_INVALID_ARGUMENT;
+        }
+#endif
+    }
+#endif
 
     // Create context
     std::unique_ptr<wan_context> ctx(new wan_context());

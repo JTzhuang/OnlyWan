@@ -30,6 +30,14 @@ void wan_vocab_set_dir(const std::string& dir) {
     g_vocab_dir = dir;
 }
 
+bool wan_vocab_dir_is_set() {
+    return !g_vocab_dir.empty();
+}
+
+const std::string& wan_vocab_get_dir() {
+    return g_vocab_dir;
+}
+
 static std::string mmap_read(const std::string& path) {
 #ifndef _WIN32
     int fd = ::open(path.c_str(), O_RDONLY);
