@@ -29,7 +29,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
 ### v1.1 模型格式扩展 (Phases 9-11)
 
 - [x] **Phase 9: API Fixes + Vocab mmap** - 移除遗留 stub，接通 progress_cb，词汇表改为 mmap 加载 (completed 2026-03-16)
-- [ ] **Phase 10: Safetensors Runtime Loading** - 运行时直接加载 .safetensors 格式 WAN 模型
+- [x] **Phase 10: Safetensors Runtime Loading** - 运行时直接加载 .safetensors 格式 WAN 模型 (completed 2026-03-17)
 - [ ] **Phase 11: Safetensors Conversion Tool** - 独立 CLI 工具将 safetensors 转换为 GGUF
 
 ## Phase Details
@@ -83,7 +83,7 @@ Plans:
 | 7. Wire Core Model to API | v1.0 | 3/3 | Complete | 2026-03-16 |
 | 8. Implement Generation + AVI Output | v1.0 | 2/2 | Complete | 2026-03-16 |
 | 9. API Fixes + Vocab mmap | v1.1 | 2/2 | Complete | 2026-03-16 |
-| 10. Safetensors Runtime Loading | v1.1 | 0/1 | Not started | - |
+| 10. Safetensors Runtime Loading | 1/1 | Complete   | 2026-03-17 | - |
 | 11. Safetensors Conversion Tool | v1.1 | 0/? | Not started | - |
 
 ---

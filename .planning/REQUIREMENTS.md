@@ -54,7 +54,7 @@
 
 ### Safetensors 支持
 
-- [ ] **SAFE-01**: 用户可直接加载 .safetensors 格式的 WAN 模型文件（无需预转换）
+- [x] **SAFE-01**: 用户可直接加载 .safetensors 格式的 WAN 模型文件（无需预转换）
 - [ ] **SAFE-02**: 提供 safetensors → GGUF 转换工具（独立 CLI 可执行文件）
 - [ ] **SAFE-03**: 转换工具支持 WAN2.1/2.2 所有子模型（DiT、VAE、T5、CLIP）
 

@@ -4,30 +4,30 @@ milestone: v1.1
 milestone_name: 模型格式扩展
 current_phase: 10
 status: unknown
-last_updated: "2026-03-16T17:22:53.321Z"
+last_updated: "2026-03-17T02:03:41.260Z"
 progress:
   total_phases: 3
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  completed_phases: 2
+  total_plans: 3
+  completed_plans: 3
 ---
 
 # Project State: wan-cpp
 
-**Last Updated:** 2026-03-16
+**Last Updated:** 2026-03-17
 **Current Phase:** 10
 
 ## Project Reference
 
 **Core Value:** Provide independent, lightweight, cross-platform WAN video generation inference capabilities
-**Current Focus:** Phase 7 - Wire Core Model to API (complete)
+**Current Focus:** Phase 10 - Safetensors Runtime Loading
 
 ## Current Position
 
 | Field | Value |
 |-------|-------|
-| Phase | 9 - API Fixes + Vocab + Mmap |
-| Plan | 02 (complete) |
+| Phase | 10 - Safetensors Runtime Loading |
+| Plan | 01 (complete) |
 | Status | Complete |
 | Progress | 100% |
 
@@ -44,6 +44,7 @@ progress:
 | 7 - Wire Core Model to API | Completed | 3/3 | 07-01, 07-02, 07-03 |
 | 8 - Implement Generation + AVI Output | Completed | 2/2 | 08-01, 08-02 |
 | 9 - API Fixes + Vocab + Mmap | Completed | 2/2 | 09-01, 09-02 |
+| 10 - Safetensors Runtime Loading | Completed | 1/1 | 10-01 |
 
 ## Performance Metrics
 
@@ -60,6 +61,7 @@ progress:
 | 8 - Implement Generation | 08-02 | 15 min | 2 | 3 | 2026-03-16T11:38:00Z | 2026-03-16T11:53:00Z |
 | 9 - API Fixes + Vocab + Mmap | 09-01 | 3 min | 3 | 3 | 2026-03-16T16:07:00Z | 2026-03-16T16:10:00Z |
 | 9 - API Fixes + Vocab + Mmap | 09-02 | 4 min | 3 | 3 | 2026-03-16T16:06:08Z | 2026-03-17T00:10:00Z |
+| 10 - Safetensors Runtime Loading | 10-01 | 10 min | 2 | 2 | 2026-03-17T01:52:00Z | 2026-03-17T02:02:50Z |
 
 ## Accumulated Context
 
@@ -88,6 +90,9 @@ progress:
 | Shared load_vocab_file() helper | Phase 9 plan 02 | Centralizes mmap_read call — one call site instead of six per-function calls |
 | WAN_EMBED_VOCAB defaults OFF | Phase 9 plan 02 | Default build excludes 127MB of .hpp arrays; embedded path preserved for backward compat |
 | Windows FILE* fallback in vocab.cpp | Phase 9 plan 02 | Avoids Win32 MapViewOfFile complexity; FILE* sufficient for vocab loading |
+| is_safetensors_file declared in model.h | Phase 10 plan 01 | Defined in model.cpp but missing header declaration; required for wan-api.cpp to call it |
+| Safetensors branch no prefix in init_from_file | Phase 10 plan 01 | HF WAN checkpoints already have model.diffusion_model.* names; doubling prefix breaks all tensor lookups |
+| get_sd_version for safetensors type inference | Phase 10 plan 01 | Safetensors has no metadata fields; model_type/version inferred from tensor names via get_sd_version |
 
 ### Technical Notes
 
@@ -133,9 +138,9 @@ progress:
 
 ## Session Continuity
 
-**Last Action:** Phase 9 Plan 02 - Vocab mmap loading complete
-**Next Action:** Phase 9 complete — all plans done
-**Context:** Plan 09-02 replaced embedded 127MB vocab arrays with runtime mmap loading. vocab.cpp now uses mmap_read() by default; embedded .hpp arrays only compiled when WAN_EMBED_VOCAB=ON. CMakeLists.txt has WAN_EMBED_VOCAB option defaulting to OFF. libwan-cpp.a reduced from ~88MB to 3.1MB.
+**Last Action:** Phase 10 Plan 01 - Safetensors runtime loading complete
+**Next Action:** Phase 10 complete — all plans done
+**Context:** Plan 10-01 added two-branch format dispatch to WanModel::load. Safetensors path uses init_from_file (no prefix) + convert_tensors_name + get_sd_version for type inference. GGUF path unchanged. Also added missing is_safetensors_file declaration to model.h. libwan-cpp.a builds cleanly.
 
 ---
 *State updated: 2026-03-17*
