@@ -1012,6 +1012,26 @@ __STATIC_INLINE__ struct ggml_tensor* ggml_ext_gelu(struct ggml_context* ctx,
     return x;
 }
 
+// FUS-02: Linear + GELU fusion helper
+// When used with inplace=true after Linear, this pattern allows CUDA graph
+// (enabled by CG-02) to automatically merge kernels, reducing memory allocation
+// and kernel launch overhead in FFN blocks.
+__STATIC_INLINE__ struct ggml_tensor* ggml_ext_linear_gelu(struct ggml_context* ctx,
+                                                            struct ggml_tensor* x,
+                                                            struct ggml_tensor* weight,
+                                                            struct ggml_tensor* bias = nullptr) {
+    auto y = ggml_mul_mat(ctx, weight, x);
+    if (bias != nullptr) {
+        y = ggml_add(ctx, y, bias);
+    }
+    // Use inplace GELU to avoid intermediate memory allocation
+    if (!ggml_is_contiguous(y)) {
+        y = ggml_cont(ctx, y);
+    }
+    y = ggml_gelu_inplace(ctx, y);
+    return y;
+}
+
 __STATIC_INLINE__ struct ggml_tensor* ggml_ext_gelu_quick(struct ggml_context* ctx,
                                                           struct ggml_tensor* x,
                                                           bool inplace = false) {
