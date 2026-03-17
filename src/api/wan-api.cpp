@@ -335,6 +335,21 @@ WAN_API wan_error_t wan_load_model(const char* model_path,
         return WAN_ERROR_BACKEND_FAILED;
     }
 
+    // OP-01: Auto-enable Flash Attention for non-CPU backends
+    ggml_backend_t backend = ctx->backend->backend;
+    if (backend && !ggml_backend_is_cpu(backend)) {
+        if (ctx->wan_runner) {
+            ctx->wan_runner->set_flash_attention_enabled(true);
+        }
+        if (ctx->vae_runner) {
+            ctx->vae_runner->set_flash_attention_enabled(true);
+        }
+        if (ctx->clip_runner) {
+            ctx->clip_runner->set_flash_attention_enabled(true);
+        }
+        LOG_INFO("Auto-enabled flash attention for non-CPU backend");
+    }
+
     *out_ctx = ctx.release();
     return WAN_SUCCESS;
 }

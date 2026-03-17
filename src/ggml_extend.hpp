@@ -1690,6 +1690,10 @@ protected:
     bool circular_x_enabled    = false;
     bool circular_y_enabled    = false;
 
+    // CG-01: Graph structure stability optimization
+    bool graph_structure_stable       = false;
+    struct ggml_cgraph* cached_graph  = nullptr;
+
     void alloc_params_ctx() {
         struct ggml_init_params params;
         params.mem_size   = static_cast<size_t>(MAX_PARAMS_TENSOR_NUM * ggml_tensor_overhead());
@@ -2019,6 +2023,7 @@ public:
             ggml_gallocr_free(compute_allocr);
             compute_allocr = nullptr;
         }
+        cached_graph = nullptr;  // CG-01: Clear cached graph when freeing buffer
         offload_params_to_params_backend();
     }
 
@@ -2064,17 +2069,33 @@ public:
             LOG_ERROR("%s offload params to runtime backend failed", get_desc().c_str());
             return false;
         }
-        if (!alloc_compute_buffer(get_graph)) {
-            LOG_ERROR("%s alloc compute buffer failed", get_desc().c_str());
-            return false;
+
+        struct ggml_cgraph* gf = nullptr;
+
+        // CG-01: Skip graph rebuild if structure is stable and buffer exists
+        if (graph_structure_stable && compute_allocr != nullptr && cached_graph != nullptr) {
+            gf = cached_graph;
+            copy_data_to_backend_tensor();
+        } else {
+            // Normal path: allocate buffer and build graph
+            if (!alloc_compute_buffer(get_graph)) {
+                LOG_ERROR("%s alloc compute buffer failed", get_desc().c_str());
+                return false;
+            }
+            reset_compute_ctx();
+            gf = get_compute_graph(get_graph);
+            if (!ggml_gallocr_alloc_graph(compute_allocr, gf)) {
+                LOG_ERROR("%s alloc compute graph failed", get_desc().c_str());
+                return false;
+            }
+            copy_data_to_backend_tensor();
+
+            // Cache graph if buffer will be kept
+            if (!free_compute_buffer_immediately && graph_structure_stable) {
+                cached_graph = gf;
+            }
         }
-        reset_compute_ctx();
-        struct ggml_cgraph* gf = get_compute_graph(get_graph);
-        if (!ggml_gallocr_alloc_graph(compute_allocr, gf)) {
-            LOG_ERROR("%s alloc compute graph failed", get_desc().c_str());
-            return false;
-        }
-        copy_data_to_backend_tensor();
+
         if (ggml_backend_is_cpu(runtime_backend)) {
             ggml_backend_cpu_set_n_threads(runtime_backend, n_threads);
         }
@@ -2106,6 +2127,11 @@ public:
 
     void set_flash_attention_enabled(bool enabled) {
         flash_attn_enabled = enabled;
+    }
+
+    // CG-01: Enable graph structure stability optimization
+    void set_graph_structure_stable(bool stable) {
+        graph_structure_stable = stable;
     }
 
     void set_conv2d_direct_enabled(bool enabled) {
