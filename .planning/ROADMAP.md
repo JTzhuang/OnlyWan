@@ -114,7 +114,7 @@ Plans:
 | 10. Safetensors Runtime Loading | v1.1 | 1/1 | Complete | 2026-03-17 |
 | 11. Safetensors Conversion Tool | v1.1 | 1/1 | Complete | 2026-03-17 |
 | 12. Wire Vocab Dir to Public API | v1.1 | 1/1 | Complete | 2026-03-17 |
-| 13. Document wan-convert Sub-model Scope | 1/1 | Complete   | 2026-03-17 | - |
+| 13. Document wan-convert Sub-model Scope | 1/1 | Complete    | 2026-03-17 | - |
 
 ---
 *Last updated: 2026-03-17 — Phase 13 planned*
