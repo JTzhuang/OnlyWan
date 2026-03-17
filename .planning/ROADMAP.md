@@ -114,17 +114,25 @@ Plans:
 | 10. Safetensors Runtime Loading | v1.1 | 1/1 | Complete | 2026-03-17 |
 | 11. Safetensors Conversion Tool | v1.1 | 1/1 | Complete | 2026-03-17 |
 | 12. Wire Vocab Dir to Public API | v1.1 | 1/1 | Complete | 2026-03-17 |
-| 13. Document wan-convert Sub-model Scope | 1/1 | Complete    | 2026-03-17 | - |
+| 13. Document wan-convert Sub-model Scope | v1.1 | 1/1 | Complete | 2026-03-17 |
+| 14. 性能优化 - CUDA Graph 和算子融合 | v1.2 | 0/2 | Planning | - |
 
 ### Phase 14: 性能优化 - CUDA Graph 和算子融合
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** 实现 5 个 Quick Wins 优化（CG-01、OP-01、CG-02、OP-02、FUS-02），达成 2-5x 去噪循环加速和 10-20% 整体推理加速
+**Requirements**: CG-01, OP-01, CG-02, OP-02, FUS-02
 **Depends on:** Phase 13
-**Plans:** 0 plans
+**Success Criteria** (what must be TRUE):
+  1. 去噪循环中 compute buffer 只分配一次，graph 结构跨步复用
+  2. CUDA/Metal 后端自动启用 Flash Attention
+  3. GGML_CUDA_USE_GRAPHS 编译标志在 CUDA 构建中自动定义
+  4. RoPE PE 在去噪循环中只计算一次，后续步从缓存读取
+  5. FFN 路径使用 inplace GELU 或融合的 linear_gelu
+**Plans**: 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 14 to break down)
+- [ ] 14-01-PLAN.md — 缓冲区持久化 + Flash Attention 自动启用 + CUDA Graph 编译标志 (CG-01, OP-01, CG-02)
+- [ ] 14-02-PLAN.md — RoPE PE GPU 化 + Linear+GELU 算子融合 (OP-02, FUS-02)
 
 ---
-*Last updated: 2026-03-17 — Phase 13 planned*
+*Last updated: 2026-03-17 — Phase 14 planned*
