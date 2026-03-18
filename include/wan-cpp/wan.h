@@ -395,6 +395,40 @@ wan_error_t wan_get_model_info(wan_context_t* ctx,
                                 size_t version_size);
 
 /* ============================================================================
+ * Multi-GPU Batch Generation
+ * ============================================================================ */
+
+#ifdef WAN_USE_MULTI_GPU
+
+/** Batch generation result for a single request */
+typedef struct {
+    wan_error_t error;                 /**< Error code for this request */
+    char error_message[256];           /**< Error message if failed */
+} wan_batch_result_t;
+
+/** Generate multiple videos in parallel across GPUs (data parallel mode)
+ *
+ * Distributes batch requests across available GPUs using round-robin assignment.
+ * Each GPU loads a complete model copy and processes requests independently.
+ *
+ * @param model_path Path to model file
+ * @param prompts Array of text prompts (one per request)
+ * @param output_paths Array of output file paths (one per request)
+ * @param batch_size Number of requests to process
+ * @param params Generation parameters (gpu_ids and num_gpus must be set)
+ * @param results Output array for per-request results (must have batch_size elements)
+ * @return WAN_SUCCESS if all requests succeeded, WAN_ERROR_GENERATION_FAILED if any failed
+ */
+wan_error_t wan_generate_batch_t2v(const char* model_path,
+                                    const char** prompts,
+                                    const char** output_paths,
+                                    int batch_size,
+                                    const wan_params_t* params,
+                                    wan_batch_result_t* results);
+
+#endif /* WAN_USE_MULTI_GPU */
+
+/* ============================================================================
  * Resource Cleanup
  * ============================================================================ */
 
