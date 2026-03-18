@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: 模型格式扩展
 current_phase: 15
-status: in-progress
-last_updated: "2026-03-18T13:07:15Z"
+status: unknown
+last_updated: "2026-03-18T05:14:39.850Z"
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 13
-  completed_plans: 10
+  completed_plans: 11
 ---
 
 # Project State: wan-cpp
@@ -27,9 +27,9 @@ progress:
 | Field | Value |
 |-------|-------|
 | Phase | 15 - Multi-GPU Inference Support |
-| Plan | 02 (next) |
+| Plan | 04 (next) |
 | Status | In Progress |
-| Progress | 40% (2/5 plans complete) |
+| Progress | 60% (3/5 plans complete) |
 
 ## Phase Progress
 
@@ -49,7 +49,7 @@ progress:
 | 12 - Wire Vocab Dir to Public API | Completed | 1/1 | 12-01 |
 | 13 - Document wan-convert Sub-model Scope | Completed | 1/1 | 13-01 |
 | 14 - 性能优化 - CUDA Graph 和算子融合 | Completed | 2/2 | 14-01, 14-02 |
-| 15 - 多卡推理支持 | In Progress | 2/5 | 15-00, 15-01 |
+| 15 - 多卡推理支持 | In Progress | 3/5 | 15-00, 15-01, 15-03 |
 
 ## Performance Metrics
 
@@ -75,6 +75,7 @@ progress:
 | 15 - Multi-GPU Inference Support | 15-00 | 2 min | 1 | 6 | 2026-03-18T04:48:25Z | 2026-03-18T04:50:17Z |
 | 15 - Multi-GPU Inference Support | 15-01 | 892 | 3 | 3 | 2026-03-18T04:52:23Z | 2026-03-18T13:07:15Z |
 | Phase 15 P00 | 112 | 1 tasks | 6 files |
+| Phase 15 P03 | 167 | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -177,6 +178,8 @@ progress:
 - **Rationale:** Basic multi-GPU can work without NCCL using CUDA peer-to-peer communication
 - **Impact:** Broader compatibility, graceful degradation when NCCL unavailable
 - **Date:** 2026-03-18
+- [Phase 15]: Use std::thread for concurrent execution - simple, portable threading without external dependencies
+- [Phase 15]: Round-robin GPU assignment for balanced load distribution across GPUs
 
 ## Todo Items
 
@@ -196,9 +199,9 @@ progress:
 
 ## Session Continuity
 
-**Last Action:** Completed Phase 15 Plan 01 - Multi-GPU API Foundation
-**Next Action:** Execute Phase 15 Plan 02 - Multi-GPU Context Initialization
-**Context:** Established multi-GPU type contracts with distribution strategy enum, extended internal context with backend scheduler, and integrated NCCL build system support. All 3 tasks completed with 3 commits (e3cd2dd, 9bb6494, f396f71). Build system verified for both single-GPU and multi-GPU configurations.
+**Last Action:** Completed Phase 15 Plan 03 - Data Parallel Batch Generation
+**Next Action:** Execute Phase 15 Plan 04 (next incomplete plan)
+**Context:** Implemented data parallel batch generation with device-targeting model loader, batch generation API, and concurrent threading. All 3 tasks completed with 3 commits (30c385c, 1a7309f, ad1d444). Round-robin GPU assignment distributes requests across GPUs for balanced load.
 
 ---
 *State updated: 2026-03-18 — Phase 15 Plan 01 complete*
