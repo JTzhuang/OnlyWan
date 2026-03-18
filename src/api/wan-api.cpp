@@ -938,3 +938,145 @@ WAN_API wan_error_t wan_generate_video_i2v_ex(wan_context_t* ctx,
     return (ret == 0) ? WAN_SUCCESS : WAN_ERROR_BACKEND_FAILED;
 }
 
+/* ============================================================================
+ * Multi-GPU Batch Generation (Data Parallel)
+ * ============================================================================ */
+
+#ifdef WAN_USE_MULTI_GPU
+
+#include <thread>
+#include <mutex>
+
+namespace {
+
+struct BatchWorkerContext {
+    int request_id;
+    int gpu_id;
+    std::string model_path;
+    std::string prompt;
+    std::string output_path;
+    wan_params_t params;
+    wan_batch_result_t* result;
+};
+
+void batch_worker_thread(BatchWorkerContext* ctx) {
+    // Load model on specific GPU
+    wan_context_t* wan_ctx = nullptr;
+    wan_error_t err = wan_load_model(ctx->model_path.c_str(),
+                                      ctx->params.n_threads,
+                                      ctx->params.backend_type,
+                                      &wan_ctx);
+
+    if (err != WAN_SUCCESS) {
+        ctx->result->error = err;
+        snprintf(ctx->result->error_message, sizeof(ctx->result->error_message),
+                 "Failed to load model on GPU %d", ctx->gpu_id);
+        return;
+    }
+
+    // Override backend to target specific device
+    wan_ctx->backend.reset(Wan::WanBackend::create_on_device(
+        ctx->params.backend_type ? ctx->params.backend_type : "cuda",
+        ctx->params.n_threads,
+        ctx->gpu_id
+    ));
+
+    if (!wan_ctx->backend || !wan_ctx->backend->backend) {
+        ctx->result->error = WAN_ERROR_GPU_FAILURE;
+        snprintf(ctx->result->error_message, sizeof(ctx->result->error_message),
+                 "Failed to create backend on GPU %d", ctx->gpu_id);
+        wan_free(wan_ctx);
+        return;
+    }
+
+    // Generate video
+    err = wan_generate_video_t2v_ex(wan_ctx, ctx->prompt.c_str(),
+                                     &ctx->params, ctx->output_path.c_str());
+
+    ctx->result->error = err;
+    if (err != WAN_SUCCESS) {
+        const char* error_msg = wan_get_last_error(wan_ctx);
+        snprintf(ctx->result->error_message, sizeof(ctx->result->error_message),
+                 "GPU %d: %s", ctx->gpu_id, error_msg ? error_msg : "Generation failed");
+    } else {
+        ctx->result->error_message[0] = '\0';
+    }
+
+    wan_free(wan_ctx);
+}
+
+} // anonymous namespace
+
+WAN_API wan_error_t wan_generate_batch_t2v(const char* model_path,
+                                            const char** prompts,
+                                            const char** output_paths,
+                                            int batch_size,
+                                            const wan_params_t* params,
+                                            wan_batch_result_t* results) {
+    if (!model_path || !prompts || !output_paths || !params || !results || batch_size <= 0) {
+        return WAN_ERROR_INVALID_ARGUMENT;
+    }
+
+    if (!params->gpu_ids || params->num_gpus <= 0) {
+        return WAN_ERROR_INVALID_ARGUMENT;
+    }
+
+    // Create worker contexts
+    std::vector<BatchWorkerContext> contexts(batch_size);
+    std::vector<std::thread> threads;
+    threads.reserve(batch_size);
+
+    // Initialize results
+    for (int i = 0; i < batch_size; i++) {
+        results[i].error = WAN_SUCCESS;
+        results[i].error_message[0] = '\0';
+    }
+
+    // Launch worker threads with round-robin GPU assignment
+    for (int i = 0; i < batch_size; i++) {
+        contexts[i].request_id = i;
+        contexts[i].gpu_id = params->gpu_ids[i % params->num_gpus];
+        contexts[i].model_path = model_path;
+        contexts[i].prompt = prompts[i];
+        contexts[i].output_path = output_paths[i];
+        contexts[i].params = *params;
+        contexts[i].result = &results[i];
+
+        threads.emplace_back(batch_worker_thread, &contexts[i]);
+    }
+
+    // Wait for all threads to complete
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    // Check if any request failed
+    bool any_failed = false;
+    for (int i = 0; i < batch_size; i++) {
+        if (results[i].error != WAN_SUCCESS) {
+            any_failed = true;
+        }
+    }
+
+    return any_failed ? WAN_ERROR_GENERATION_FAILED : WAN_SUCCESS;
+}
+
+#else
+
+WAN_API wan_error_t wan_generate_batch_t2v(const char* model_path,
+                                            const char** prompts,
+                                            const char** output_paths,
+                                            int batch_size,
+                                            const wan_params_t* params,
+                                            wan_batch_result_t* results) {
+    (void)model_path;
+    (void)prompts;
+    (void)output_paths;
+    (void)batch_size;
+    (void)params;
+    (void)results;
+    return WAN_ERROR_UNSUPPORTED_OPERATION;
+}
+
+#endif /* WAN_USE_MULTI_GPU */
+
