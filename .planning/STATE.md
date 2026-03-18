@@ -4,12 +4,12 @@ milestone: v1.1
 milestone_name: 模型格式扩展
 current_phase: 15
 status: in-progress
-last_updated: "2026-03-18T04:51:02.475Z"
+last_updated: "2026-03-18T13:07:15Z"
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 13
-  completed_plans: 9
+  completed_plans: 10
 ---
 
 # Project State: wan-cpp
@@ -27,9 +27,9 @@ progress:
 | Field | Value |
 |-------|-------|
 | Phase | 15 - Multi-GPU Inference Support |
-| Plan | 01 (next) |
+| Plan | 02 (next) |
 | Status | In Progress |
-| Progress | 20% (1/5 plans complete) |
+| Progress | 40% (2/5 plans complete) |
 
 ## Phase Progress
 
@@ -49,7 +49,7 @@ progress:
 | 12 - Wire Vocab Dir to Public API | Completed | 1/1 | 12-01 |
 | 13 - Document wan-convert Sub-model Scope | Completed | 1/1 | 13-01 |
 | 14 - 性能优化 - CUDA Graph 和算子融合 | Completed | 2/2 | 14-01, 14-02 |
-| 15 - 多卡推理支持 | In Progress | 1/5 | 15-00 |
+| 15 - 多卡推理支持 | In Progress | 2/5 | 15-00, 15-01 |
 
 ## Performance Metrics
 
@@ -73,6 +73,7 @@ progress:
 | Phase 14 P01 | 681 | 2 tasks | 3 files |
 | Phase 14 P02 | 245 | 2 tasks | 2 files |
 | 15 - Multi-GPU Inference Support | 15-00 | 2 min | 1 | 6 | 2026-03-18T04:48:25Z | 2026-03-18T04:50:17Z |
+| 15 - Multi-GPU Inference Support | 15-01 | 892 | 3 | 3 | 2026-03-18T04:52:23Z | 2026-03-18T13:07:15Z |
 | Phase 15 P00 | 112 | 1 tasks | 6 files |
 
 ## Accumulated Context
@@ -155,6 +156,28 @@ progress:
 - Created complete CLI with comprehensive argument parsing
 - Created Phase 5 plan for encoder integration
 
+## Decisions
+
+### Phase 15 - Multi-GPU Inference Support
+
+**Decision:** Use ggml_backend_sched_t for multi-GPU scheduling
+- **Context:** Need to coordinate multiple GPU backends for distributed inference
+- **Rationale:** GGML provides built-in backend scheduler with automatic memory management and tensor placement optimization
+- **Impact:** Reduces implementation complexity, leverages battle-tested GGML infrastructure
+- **Date:** 2026-03-18
+
+**Decision:** Guard multi-GPU code with WAN_USE_MULTI_GPU
+- **Context:** Need to maintain backward compatibility with single-GPU builds
+- **Rationale:** Ensures single-GPU builds remain unaffected and compile without CUDA dependencies
+- **Impact:** Clean separation of concerns, no overhead for CPU/single-GPU users
+- **Date:** 2026-03-18
+
+**Decision:** Make NCCL optional with fallback warning
+- **Context:** Not all systems have NCCL installed
+- **Rationale:** Basic multi-GPU can work without NCCL using CUDA peer-to-peer communication
+- **Impact:** Broader compatibility, graceful degradation when NCCL unavailable
+- **Date:** 2026-03-18
+
 ## Todo Items
 
 ### Blocking
@@ -173,9 +196,9 @@ progress:
 
 ## Session Continuity
 
-**Last Action:** Quick Task 260317-nl6 - 子模型优化空间分析 TODO 列表完成
-**Next Action:** 可继续执行其他快速任务或规划新阶段
-**Context:** 分析了 5 个子模型（WAN DiT、Flux DiT、T5、CLIP、VAE），识别了 28 个优化机会，分布在 CUDA Graph、算子效率、第三方库、算子融合 4 个维度。生成了结构化的 TODO 列表，包含优先级、预期收益、难度、代码位置等信息。
+**Last Action:** Completed Phase 15 Plan 01 - Multi-GPU API Foundation
+**Next Action:** Execute Phase 15 Plan 02 - Multi-GPU Context Initialization
+**Context:** Established multi-GPU type contracts with distribution strategy enum, extended internal context with backend scheduler, and integrated NCCL build system support. All 3 tasks completed with 3 commits (e3cd2dd, 9bb6494, f396f71). Build system verified for both single-GPU and multi-GPU configurations.
 
 ---
-*State updated: 2026-03-17 — Quick Task 260317-nl6 complete*
+*State updated: 2026-03-18 — Phase 15 Plan 01 complete*

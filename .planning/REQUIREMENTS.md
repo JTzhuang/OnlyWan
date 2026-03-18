@@ -73,9 +73,9 @@
 
 ### 多卡 API 与配置
 
-- [ ] **MGPU-01**: 扩展 `wan_params_t` 添加多卡配置字段（gpu_ids、num_gpus、distribution_strategy 枚举）
-- [ ] **MGPU-02**: 扩展 `wan_context` 支持多后端管理（多个 ggml_backend_t、ggml_backend_sched_t）
-- [ ] **MGPU-03**: CMake 添加 `WAN_NCCL` 选项，条件链接 NCCL 库
+- [x] **MGPU-01**: 扩展 `wan_params_t` 添加多卡配置字段（gpu_ids、num_gpus、distribution_strategy 枚举）
+- [x] **MGPU-02**: 扩展 `wan_context` 支持多后端管理（多个 ggml_backend_t、ggml_backend_sched_t）
+- [x] **MGPU-03**: CMake 添加 `WAN_NCCL` 选项，条件链接 NCCL 库
 
 ### 多卡推理实现
 
@@ -92,11 +92,11 @@
 
 ### 错误处理
 
-- [ ] **MGPU-11**: 新增 `WAN_ERROR_GPU_FAILURE` 错误码，GPU 失败时立即中断并返回详细错误信息
+- [x] **MGPU-11**: 新增 `WAN_ERROR_GPU_FAILURE` 错误码，GPU 失败时立即中断并返回详细错误信息
 
 ### 向后兼容
 
-- [ ] **MGPU-12**: 不指定多卡配置时自动回退到单卡推理，现有 API 行为不变
+- [x] **MGPU-12**: 不指定多卡配置时自动回退到单卡推理，现有 API 行为不变
 
 ## v2 Requirements
 
