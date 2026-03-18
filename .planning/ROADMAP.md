@@ -117,7 +117,7 @@ Plans:
 | 12. Wire Vocab Dir to Public API | v1.1 | 1/1 | Complete | 2026-03-17 |
 | 13. Document wan-convert Sub-model Scope | v1.1 | 1/1 | Complete | 2026-03-17 |
 | 14. 性能优化 - CUDA Graph 和算子融合 | v1.2 | 2/2 | Complete | 2026-03-17 |
-| 15. 多卡推理支持 | v1.2 | 0/4 | Planned | - |
+| 15. 多卡推理支持 | v1.2 | 0/5 | Planned | - |
 
 ### Phase 14: 性能优化 - CUDA Graph 和算子融合
 
@@ -149,9 +149,10 @@ Plans:
   5. wan-cli 支持 --gpu-ids 和 --num-gpus 参数
   6. 不指定多卡配置时自动回退到单卡推理，现有 API 行为不变
   7. CMake WAN_NCCL 选项可条件链接 NCCL 库
-**Plans**: 4 plans
+**Plans**: 5 plans
 
 Plans:
+- [ ] 15-00-PLAN.md — Wave 0 测试基础设施 (MGPU-09, MGPU-10)
 - [ ] 15-01-PLAN.md — 多卡 API 类型定义 + CMake NCCL 集成 (MGPU-01, MGPU-02, MGPU-03, MGPU-11, MGPU-12)
 - [ ] 15-02-PLAN.md — 多卡后端初始化 + 张量并行模型加载 + 去噪循环适配 (MGPU-04, MGPU-05, MGPU-07, MGPU-12)
 - [ ] 15-03-PLAN.md — 数据并行批量生成实现 (MGPU-06)
