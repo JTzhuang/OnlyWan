@@ -152,11 +152,11 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [ ] 15-00-PLAN.md — Wave 0 测试基础设施（测试桩文件）
-- [ ] 15-01-PLAN.md — Wave 1 多卡 API 类型定义 + CMake NCCL 集成 (MGPU-01, MGPU-02, MGPU-03, MGPU-11, MGPU-12)
-- [ ] 15-03-PLAN.md — Wave 2 数据并行批量生成实现 (MGPU-06)
-- [ ] 15-02-PLAN.md — Wave 3 多卡后端初始化 + 张量并行模型加载 + 去噪循环适配 (MGPU-04, MGPU-05, MGPU-07, MGPU-12)
-- [ ] 15-04-PLAN.md — Wave 4 CLI 多卡参数 + GPU 信息查询 + 人工验证 (MGPU-08, MGPU-09, MGPU-10)
+- [x] 15-00-PLAN.md — Wave 0 测试基础设施（测试桩文件）
+- [x] 15-01-PLAN.md — Wave 1 多卡 API 类型定义 + CMake NCCL 集成 (MGPU-01, MGPU-02, MGPU-03, MGPU-11, MGPU-12)
+- [x] 15-02-PLAN.md — Wave 3 多卡后端初始化 + 张量并行模型加载 + 去噪循环适配 (MGPU-04, MGPU-05, MGPU-07, MGPU-12)
+- [x] 15-03-PLAN.md — Wave 2 数据并行批量生成实现 (MGPU-06)
+- [x] 15-04-PLAN.md — Wave 4 CLI 多卡参数 + GPU 信息查询 + 人工验证 (MGPU-08, MGPU-09, MGPU-10)
 
 ---
-*Last updated: 2026-03-18 — Phase 15 revised (checker iteration 2)*
+*Last updated: 2026-03-18 — Phase 15 Plan 04 complete*

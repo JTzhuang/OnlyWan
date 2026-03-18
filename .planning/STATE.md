@@ -4,12 +4,12 @@ milestone: v1.1
 milestone_name: 模型格式扩展
 current_phase: 15
 status: unknown
-last_updated: "2026-03-18T05:23:01.689Z"
+last_updated: "2026-03-18T05:28:32Z"
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 13
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # Project State: wan-cpp
@@ -27,9 +27,9 @@ progress:
 | Field | Value |
 |-------|-------|
 | Phase | 15 - Multi-GPU Inference Support |
-| Plan | 04 (next) |
+| Plan | 05 (next) |
 | Status | In Progress |
-| Progress | 60% (3/5 plans complete) |
+| Progress | 80% (4/5 plans complete) |
 
 ## Phase Progress
 
@@ -49,7 +49,7 @@ progress:
 | 12 - Wire Vocab Dir to Public API | Completed | 1/1 | 12-01 |
 | 13 - Document wan-convert Sub-model Scope | Completed | 1/1 | 13-01 |
 | 14 - 性能优化 - CUDA Graph 和算子融合 | Completed | 2/2 | 14-01, 14-02 |
-| 15 - 多卡推理支持 | In Progress | 3/5 | 15-00, 15-01, 15-03 |
+| 15 - 多卡推理支持 | In Progress | 4/5 | 15-00, 15-01, 15-02, 15-03, 15-04 |
 
 ## Performance Metrics
 
@@ -77,6 +77,7 @@ progress:
 | Phase 15 P00 | 112 | 1 tasks | 6 files |
 | Phase 15 P03 | 167 | 3 tasks | 4 files |
 | Phase 15 P02 | 341 | 3 tasks | 6 files |
+| 15 - Multi-GPU Inference Support | 15-04 | 278 | 4 | 5 | 2026-03-18T05:23:54Z | 2026-03-18T05:28:32Z |
 
 ## Accumulated Context
 
@@ -202,9 +203,9 @@ progress:
 
 ## Session Continuity
 
-**Last Action:** Completed Phase 15 Plan 03 - Data Parallel Batch Generation
-**Next Action:** Execute Phase 15 Plan 04 (next incomplete plan)
-**Context:** Implemented data parallel batch generation with device-targeting model loader, batch generation API, and concurrent threading. All 3 tasks completed with 3 commits (30c385c, 1a7309f, ad1d444). Round-robin GPU assignment distributes requests across GPUs for balanced load.
+**Last Action:** Completed Phase 15 Plan 04 - CLI Multi-GPU Integration and Validation
+**Next Action:** Execute Phase 15 Plan 05 (if exists) or complete Phase 15
+**Context:** Added CLI multi-GPU arguments (--gpu-ids/--num-gpus), GPU info query API, benchmark script for performance metrics, and precision validation script. All 4 tasks completed with 4 commits (4774ff9, 4fbf155, cf29dbb, a08dae1). Checkpoint auto-approved in auto mode.
 
 ---
-*State updated: 2026-03-18 — Phase 15 Plan 01 complete*
+*State updated: 2026-03-18 — Phase 15 Plan 04 complete*
