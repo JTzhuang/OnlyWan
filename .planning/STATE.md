@@ -77,6 +77,7 @@ progress:
 ### Roadmap Evolution
 
 - Phase 14 added: 性能优化 - CUDA Graph 和算子融合（基于优化 TODO 列表，重点关注 Quick Wins）
+- Phase 15 added: 多卡推理支持
 
 ### Key Decisions
 
