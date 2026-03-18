@@ -97,7 +97,7 @@ bool is_wan_gguf(const std::string& file_path, std::string& model_type, std::str
  * WanBackend Implementation
  * ============================================================================ */
 
-WanBackend* WanBackend::create(const std::string& type, int n_threads) {
+WanBackend* WanBackend::create(const std::string& type, int n_threads, int device_id) {
     std::unique_ptr<WanBackend> backend(new WanBackend());
     backend->backend_type = type;
     backend->n_threads = n_threads;
@@ -107,7 +107,7 @@ WanBackend* WanBackend::create(const std::string& type, int n_threads) {
     }
 #ifdef WAN_USE_CUDA
     else if (type == "cuda") {
-        backend->backend = ggml_backend_cuda_init(0);
+        backend->backend = ggml_backend_cuda_init(device_id);
     }
 #endif
 #ifdef WAN_USE_METAL
@@ -153,5 +153,17 @@ WanBackend* WanBackend::create(const std::string& type, int n_threads) {
 
     return backend.release();
 }
+
+#ifdef WAN_USE_MULTI_GPU
+/**
+ * @brief Create a backend targeting a specific CUDA device.
+ *
+ * Helper for data parallel mode where each GPU needs its own backend instance.
+ * Falls back to device 0 for non-CUDA backends.
+ */
+WanBackend* WanBackend::create_on_device(const std::string& type, int n_threads, int device_id) {
+    return create(type, n_threads, device_id);
+}
+#endif
 
 } // namespace Wan

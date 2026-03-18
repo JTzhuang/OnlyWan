@@ -329,7 +329,7 @@ WAN_API wan_error_t wan_load_model(const char* model_path,
     ctx->params.model_version = result.model_version;
 
     // Create backend
-    ctx->backend = WanBackendPtr(Wan::WanBackend::create(ctx->backend_type, n_threads));
+    ctx->backend = WanBackendPtr(Wan::WanBackend::create(ctx->backend_type, n_threads, 0));
     if (!ctx->backend) {
         set_last_error(ctx.get(), "Failed to initialize backend");
         return WAN_ERROR_BACKEND_FAILED;

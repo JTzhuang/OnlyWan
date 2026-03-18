@@ -122,7 +122,10 @@ struct WanBackend {
         }
     }
 
-    static WanBackend* create(const std::string& type, int n_threads);
+    static WanBackend* create(const std::string& type, int n_threads, int device_id = 0);
+#ifdef WAN_USE_MULTI_GPU
+    static WanBackend* create_on_device(const std::string& type, int n_threads, int device_id);
+#endif
 };
 
 } // namespace Wan
