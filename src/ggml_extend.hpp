@@ -2217,22 +2217,6 @@ public:
         return true;
     }
 #endif
-        copy_cache_tensors_to_cache_buffer();
-        if (output != nullptr) {
-            auto result = ggml_get_tensor(compute_ctx, final_result_name.c_str());
-            if (*output == nullptr && output_ctx != nullptr) {
-                *output = ggml_dup_tensor(output_ctx, result);
-            }
-            if (*output != nullptr) {
-                ggml_ext_backend_tensor_get_and_sync(runtime_backend, result, (*output)->data, 0, ggml_nbytes(*output));
-            }
-        }
-
-        if (free_compute_buffer_immediately) {
-            free_compute_buffer();
-        }
-        return true;
-    }
 
     void set_flash_attention_enabled(bool enabled) {
         flash_attn_enabled = enabled;

@@ -481,6 +481,7 @@ int main(int argc, char** argv) {
         wan_params_set_negative_prompt(params, opts.negative_prompt);
     }
 
+#ifdef WAN_USE_MULTI_GPU
     /* Set multi-GPU parameters if specified */
     if (opts.gpu_ids) {
         wan_params_set_gpu_ids(params, opts.gpu_ids);
@@ -488,6 +489,7 @@ int main(int argc, char** argv) {
     if (opts.num_gpus > 0) {
         wan_params_set_num_gpus(params, opts.num_gpus);
     }
+#endif
 
     /* Generate video */
     printf("Generating video...\n\n");

@@ -21,8 +21,8 @@
 #include "ggml-backend.h"
 #include "gguf.h"
 
-#ifdef WAN_USE_MULTI_GPU
-#include "ggml-backend-sched.h"
+#ifdef GGML_USE_CUDA
+#include "ggml-cuda.h"
 #endif
 
 // Forward-declare runner types so wan-internal.hpp can be included by multiple

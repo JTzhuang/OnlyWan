@@ -411,13 +411,13 @@ wan_error_t wan_get_model_info(wan_context_t* ctx,
  */
 wan_error_t wan_get_gpu_info(int* device_count, char** device_names, int max_devices);
 
-#ifdef WAN_USE_MULTI_GPU
-
 /** Batch generation result for a single request */
 typedef struct {
     wan_error_t error;                 /**< Error code for this request */
     char error_message[256];           /**< Error message if failed */
 } wan_batch_result_t;
+
+#ifdef WAN_USE_MULTI_GPU
 
 /** Generate multiple videos in parallel across GPUs (data parallel mode)
  *

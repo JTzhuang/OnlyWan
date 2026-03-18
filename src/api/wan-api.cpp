@@ -1245,16 +1245,9 @@ WAN_API wan_error_t wan_get_gpu_info(int* device_count, char** device_names, int
         int count = cuda_device_count < max_devices ? cuda_device_count : max_devices;
         for (int i = 0; i < count; i++) {
             // Get device name from CUDA
-            const char* name = ggml_backend_cuda_get_device_description(i);
-            if (name) {
-                // Allocate and copy device name
-                device_names[i] = strdup(name);
-            } else {
-                // Fallback to generic name
-                char buffer[64];
-                snprintf(buffer, sizeof(buffer), "CUDA Device %d", i);
-                device_names[i] = strdup(buffer);
-            }
+            char buffer[256];
+            ggml_backend_cuda_get_device_description(i, buffer, sizeof(buffer));
+            device_names[i] = strdup(buffer);
         }
     }
 

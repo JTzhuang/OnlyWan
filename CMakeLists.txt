@@ -53,7 +53,7 @@ if(WAN_CUDA)
     message("-- Use CUDA as backend for wan-cpp")
     set(GGML_CUDA ON)
     add_definitions(-DWAN_USE_CUDA)
-    add_definitions(-DWAN_USE_MULTI_GPU)
+    # add_definitions(-DWAN_USE_MULTI_GPU)  # Disabled: Phase 15 implementation has API mismatches
     if(WAN_CUDA_GRAPHS)
         add_definitions(-DGGML_CUDA_USE_GRAPHS)
         message("-- CUDA graph capture/replay enabled")
