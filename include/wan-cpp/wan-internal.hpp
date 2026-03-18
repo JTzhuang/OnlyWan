@@ -132,6 +132,11 @@ struct WanBackend {
 
 using WanBackendPtr = std::unique_ptr<Wan::WanBackend>;
 
+#ifdef WAN_USE_MULTI_GPU
+// Forward declaration for multi-GPU state creation
+MultiGPUState* create_multi_gpu_state(const std::vector<int>& gpu_ids, wan_distribution_strategy_t strategy);
+#endif
+
 /* ============================================================================
  * Multi-GPU State
  * ============================================================================ */

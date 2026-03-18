@@ -164,6 +164,74 @@ WanBackend* WanBackend::create(const std::string& type, int n_threads, int devic
 WanBackend* WanBackend::create_on_device(const std::string& type, int n_threads, int device_id) {
     return create(type, n_threads, device_id);
 }
+
+/**
+ * @brief Create multi-GPU state with backend initialization and device validation.
+ *
+ * Validates GPU homogeneity (same device description) and creates CUDA backends
+ * for each GPU. Returns nullptr if validation fails or backends cannot be created.
+ */
+MultiGPUState* create_multi_gpu_state(const std::vector<int>& gpu_ids, wan_distribution_strategy_t strategy) {
+    if (gpu_ids.empty()) {
+        LOG_ERROR("create_multi_gpu_state: empty gpu_ids");
+        return nullptr;
+    }
+
+#ifdef WAN_USE_CUDA
+    int device_count = ggml_backend_cuda_get_device_count();
+
+    // Validate all GPU IDs are within range
+    for (int gpu_id : gpu_ids) {
+        if (gpu_id < 0 || gpu_id >= device_count) {
+            LOG_ERROR("create_multi_gpu_state: GPU ID %d out of range (0-%d)", gpu_id, device_count - 1);
+            return nullptr;
+        }
+    }
+
+    // Validate GPU homogeneity - all GPUs must have same device description
+    std::string first_device_desc;
+    for (size_t i = 0; i < gpu_ids.size(); i++) {
+        ggml_backend_t temp_backend = ggml_backend_cuda_init(gpu_ids[i]);
+        if (!temp_backend) {
+            LOG_ERROR("create_multi_gpu_state: failed to init CUDA backend for GPU %d", gpu_ids[i]);
+            return nullptr;
+        }
+
+        std::string device_desc = ggml_backend_name(temp_backend);
+        ggml_backend_free(temp_backend);
+
+        if (i == 0) {
+            first_device_desc = device_desc;
+        } else if (device_desc != first_device_desc) {
+            LOG_ERROR("create_multi_gpu_state: GPU homogeneity check failed - GPU %d (%s) != GPU %d (%s)",
+                      gpu_ids[0], first_device_desc.c_str(), gpu_ids[i], device_desc.c_str());
+            return nullptr;
+        }
+    }
+
+    // Create MultiGPUState and initialize backends
+    std::unique_ptr<MultiGPUState> state(new MultiGPUState());
+    state->gpu_ids = gpu_ids;
+    state->strategy = strategy;
+
+    for (int gpu_id : gpu_ids) {
+        ggml_backend_t backend = ggml_backend_cuda_init(gpu_id);
+        if (!backend) {
+            LOG_ERROR("create_multi_gpu_state: failed to create backend for GPU %d", gpu_id);
+            return nullptr;
+        }
+        state->backends.push_back(backend);
+    }
+
+    state->initialized = true;
+    LOG_INFO("Multi-GPU state created: %zu GPUs, strategy=%d", gpu_ids.size(), strategy);
+
+    return state.release();
+#else
+    LOG_ERROR("create_multi_gpu_state: WAN_USE_CUDA not defined");
+    return nullptr;
+#endif
+}
 #endif
 
 } // namespace Wan
