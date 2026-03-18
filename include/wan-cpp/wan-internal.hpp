@@ -21,6 +21,10 @@
 #include "ggml-backend.h"
 #include "gguf.h"
 
+#ifdef WAN_USE_MULTI_GPU
+#include "ggml-backend-sched.h"
+#endif
+
 // Forward-declare runner types so wan-internal.hpp can be included by multiple
 // translation units without pulling in the heavy header-only implementations
 // (wan.hpp, t5.hpp, clip.hpp) that contain non-inline function definitions.
@@ -59,6 +63,11 @@ struct WanParams {
     std::string model_version;  // "WAN2.1", "WAN2.2", etc.
     wan_progress_cb_t progress_cb = nullptr;
     void* user_data = nullptr;
+
+    // Multi-GPU fields
+    std::vector<int> gpu_ids;
+    int num_gpus = 0;
+    wan_distribution_strategy_t distribution_strategy = WAN_DISTRIBUTION_AUTO;
 };
 
 /* ============================================================================
@@ -121,6 +130,35 @@ struct WanBackend {
 using WanBackendPtr = std::unique_ptr<Wan::WanBackend>;
 
 /* ============================================================================
+ * Multi-GPU State
+ * ============================================================================ */
+
+#ifdef WAN_USE_MULTI_GPU
+struct MultiGPUState {
+    std::vector<ggml_backend_t> backends;
+    ggml_backend_sched_t scheduler;
+    std::vector<int> gpu_ids;
+    wan_distribution_strategy_t strategy;
+    bool initialized;
+
+    MultiGPUState() : scheduler(nullptr), strategy(WAN_DISTRIBUTION_AUTO), initialized(false) {}
+
+    ~MultiGPUState() {
+        if (scheduler) {
+            ggml_backend_sched_free(scheduler);
+            scheduler = nullptr;
+        }
+        for (auto backend : backends) {
+            if (backend) {
+                ggml_backend_free(backend);
+            }
+        }
+        backends.clear();
+    }
+};
+#endif
+
+/* ============================================================================
  * Internal Context Structure
  * ============================================================================ */
 
@@ -136,6 +174,10 @@ struct wan_context {
     WanParams params;
     int n_threads = 0;
     std::string backend_type;
+
+#ifdef WAN_USE_MULTI_GPU
+    std::unique_ptr<MultiGPUState> multi_gpu_state;
+#endif
 };
 
 /* ============================================================================
