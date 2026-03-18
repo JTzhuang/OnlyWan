@@ -398,6 +398,19 @@ wan_error_t wan_get_model_info(wan_context_t* ctx,
  * Multi-GPU Batch Generation
  * ============================================================================ */
 
+/**
+ * Get GPU device information
+ *
+ * Query available GPU devices for diagnostics and multi-GPU configuration.
+ * Returns device count and optionally fills device_names array with GPU names.
+ *
+ * @param device_count Output: number of available GPU devices
+ * @param device_names Optional output array for device names (can be NULL)
+ * @param max_devices Maximum number of device names to return
+ * @return WAN_SUCCESS on success, error code on failure
+ */
+wan_error_t wan_get_gpu_info(int* device_count, char** device_names, int max_devices);
+
 #ifdef WAN_USE_MULTI_GPU
 
 /** Batch generation result for a single request */

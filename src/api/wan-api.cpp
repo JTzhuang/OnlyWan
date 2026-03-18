@@ -1226,3 +1226,43 @@ WAN_API wan_error_t wan_generate_batch_t2v(const char* model_path,
 
 #endif /* WAN_USE_MULTI_GPU */
 
+/* ============================================================================
+ * GPU Info Query
+ * ============================================================================ */
+
+WAN_API wan_error_t wan_get_gpu_info(int* device_count, char** device_names, int max_devices) {
+    if (!device_count) {
+        return WAN_ERROR_INVALID_ARGUMENT;
+    }
+
+#ifdef GGML_USE_CUDA
+    // Query CUDA device count
+    int cuda_device_count = ggml_backend_cuda_get_device_count();
+    *device_count = cuda_device_count;
+
+    // Fill device names if requested
+    if (device_names && max_devices > 0) {
+        int count = cuda_device_count < max_devices ? cuda_device_count : max_devices;
+        for (int i = 0; i < count; i++) {
+            // Get device name from CUDA
+            const char* name = ggml_backend_cuda_get_device_description(i);
+            if (name) {
+                // Allocate and copy device name
+                device_names[i] = strdup(name);
+            } else {
+                // Fallback to generic name
+                char buffer[64];
+                snprintf(buffer, sizeof(buffer), "CUDA Device %d", i);
+                device_names[i] = strdup(buffer);
+            }
+        }
+    }
+
+    return WAN_SUCCESS;
+#else
+    // No CUDA support
+    *device_count = 0;
+    return WAN_ERROR_UNSUPPORTED_OPERATION;
+#endif
+}
+
