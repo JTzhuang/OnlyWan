@@ -1,5 +1,14 @@
 # Milestones
 
+## v1.2 v1.2 (Shipped: 2026-03-18)
+
+**Phases completed:** 7 phases, 13 plans, 14 tasks
+
+**Key accomplishments:**
+- (none recorded)
+
+---
+
 ## v1.1 模型格式扩展 (Shipped: 2026-03-17)
 
 **Phases completed:** 5 phases, 6 plans
