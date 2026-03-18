@@ -117,7 +117,7 @@ Plans:
 | 12. Wire Vocab Dir to Public API | v1.1 | 1/1 | Complete | 2026-03-17 |
 | 13. Document wan-convert Sub-model Scope | v1.1 | 1/1 | Complete | 2026-03-17 |
 | 14. 性能优化 - CUDA Graph 和算子融合 | v1.2 | 2/2 | Complete | 2026-03-17 |
-| 15. 多卡推理支持 | 3/5 | In Progress|  | - |
+| 15. 多卡推理支持 | 4/5 | In Progress|  | - |
 
 ### Phase 14: 性能优化 - CUDA Graph 和算子融合
 

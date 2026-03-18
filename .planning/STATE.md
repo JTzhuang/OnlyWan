@@ -4,12 +4,12 @@ milestone: v1.1
 milestone_name: 模型格式扩展
 current_phase: 15
 status: unknown
-last_updated: "2026-03-18T05:14:39.850Z"
+last_updated: "2026-03-18T05:23:01.689Z"
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 13
-  completed_plans: 11
+  completed_plans: 12
 ---
 
 # Project State: wan-cpp
@@ -76,6 +76,7 @@ progress:
 | 15 - Multi-GPU Inference Support | 15-01 | 892 | 3 | 3 | 2026-03-18T04:52:23Z | 2026-03-18T13:07:15Z |
 | Phase 15 P00 | 112 | 1 tasks | 6 files |
 | Phase 15 P03 | 167 | 3 tasks | 4 files |
+| Phase 15 P02 | 341 | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -180,6 +181,8 @@ progress:
 - **Date:** 2026-03-18
 - [Phase 15]: Use std::thread for concurrent execution - simple, portable threading without external dependencies
 - [Phase 15]: Round-robin GPU assignment for balanced load distribution across GPUs
+- [Phase 15]: Use ggml_backend_cuda_split_buffer_type for tensor distribution across GPUs
+- [Phase 15]: Target gpu_ids[0] as main_device for primary backend operations
 
 ## Todo Items
 

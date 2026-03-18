@@ -79,10 +79,10 @@
 
 ### 多卡推理实现
 
-- [ ] **MGPU-04**: 实现 GPU 设备枚举、验证（同构检查）和多后端初始化
-- [ ] **MGPU-05**: 实现张量并行 — 使用 GGML split buffer 将模型权重分布到多个 GPU
+- [x] **MGPU-04**: 实现 GPU 设备枚举、验证（同构检查）和多后端初始化
+- [x] **MGPU-05**: 实现张量并行 — 使用 GGML split buffer 将模型权重分布到多个 GPU
 - [x] **MGPU-06**: 实现数据并行 — 多上下文并发生成（batch > 1 场景）
-- [ ] **MGPU-07**: 去噪循环适配多卡执行（ggml_backend_sched_graph_compute 替代 ggml_backend_graph_compute）
+- [x] **MGPU-07**: 去噪循环适配多卡执行（ggml_backend_sched_graph_compute 替代 ggml_backend_graph_compute）
 
 ### CLI 与验证
 
