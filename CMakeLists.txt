@@ -39,6 +39,9 @@ option(WAN_SYCL     "wan-cpp: SYCL backend"      OFF)
 option(WAN_HIPBLAS  "wan-cpp: ROCm backend"      OFF)
 option(WAN_MUSA     "wan-cpp: MUSA backend"      OFF)
 
+# Multi-GPU options
+option(WAN_NCCL     "wan-cpp: Enable NCCL for multi-GPU communication" OFF)
+
 # General options
 option(WAN_BUILD_SHARED_LIBS "wan-cpp: build shared libs" OFF)
 option(WAN_BUILD_EXAMPLES     "wan-cpp: build examples"    ${WAN_STANDALONE})
@@ -50,6 +53,7 @@ if(WAN_CUDA)
     message("-- Use CUDA as backend for wan-cpp")
     set(GGML_CUDA ON)
     add_definitions(-DWAN_USE_CUDA)
+    add_definitions(-DWAN_USE_MULTI_GPU)
     if(WAN_CUDA_GRAPHS)
         add_definitions(-DGGML_CUDA_USE_GRAPHS)
         message("-- CUDA graph capture/replay enabled")
@@ -98,6 +102,37 @@ if(WAN_MUSA)
         add_definitions(-DGGML_CUDA_USE_GRAPHS)
         message("-- CUDA graph capture/replay enabled (MUSA)")
     endif()
+endif()
+
+# NCCL detection and linking (requires CUDA)
+if(WAN_NCCL AND WAN_CUDA)
+    message("-- Searching for NCCL library")
+    find_library(NCCL_LIBRARIES NAMES nccl
+        PATHS
+            /usr/lib
+            /usr/local/lib
+            /usr/lib/x86_64-linux-gnu
+            $ENV{NCCL_ROOT_DIR}/lib
+            $ENV{CUDA_PATH}/lib64
+    )
+    find_path(NCCL_INCLUDE_DIRS NAMES nccl.h
+        PATHS
+            /usr/include
+            /usr/local/include
+            $ENV{NCCL_ROOT_DIR}/include
+            $ENV{CUDA_PATH}/include
+    )
+    if(NCCL_LIBRARIES AND NCCL_INCLUDE_DIRS)
+        set(NCCL_FOUND TRUE)
+        message("-- Found NCCL: ${NCCL_LIBRARIES}")
+        message("-- NCCL include: ${NCCL_INCLUDE_DIRS}")
+        add_definitions(-DWAN_USE_NCCL)
+    else()
+        set(NCCL_FOUND FALSE)
+        message(WARNING "NCCL requested but not found. Multi-GPU will use fallback.")
+    endif()
+elseif(WAN_NCCL AND NOT WAN_CUDA)
+    message(WARNING "WAN_NCCL requires WAN_CUDA. Ignoring WAN_NCCL option.")
 endif()
 
 # Define library name
@@ -194,6 +229,12 @@ add_subdirectory(thirdparty)
 
 # Target configurations
 target_link_libraries(${WAN_LIB} PUBLIC ggml zip)
+
+# Link NCCL if found
+if(NCCL_FOUND)
+    target_include_directories(${WAN_LIB} PRIVATE ${NCCL_INCLUDE_DIRS})
+    target_link_libraries(${WAN_LIB} PRIVATE ${NCCL_LIBRARIES})
+endif()
 
 # Include directories
 target_include_directories(${WAN_LIB} PUBLIC
