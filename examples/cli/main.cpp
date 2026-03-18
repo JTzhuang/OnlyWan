@@ -27,6 +27,7 @@ typedef struct {
     char* backend;                 // Backend type (cpu, cuda, metal, vulkan)
     char* negative_prompt;         // Negative prompt
     char* vocab_dir;               // Vocab directory (required for WAN_EMBED_VOCAB=OFF builds)
+    char* gpu_ids;                 // Comma-separated GPU IDs (e.g., "0,1,2")
 
     /* Parameters */
     int threads;                   // Number of threads (0 = auto)
@@ -36,6 +37,7 @@ typedef struct {
     int fps;                      // Frames per second
     int steps;                    // Sampling steps
     int seed;                     // Random seed
+    int num_gpus;                 // Number of GPUs to use (0 = auto-detect)
     float cfg;                    // Classifier-free guidance scale
 
     /* Flags */
@@ -100,6 +102,8 @@ static void print_usage(const char* program_name) {
     printf("  -b, --backend <type>       Backend: cpu, cuda, metal, vulkan (default: cpu)\n");
     printf("  --vocab-dir <path>         Vocab files directory (required for WAN_EMBED_VOCAB=OFF builds)\n");
     printf("  -t, --threads <num>        Number of threads (0 = auto, default: 0)\n");
+    printf("  --gpu-ids <ids>            Comma-separated GPU IDs (e.g., 0,1,2)\n");
+    printf("  --num-gpus <num>           Number of GPUs to use (0 = auto-detect)\n");
     printf("\nGeneration Parameters:\n");
     printf("  -W, --width <pixels>        Output width (default: %d)\n", DEFAULT_WIDTH);
     printf("  -H, --height <pixels>       Output height (default: %d)\n", DEFAULT_HEIGHT);
@@ -134,6 +138,7 @@ static void init_options(cli_options_t* opts) {
     opts->backend = NULL;
     opts->negative_prompt = NULL;
     opts->vocab_dir = NULL;
+    opts->gpu_ids = NULL;
 
     opts->threads = DEFAULT_THREADS;
     opts->width = DEFAULT_WIDTH;
@@ -142,6 +147,7 @@ static void init_options(cli_options_t* opts) {
     opts->fps = DEFAULT_FPS;
     opts->steps = DEFAULT_STEPS;
     opts->seed = DEFAULT_SEED;
+    opts->num_gpus = 0;
     opts->cfg = DEFAULT_CFG;
 
     opts->verbose = 0;
@@ -258,6 +264,18 @@ static int parse_args(cli_options_t* opts, int argc, char** argv) {
         /* Vocab dir */
         if (strcmp(arg, "--vocab-dir") == 0 && i + 1 < argc) {
             opts->vocab_dir = argv[++i];
+            continue;
+        }
+
+        /* GPU IDs */
+        if (strcmp(arg, "--gpu-ids") == 0 && i + 1 < argc) {
+            opts->gpu_ids = argv[++i];
+            continue;
+        }
+
+        /* Number of GPUs */
+        if (strcmp(arg, "--num-gpus") == 0 && i + 1 < argc) {
+            opts->num_gpus = atoi(argv[++i]);
             continue;
         }
 
@@ -461,6 +479,14 @@ int main(int argc, char** argv) {
 
     if (opts.negative_prompt) {
         wan_params_set_negative_prompt(params, opts.negative_prompt);
+    }
+
+    /* Set multi-GPU parameters if specified */
+    if (opts.gpu_ids) {
+        wan_params_set_gpu_ids(params, opts.gpu_ids);
+    }
+    if (opts.num_gpus > 0) {
+        wan_params_set_num_gpus(params, opts.num_gpus);
     }
 
     /* Generate video */
