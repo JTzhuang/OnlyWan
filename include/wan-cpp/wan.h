@@ -35,8 +35,22 @@ typedef enum {
     WAN_ERROR_BACKEND_FAILED,          /**< Backend operation failed */
     WAN_ERROR_INVALID_STATE,           /**< Invalid internal state */
     WAN_ERROR_IO,                      /**< File I/O error */
+    WAN_ERROR_GPU_FAILURE,             /**< GPU operation failed */
     WAN_ERROR_UNKNOWN                  /**< Unknown error */
 } wan_error_t;
+
+/* ============================================================================
+ * Multi-GPU Distribution Strategies
+ * ============================================================================ */
+
+/** Multi-GPU distribution strategies */
+typedef enum {
+    WAN_DISTRIBUTION_DATA_PARALLEL = 0,    /**< Data parallelism: replicate model, split batch */
+    WAN_DISTRIBUTION_TENSOR_PARALLEL,      /**< Tensor parallelism: split model layers across GPUs */
+    WAN_DISTRIBUTION_PIPELINE_PARALLEL,    /**< Pipeline parallelism: assign layers to different GPUs */
+    WAN_DISTRIBUTION_HYBRID,               /**< Hybrid: combine multiple strategies */
+    WAN_DISTRIBUTION_AUTO                  /**< Auto: let library choose optimal strategy */
+} wan_distribution_strategy_t;
 
 /* ============================================================================
  * Opaque Handle Types
@@ -88,6 +102,12 @@ typedef struct wan_params {
     const char* backend;                  /**< Backend type string */
     wan_progress_cb_t progress_cb;       /**< Progress callback */
     void* user_data;                     /**< User data for callbacks */
+
+    /* Multi-GPU configuration */
+    const int* gpu_ids;                 /**< Array of GPU device IDs to use (NULL = use all available) */
+    int num_gpus;                       /**< Number of GPUs to use (0 = single GPU, >1 = multi-GPU) */
+    wan_distribution_strategy_t distribution_strategy; /**< Multi-GPU distribution strategy */
+
     /* Private fields for internal use */
     void* _internal_ptr;
 } wan_params_t;
