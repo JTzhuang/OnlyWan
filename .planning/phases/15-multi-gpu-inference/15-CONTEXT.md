@@ -26,7 +26,6 @@
 - **向后兼容**：不指定多卡配置时自动回退到单卡推理
 
 ### 通信开销
-- **通信库**：使用 NCCL（NVIDIA Collective Communications Library）进行多卡间数据同步
 - **执行模式**：异步执行 — GPU 不需要等待彼此，但需要管理依赖关系
 - **通信优化**：最小化 AllReduce 操作，使用 P2P 通信当可能时
 
@@ -54,7 +53,7 @@
 - **用户通知**：通过返回值和错误码通知用户，不使用回调函数
 
 ### Claude's Discretion
-- NCCL 初始化和管理的具体实现细节
+- **通信库选择**：初始实现使用 GGML backend scheduler 处理多卡间通信（ggml_backend_sched 自动管理张量传输）。CMake 保留 WAN_NCCL 编译选项用于未来扩展，当需要高级集合操作（如 AllReduce）时可启用 NCCL。初始阶段不直接调用 NCCL API。
 - 张量并行和流水线并行的具体分割策略
 - 性能基准测试的具体工具选择（NVIDIA Nsight Systems 等）
 - 多卡间的负载均衡算法
