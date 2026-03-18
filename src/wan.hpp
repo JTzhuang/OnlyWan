@@ -2218,6 +2218,27 @@ namespace WAN {
             return GGMLRunner::compute(get_graph, n_threads, false, output, output_ctx);
         }
 
+#ifdef WAN_USE_MULTI_GPU
+        bool compute_with_sched(ggml_backend_sched_t sched,
+                                int n_threads,
+                                struct ggml_tensor* x,
+                                struct ggml_tensor* timesteps,
+                                struct ggml_tensor* context,
+                                struct ggml_tensor* clip_fea        = nullptr,
+                                struct ggml_tensor* c_concat        = nullptr,
+                                struct ggml_tensor* time_dim_concat = nullptr,
+                                struct ggml_tensor* vace_context    = nullptr,
+                                float vace_strength                 = 1.f,
+                                struct ggml_tensor** output         = nullptr,
+                                struct ggml_context* output_ctx     = nullptr) {
+            auto get_graph = [&]() -> struct ggml_cgraph* {
+                return build_graph(x, timesteps, context, clip_fea, c_concat, time_dim_concat, vace_context, vace_strength);
+            };
+
+            return GGMLRunner::compute_with_sched(sched, get_graph, n_threads, false, output, output_ctx);
+        }
+#endif
+
         void test() {
             struct ggml_init_params params;
             params.mem_size   = static_cast<size_t>(200 * 1024 * 1024);  // 200 MB

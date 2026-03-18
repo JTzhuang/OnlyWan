@@ -185,6 +185,10 @@ struct wan_context {
 
 #ifdef WAN_USE_MULTI_GPU
     std::unique_ptr<MultiGPUState> multi_gpu_state;
+
+    bool is_multi_gpu() const {
+        return multi_gpu_state && multi_gpu_state->initialized && multi_gpu_state->scheduler;
+    }
 #endif
 };
 

@@ -674,15 +674,37 @@ WAN_API wan_error_t wan_generate_video_t2v_ex(wan_context_t* ctx,
         ggml_set_f32(ts, sigma);
 
         ggml_tensor* cond_out = nullptr;
-        ctx->wan_runner->compute(n_threads, x, ts, context,
-                                 nullptr, nullptr, nullptr, nullptr, 1.f,
-                                 &cond_out, step_ctx);
+#ifdef WAN_USE_MULTI_GPU
+        if (ctx->is_multi_gpu()) {
+            ctx->wan_runner->compute_with_sched(ctx->multi_gpu_state->scheduler, n_threads,
+                                                x, ts, context,
+                                                nullptr, nullptr, nullptr, nullptr, 1.f,
+                                                &cond_out, step_ctx);
+        } else {
+#endif
+            ctx->wan_runner->compute(n_threads, x, ts, context,
+                                     nullptr, nullptr, nullptr, nullptr, 1.f,
+                                     &cond_out, step_ctx);
+#ifdef WAN_USE_MULTI_GPU
+        }
+#endif
 
         ggml_tensor* uncond_out = nullptr;
         if (uncond_context && cfg_scale != 1.0f) {
-            ctx->wan_runner->compute(n_threads, x, ts, uncond_context,
-                                     nullptr, nullptr, nullptr, nullptr, 1.f,
-                                     &uncond_out, step_ctx);
+#ifdef WAN_USE_MULTI_GPU
+            if (ctx->is_multi_gpu()) {
+                ctx->wan_runner->compute_with_sched(ctx->multi_gpu_state->scheduler, n_threads,
+                                                    x, ts, uncond_context,
+                                                    nullptr, nullptr, nullptr, nullptr, 1.f,
+                                                    &uncond_out, step_ctx);
+            } else {
+#endif
+                ctx->wan_runner->compute(n_threads, x, ts, uncond_context,
+                                         nullptr, nullptr, nullptr, nullptr, 1.f,
+                                         &uncond_out, step_ctx);
+#ifdef WAN_USE_MULTI_GPU
+            }
+#endif
         }
 
         float* xd  = (float*)x->data;
@@ -949,17 +971,41 @@ WAN_API wan_error_t wan_generate_video_i2v_ex(wan_context_t* ctx,
         ggml_set_f32(ts, sigma);
 
         ggml_tensor* cond_out = nullptr;
-        ctx->wan_runner->compute(n_threads, x, ts, context,
-                                 clip_fea, c_concat,
-                                 nullptr, nullptr, 1.f,
-                                 &cond_out, step_ctx);
+#ifdef WAN_USE_MULTI_GPU
+        if (ctx->is_multi_gpu()) {
+            ctx->wan_runner->compute_with_sched(ctx->multi_gpu_state->scheduler, n_threads,
+                                                x, ts, context,
+                                                clip_fea, c_concat,
+                                                nullptr, nullptr, 1.f,
+                                                &cond_out, step_ctx);
+        } else {
+#endif
+            ctx->wan_runner->compute(n_threads, x, ts, context,
+                                     clip_fea, c_concat,
+                                     nullptr, nullptr, 1.f,
+                                     &cond_out, step_ctx);
+#ifdef WAN_USE_MULTI_GPU
+        }
+#endif
 
         ggml_tensor* uncond_out = nullptr;
         if (uncond_context && cfg_scale != 1.0f) {
-            ctx->wan_runner->compute(n_threads, x, ts, uncond_context,
-                                     nullptr, nullptr,
-                                     nullptr, nullptr, 1.f,
-                                     &uncond_out, step_ctx);
+#ifdef WAN_USE_MULTI_GPU
+            if (ctx->is_multi_gpu()) {
+                ctx->wan_runner->compute_with_sched(ctx->multi_gpu_state->scheduler, n_threads,
+                                                    x, ts, uncond_context,
+                                                    nullptr, nullptr,
+                                                    nullptr, nullptr, 1.f,
+                                                    &uncond_out, step_ctx);
+            } else {
+#endif
+                ctx->wan_runner->compute(n_threads, x, ts, uncond_context,
+                                         nullptr, nullptr,
+                                         nullptr, nullptr, 1.f,
+                                         &uncond_out, step_ctx);
+#ifdef WAN_USE_MULTI_GPU
+            }
+#endif
         }
 
         float* xd  = (float*)x->data;
