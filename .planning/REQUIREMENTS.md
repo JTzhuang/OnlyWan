@@ -67,6 +67,37 @@
 
 - [x] **PERF-01**: 词汇表文件（umt5/clip，~85MB）改为运行时 mmap 加载，消除编译时头文件嵌入（Phase 12 修复公共 API 暴露）
 
+## v1.2 Requirements
+
+**里程碑目标：** 多卡推理支持，提升吞吐量和处理能力
+
+### 多卡 API 与配置
+
+- [ ] **MGPU-01**: 扩展 `wan_params_t` 添加多卡配置字段（gpu_ids、num_gpus、distribution_strategy 枚举）
+- [ ] **MGPU-02**: 扩展 `wan_context` 支持多后端管理（多个 ggml_backend_t、ggml_backend_sched_t）
+- [ ] **MGPU-03**: CMake 添加 `WAN_NCCL` 选项，条件链接 NCCL 库
+
+### 多卡推理实现
+
+- [ ] **MGPU-04**: 实现 GPU 设备枚举、验证（同构检查）和多后端初始化
+- [ ] **MGPU-05**: 实现张量并行 — 使用 GGML split buffer 将模型权重分布到多个 GPU
+- [ ] **MGPU-06**: 实现数据并行 — 多上下文并发生成（batch > 1 场景）
+- [ ] **MGPU-07**: 去噪循环适配多卡执行（ggml_backend_sched_graph_compute 替代 ggml_backend_graph_compute）
+
+### CLI 与验证
+
+- [ ] **MGPU-08**: wan-cli 添加 `--gpu-ids` 和 `--num-gpus` 参数
+- [ ] **MGPU-09**: 多卡推理数值精度验证（与单卡结果偏差 < 0.01%）
+- [ ] **MGPU-10**: 性能基准测试（步骤延迟、内存使用、通信带宽利用率）
+
+### 错误处理
+
+- [ ] **MGPU-11**: 新增 `WAN_ERROR_GPU_FAILURE` 错误码，GPU 失败时立即中断并返回详细错误信息
+
+### 向后兼容
+
+- [ ] **MGPU-12**: 不指定多卡配置时自动回退到单卡推理，现有 API 行为不变
+
 ## v2 Requirements
 
 延迟到未来发布。已追踪但不在当前路线图中。
@@ -101,6 +132,10 @@
 | 推理过程中动态切换模型 | 复杂且易错，很少需要 |
 | 自动模型下载 | 安全考虑、网络依赖、复杂性 |
 | 插件系统 | 超出此范围的设计 |
+| CPU 多进程推理 | 当前仅支持 CUDA 多卡 |
+| 跨机器分布式推理 | 需要网络通信，复杂度高，可作为 v2 功能 |
+| 动态 GPU 分配 | 运行时动态增加/减少 GPU 数量，可作为未来优化 |
+| FP8 计算 | 多卡推理中的低精度计算，需要特定硬件支持 |
 
 ## 追踪性
 
@@ -137,14 +172,19 @@
 | FIX-01 | Phase 9 | Complete |
 | FIX-02 | Phase 9 | Complete |
 | PERF-01 | Phase 12 | Complete |
-
-**覆盖率：**
-- v1 需求总计: 22
-- 映射到阶段: 22
-- 未映射: 0 ✓
-- 已完成: 10 (Phase 1: 8, Phase 2: 3, Phase 3: 1, Phase 4: 3)
-- 待完成: 12 (Phase 6: 2, Phase 7: 6, Phase 8: 3, ENCODER: 1)
+| MGPU-01 | Phase 15 | Planned |
+| MGPU-02 | Phase 15 | Planned |
+| MGPU-03 | Phase 15 | Planned |
+| MGPU-04 | Phase 15 | Planned |
+| MGPU-05 | Phase 15 | Planned |
+| MGPU-06 | Phase 15 | Planned |
+| MGPU-07 | Phase 15 | Planned |
+| MGPU-08 | Phase 15 | Planned |
+| MGPU-09 | Phase 15 | Planned |
+| MGPU-10 | Phase 15 | Planned |
+| MGPU-11 | Phase 15 | Planned |
+| MGPU-12 | Phase 15 | Planned |
 
 ---
 *需求定义时间：2025-03-12*
-*最后更新：2026-03-15 after Phase 5 添加*
+*最后更新：2026-03-18 after Phase 15 多卡推理需求添加*

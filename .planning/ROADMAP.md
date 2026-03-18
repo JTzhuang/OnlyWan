@@ -6,7 +6,8 @@
 ## Milestones
 
 - ✅ **v1.0 MVP** — Phases 1-8 (shipped 2026-03-16)
-- 🔄 **v1.1 模型格式扩展** — Phases 9-13 (in progress)
+- ✅ **v1.1 模型格式扩展** — Phases 9-13 (completed 2026-03-17)
+- 🔄 **v1.2 性能优化与多卡推理** — Phases 14-15 (in progress)
 
 ## Phases
 
@@ -84,7 +85,7 @@ Plans:
   3. 使用 `WAN_EMBED_VOCAB=OFF` 构建时，提供词汇表目录后生成不返回 `WAN_ERROR_INVALID_ARGUMENT`
 **Plans**: 1 plan
 Plans:
-- [ ] 12-01-PLAN.md — Add vocab accessors + wan_set_vocab_dir public API + --vocab-dir CLI arg (PERF-01, ENCODER-01, ENCODER-02, API-03, API-04)
+- [x] 12-01-PLAN.md — Add vocab accessors + wan_set_vocab_dir public API + --vocab-dir CLI arg (PERF-01, ENCODER-01, ENCODER-02, API-03, API-04)
 
 ### Phase 13: Document wan-convert Sub-model Scope
 **Goal**: 用户清楚了解 wan-convert 各 --type 值的适用范围，SAFE-03 限制有文档说明
@@ -96,7 +97,7 @@ Plans:
   3. REQUIREMENTS.md SAFE-03 追踪性更新，反映当前部分满足状态及限制
 **Plans**: 1 plan
 Plans:
-- [ ] 13-01-PLAN.md — Annotate print_usage() + create examples/convert/README.md + verify SAFE-03 traceability (SAFE-03)
+- [x] 13-01-PLAN.md — Annotate print_usage() + create examples/convert/README.md + verify SAFE-03 traceability (SAFE-03)
 
 ## Progress
 
@@ -115,7 +116,8 @@ Plans:
 | 11. Safetensors Conversion Tool | v1.1 | 1/1 | Complete | 2026-03-17 |
 | 12. Wire Vocab Dir to Public API | v1.1 | 1/1 | Complete | 2026-03-17 |
 | 13. Document wan-convert Sub-model Scope | v1.1 | 1/1 | Complete | 2026-03-17 |
-| 14. 性能优化 - CUDA Graph 和算子融合 | 2/2 | Complete    | 2026-03-17 | - |
+| 14. 性能优化 - CUDA Graph 和算子融合 | v1.2 | 2/2 | Complete | 2026-03-17 |
+| 15. 多卡推理支持 | v1.2 | 0/4 | Planned | - |
 
 ### Phase 14: 性能优化 - CUDA Graph 和算子融合
 
@@ -131,8 +133,29 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 14-01-PLAN.md — 缓冲区持久化 + Flash Attention 自动启用 + CUDA Graph 编译标志 (CG-01, OP-01, CG-02)
-- [ ] 14-02-PLAN.md — RoPE PE GPU 化 + Linear+GELU 算子融合 (OP-02, FUS-02)
+- [x] 14-01-PLAN.md — 缓冲区持久化 + Flash Attention 自动启用 + CUDA Graph 编译标志 (CG-01, OP-01, CG-02)
+- [x] 14-02-PLAN.md — RoPE PE GPU 化 + Linear+GELU 算子融合 (OP-02, FUS-02)
+
+### Phase 15: 多卡推理支持
+
+**Goal:** 支持多 GPU 分布式推理，通过张量并行和数据并行提升吞吐量，保持 API 向后兼容
+**Requirements**: MGPU-01, MGPU-02, MGPU-03, MGPU-04, MGPU-05, MGPU-06, MGPU-07, MGPU-08, MGPU-09, MGPU-10, MGPU-11, MGPU-12
+**Depends on:** Phase 14
+**Success Criteria** (what must be TRUE):
+  1. `wan_params_t` 包含 gpu_ids、num_gpus、distribution_strategy 多卡配置字段
+  2. `wan_load_model_from_file` 在 num_gpus > 1 时初始化多个 CUDA 后端和 ggml_backend_sched
+  3. 去噪循环在多卡模式下使用 ggml_backend_sched_graph_compute 执行
+  4. 数据并行批量生成 API 可将多个请求分发到不同 GPU
+  5. wan-cli 支持 --gpu-ids 和 --num-gpus 参数
+  6. 不指定多卡配置时自动回退到单卡推理，现有 API 行为不变
+  7. CMake WAN_NCCL 选项可条件链接 NCCL 库
+**Plans**: 4 plans
+
+Plans:
+- [ ] 15-01-PLAN.md — 多卡 API 类型定义 + CMake NCCL 集成 (MGPU-01, MGPU-02, MGPU-03, MGPU-11, MGPU-12)
+- [ ] 15-02-PLAN.md — 多卡后端初始化 + 张量并行模型加载 + 去噪循环适配 (MGPU-04, MGPU-05, MGPU-07, MGPU-12)
+- [ ] 15-03-PLAN.md — 数据并行批量生成实现 (MGPU-06)
+- [ ] 15-04-PLAN.md — CLI 多卡参数 + GPU 信息查询 + 人工验证 (MGPU-08, MGPU-09, MGPU-10)
 
 ---
-*Last updated: 2026-03-17 — Phase 14 planned*
+*Last updated: 2026-03-18 — Phase 15 planned*
