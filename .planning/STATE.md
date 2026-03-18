@@ -4,10 +4,10 @@ milestone: v1.1
 milestone_name: 模型格式扩展
 current_phase: 15
 status: unknown
-last_updated: "2026-03-18T05:28:32Z"
+last_updated: "2026-03-18T05:35:09.154Z"
 progress:
   total_phases: 7
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 13
   completed_plans: 13
 ---
