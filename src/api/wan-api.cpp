@@ -357,9 +357,109 @@ WAN_API wan_error_t wan_load_model(const char* model_path,
 WAN_API wan_error_t wan_load_model_from_file(const char* model_path,
                                                  const wan_params_t* params,
                                                  wan_context_t** out_ctx) {
-    int n_threads = params ? params->n_threads : 0;
-    const char* backend_type = params && params->backend ? params->backend : "cpu";
+    if (!params) {
+        return wan_load_model(model_path, 0, "cpu", out_ctx);
+    }
 
+    int n_threads = params->n_threads;
+    const char* backend_type = params->backend ? params->backend : "cpu";
+
+#ifdef WAN_USE_MULTI_GPU
+    // Multi-GPU path: num_gpus > 1 triggers tensor parallel initialization
+    if (params->num_gpus > 1 && params->gpu_ids) {
+        std::vector<int> gpu_ids(params->gpu_ids, params->gpu_ids + params->num_gpus);
+
+        // Create multi-GPU state with device validation
+        MultiGPUState* multi_gpu = create_multi_gpu_state(gpu_ids, params->distribution_strategy);
+        if (!multi_gpu) {
+            return WAN_ERROR_GPU_FAILURE;
+        }
+
+        // Load model via standard path first
+        wan_error_t err = wan_load_model(model_path, n_threads, backend_type, out_ctx);
+        if (err != WAN_SUCCESS) {
+            delete multi_gpu;
+            return err;
+        }
+
+        wan_context_t* ctx = *out_ctx;
+        ctx->multi_gpu_state.reset(multi_gpu);
+        ctx->params.num_gpus = params->num_gpus;
+        ctx->params.distribution_strategy = params->distribution_strategy;
+        ctx->params.gpu_ids = gpu_ids;
+
+        // Create backend scheduler for multi-GPU coordination
+#ifdef WAN_USE_CUDA
+        ggml_backend_sched_t sched = ggml_backend_sched_new(
+            multi_gpu->backends.data(),
+            nullptr,  // backend_ids (NULL = use default)
+            multi_gpu->backends.size(),
+            GGML_DEFAULT_GRAPH_SIZE,
+            false  // parallel
+        );
+
+        if (!sched) {
+            set_last_error(ctx, "Failed to create backend scheduler");
+            return WAN_ERROR_GPU_FAILURE;
+        }
+
+        multi_gpu->scheduler = sched;
+        LOG_INFO("Multi-GPU scheduler created for %d GPUs", params->num_gpus);
+
+        // Allocate model weights with tensor split across GPUs
+        int main_device = gpu_ids[0];
+        std::vector<float> tensor_split(params->num_gpus, 1.0f / params->num_gpus);
+
+        ggml_backend_buffer_type_t split_buft = ggml_backend_cuda_split_buffer_type(
+            main_device,
+            tensor_split.data()
+        );
+
+        // Re-allocate params buffers with split buffer type
+        if (ctx->wan_runner) {
+            if (!ctx->wan_runner->alloc_params_buffer_split(split_buft)) {
+                set_last_error(ctx, "Failed to allocate split buffer for WanRunner");
+                return WAN_ERROR_GPU_FAILURE;
+            }
+        }
+        if (ctx->vae_runner) {
+            if (!ctx->vae_runner->alloc_params_buffer_split(split_buft)) {
+                set_last_error(ctx, "Failed to allocate split buffer for VAERunner");
+                return WAN_ERROR_GPU_FAILURE;
+            }
+        }
+        if (ctx->t5_embedder) {
+            if (!ctx->t5_embedder->alloc_params_buffer_split(split_buft)) {
+                set_last_error(ctx, "Failed to allocate split buffer for T5Embedder");
+                return WAN_ERROR_GPU_FAILURE;
+            }
+        }
+        if (ctx->clip_runner) {
+            if (!ctx->clip_runner->alloc_params_buffer_split(split_buft)) {
+                set_last_error(ctx, "Failed to allocate split buffer for CLIPRunner");
+                return WAN_ERROR_GPU_FAILURE;
+            }
+        }
+
+        // Override primary backend to target main_device
+        ctx->backend.reset(Wan::WanBackend::create("cuda", n_threads, main_device));
+        if (!ctx->backend || !ctx->backend->backend) {
+            set_last_error(ctx, "Failed to create main device backend");
+            return WAN_ERROR_GPU_FAILURE;
+        }
+
+        LOG_INFO("Multi-GPU tensor parallel initialization complete: %d GPUs, main_device=%d",
+                 params->num_gpus, main_device);
+
+        return WAN_SUCCESS;
+#else
+        set_last_error(ctx, "Multi-GPU requires CUDA support");
+        return WAN_ERROR_UNSUPPORTED_OPERATION;
+#endif
+    }
+#endif
+
+    // Single-GPU fallback
     return wan_load_model(model_path, n_threads, backend_type, out_ctx);
 }
 

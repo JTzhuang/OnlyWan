@@ -2019,6 +2019,25 @@ public:
         return true;
     }
 
+#ifdef WAN_USE_MULTI_GPU
+    bool alloc_params_buffer_split(ggml_backend_buffer_type_t split_buffer_type) {
+        size_t num_tensors = ggml_tensor_num(params_ctx);
+        params_buffer      = ggml_backend_alloc_ctx_tensors_from_buft(params_ctx, split_buffer_type);
+        if (params_buffer == nullptr) {
+            LOG_ERROR("%s alloc params split buffer failed, num_tensors = %i",
+                      get_desc().c_str(),
+                      num_tensors);
+            return false;
+        }
+        size_t params_buffer_size = ggml_backend_buffer_get_size(params_buffer);
+        LOG_DEBUG("%s params split buffer size = % 6.2f MB (multi-GPU) (%i tensors)",
+                  get_desc().c_str(),
+                  params_buffer_size / (1024.f * 1024.f),
+                  num_tensors);
+        return true;
+    }
+#endif
+
     void free_params_buffer() {
         if (params_buffer != nullptr) {
             ggml_backend_buffer_free(params_buffer);
