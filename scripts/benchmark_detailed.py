@@ -100,8 +100,8 @@ def load_config_file(config_path: str) -> Dict[str, Any]:
             config = {}
 
         return config
-    except yaml.YAMLError as e:
-        raise yaml.YAMLError(f"Failed to parse YAML config: {e}")
+    except Exception as e:
+        raise ValueError(f"Failed to parse YAML config: {e}")
 
 
 def parse_args() -> argparse.Namespace:
