@@ -2,8 +2,19 @@ test_mode: "comprehensive"
 
 test_cases:
   - name: "full_resolution_steps_matrix"
-    resolutions: ["256x256", "384x384", "512x512", "768x768", "1024x576", "1280x720"]
-    steps: [10, 20, 50, 100]
+    description: "完整分辨率和步数矩阵测试"
+    resolutions:
+      - "256x256"
+      - "384x384"
+      - "512x512"
+      - "768x768"
+      - "1024x576"
+      - "1280x720"
+    steps:
+      - 10
+      - 20
+      - 50
+      - 100
     prompts:
       - "A cat playing with a ball"
       - "An astronaut floating in space"
@@ -12,20 +23,23 @@ test_cases:
 
 gpu_config:
   auto_detect: true
-  configurations: [1, 2, 4]
-  prefer_gpus: [0, 1, 2, 3]
+  min_required: 1
+  max_gpus: null
+  configurations: [1, 2, 4]  # 测试的GPU数量配置
+  prefer_gpus: [0, 1, 2, 3]  # 优先使用的GPU ID列表
 
 execution:
-  mode: "sequential"
-  timeout_per_test: 900
+  mode: "sequential"  # sequential | parallel
+  timeout_per_test: 900  # 单位：秒
   retry_on_failure: 1
 
 output:
   format: ["json", "csv", "html"]
   save_dir: "./benchmark_results"
   auto_name: true
+  include_raw_output: false
 
 metrics:
   collect_memory: true
-  collect_comm_bandwidth: true
+  collect_comm_bandwidth: true  # 估算多GPU通讯带宽（仅近似值）
   collect_power: false

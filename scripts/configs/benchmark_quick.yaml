@@ -2,26 +2,34 @@ test_mode: "quick"
 
 test_cases:
   - name: "quick_verification"
-    resolutions: ["512x512"]
-    steps: [10]
-    prompts: ["A cat"]
+    description: "快速验证测试"
+    resolutions:
+      - "512x512"
+    steps:
+      - 10
+    prompts:
+      - "A cat"
     num_frames: 8
 
 gpu_config:
   auto_detect: true
-  configurations: [1]
+  min_required: 1
+  max_gpus: null
+  configurations: [1]  # 测试的GPU数量配置
+  prefer_gpus: [0, 1, 2, 3]  # 优先使用的GPU ID列表
 
 execution:
-  mode: "sequential"
-  timeout_per_test: 300
+  mode: "sequential"  # sequential | parallel
+  timeout_per_test: 300  # 单位：秒
   retry_on_failure: 0
 
 output:
   format: ["json", "html"]
   save_dir: "./benchmark_results"
   auto_name: true
+  include_raw_output: false
 
 metrics:
   collect_memory: true
-  collect_comm_bandwidth: false
+  collect_comm_bandwidth: false  # 估算多GPU通讯带宽（仅近似值）
   collect_power: false
