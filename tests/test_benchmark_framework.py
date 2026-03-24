@@ -3,8 +3,10 @@ Unit tests for benchmark framework configuration system
 """
 
 import pytest
+import sys
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 from scripts.benchmark_detailed import (
     ResolutionConfig,
     load_config_file,
@@ -118,7 +120,7 @@ gpu_config:
         with pytest.raises(FileNotFoundError, match="Config file not found"):
             load_config_file("/nonexistent/path/config.yaml")
 
-    def test_load_config_without_yaml(self, monkeypatch):
+    def test_load_config_without_yaml(self):
         """Test loading config when PyYAML is not available"""
         # Temporarily disable HAS_YAML
         import scripts.benchmark_detailed as bd
@@ -137,9 +139,6 @@ class TestConfigMerging:
 
     def test_merge_empty_config_with_args(self):
         """Test merging empty config with CLI arguments"""
-        import sys
-        from unittest.mock import patch
-
         with patch.object(sys, 'argv', [
             'benchmark_detailed.py',
             '--model', 'model.safetensors',
@@ -155,9 +154,6 @@ class TestConfigMerging:
 
     def test_merge_config_cli_priority(self):
         """Test that CLI arguments override config file values"""
-        import sys
-        from unittest.mock import patch
-
         config = {
             'model': 'old_model.safetensors',
             'test_cases': [{
@@ -182,9 +178,6 @@ class TestConfigMerging:
 
     def test_merge_gpu_config(self):
         """Test merging GPU configuration"""
-        import sys
-        from unittest.mock import patch
-
         with patch.object(sys, 'argv', [
             'benchmark_detailed.py',
             '--num-gpus', '4',
@@ -198,9 +191,6 @@ class TestConfigMerging:
 
     def test_merge_output_formats(self):
         """Test merging output format options"""
-        import sys
-        from unittest.mock import patch
-
         with patch.object(sys, 'argv', [
             'benchmark_detailed.py',
             '--json',
@@ -214,9 +204,6 @@ class TestConfigMerging:
 
     def test_merge_execution_config(self):
         """Test merging execution configuration"""
-        import sys
-        from unittest.mock import patch
-
         with patch.object(sys, 'argv', [
             'benchmark_detailed.py',
             '--timeout', '300',
@@ -234,9 +221,6 @@ class TestArgumentParsing:
 
     def test_parse_basic_args(self):
         """Test parsing basic arguments"""
-        import sys
-        from unittest.mock import patch
-
         with patch.object(sys, 'argv', [
             'benchmark_detailed.py',
             '--model', 'model.safetensors',
@@ -248,9 +232,6 @@ class TestArgumentParsing:
 
     def test_parse_with_config(self):
         """Test parsing with config file argument"""
-        import sys
-        from unittest.mock import patch
-
         with patch.object(sys, 'argv', [
             'benchmark_detailed.py',
             '--config', 'configs/benchmark_default.yaml'
@@ -260,9 +241,6 @@ class TestArgumentParsing:
 
     def test_parse_all_arguments(self):
         """Test parsing all available arguments"""
-        import sys
-        from unittest.mock import patch
-
         with patch.object(sys, 'argv', [
             'benchmark_detailed.py',
             '--config', 'config.yaml',

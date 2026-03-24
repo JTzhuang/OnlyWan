@@ -12,16 +12,11 @@ Usage:
 
 import argparse
 import json
-import csv
-import subprocess
-import time
 import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, Any
 from dataclasses import dataclass
-from datetime import datetime
-import itertools
 
 # Try to import yaml
 try:
