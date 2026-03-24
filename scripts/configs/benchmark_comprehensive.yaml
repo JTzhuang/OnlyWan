@@ -1,0 +1,58 @@
+# OnlyWan Performance Benchmark - Comprehensive Configuration
+# Full test suite: 6 resolutions x 4 steps x multi-GPU
+
+test_mode: "comprehensive"
+
+test_cases:
+  - name: "comprehensive_video_generation"
+    resolutions:
+      - "512x512"
+      - "512x768"
+      - "768x768"
+      - "1024x576"
+      - "1280x720"
+      - "1920x1080"
+    steps:
+      - 10
+      - 20
+      - 50
+      - 100
+    prompts:
+      - "A cat playing with a ball"
+      - "An astronaut on the moon"
+      - "A beautiful sunset over the ocean with dramatic clouds"
+    num_frames: 16
+
+gpu_config:
+  auto_detect: true
+  min_required: 1
+  configurations:
+    - num_gpus: 1
+    - num_gpus: 2
+    - num_gpus: 4
+  prefer_gpus: []
+
+execution:
+  warmup_runs: 2
+  benchmark_runs: 5
+  timeout_seconds: 1800
+  retry_on_failure: true
+  max_retries: 3
+
+output:
+  results_dir: "benchmark_results/comprehensive"
+  save_format: "json"
+  save_csv: true
+  save_plots: true
+  verbose: false
+
+metrics:
+  measure_latency: true
+  measure_throughput: true
+  measure_memory: true
+  measure_gpu_utilization: true
+  percentiles:
+    - 50
+    - 90
+    - 95
+    - 99

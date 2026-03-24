@@ -1,0 +1,51 @@
+# OnlyWan Performance Benchmark - Default Configuration
+# Standard test configuration: 3 resolutions x 2 steps
+
+test_mode: "standard"
+
+test_cases:
+  - name: "standard_video_generation"
+    resolutions:
+      - "512x512"
+      - "768x768"
+      - "1024x576"
+    steps:
+      - 20
+      - 50
+    prompts:
+      - "A cat playing with a ball"
+      - "An astronaut on the moon"
+    num_frames: 16
+
+gpu_config:
+  auto_detect: true
+  min_required: 1
+  configurations:
+    - num_gpus: 1
+    - num_gpus: 2
+    - num_gpus: 4
+  prefer_gpus: []
+
+execution:
+  warmup_runs: 1
+  benchmark_runs: 3
+  timeout_seconds: 600
+  retry_on_failure: true
+  max_retries: 2
+
+output:
+  results_dir: "benchmark_results"
+  save_format: "json"
+  save_csv: true
+  save_plots: false
+  verbose: false
+
+metrics:
+  measure_latency: true
+  measure_throughput: true
+  measure_memory: true
+  measure_gpu_utilization: true
+  percentiles:
+    - 50
+    - 90
+    - 99

@@ -1,0 +1,43 @@
+# OnlyWan Performance Benchmark - Quick Configuration
+# Fast validation: single resolution, minimal steps
+
+test_mode: "quick"
+
+test_cases:
+  - name: "quick_validation"
+    resolutions:
+      - "512x512"
+    steps:
+      - 10
+    prompts:
+      - "A cat"
+    num_frames: 8
+
+gpu_config:
+  auto_detect: true
+  min_required: 1
+  configurations:
+    - num_gpus: 1
+  prefer_gpus: []
+
+execution:
+  warmup_runs: 0
+  benchmark_runs: 1
+  timeout_seconds: 120
+  retry_on_failure: false
+  max_retries: 0
+
+output:
+  results_dir: "benchmark_results/quick"
+  save_format: "json"
+  save_csv: false
+  save_plots: false
+  verbose: true
+
+metrics:
+  measure_latency: true
+  measure_throughput: false
+  measure_memory: true
+  measure_gpu_utilization: false
+  percentiles:
+    - 50
