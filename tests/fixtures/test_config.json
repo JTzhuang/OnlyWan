@@ -1,0 +1,10 @@
+{
+  "backend": "cpu",
+  "n_threads": 1,
+  "models": {
+    "transformer_path": "tests/fixtures/transformer_dummy.gguf",
+    "vae_path": "tests/fixtures/vae_dummy.gguf",
+    "text_encoder_path": "tests/fixtures/text_encoder_dummy.gguf"
+  },
+  "wan_config_file": "tests/fixtures/wan_config_dummy.json"
+}
