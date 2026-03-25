@@ -18,6 +18,8 @@
 #include "clip.hpp"
 #include "ggml_extend.hpp"
 #include "model.h"
+#include "config_loader.hpp"
+#include "util.h"
 
 #include "../../examples/cli/avi_writer.h"
 
@@ -128,41 +130,68 @@ WAN_API wan_error_t wan_set_vocab_dir(const char* dir) {
  * exactly one TU. wan-api.cpp already includes all three headers.
  * ============================================================================ */
 
-WanModelLoadResult Wan::WanModel::load(const std::string& file_path) {
-    LOG_DEBUG("WanModel::load: START, file_path='%s'", file_path.c_str());
+WanModelLoadResult Wan::WanModel::load(const std::string& config_path) {
+    LOG_DEBUG("WanModel::load: START, config_path='%s'", config_path.c_str());
 
     WanModelLoadResult result;
     result.success = false;
 
-    // Validate file exists
-    {
-        LOG_DEBUG("WanModel::load: validating file exists");
-        std::ifstream test_file(file_path);
-        if (!test_file.good()) {
-            result.error_message = "Model file not found: " + file_path;
-            LOG_ERROR("WanModel::load: file not found: %s", file_path.c_str());
-            return result;
-        }
-    }
-
-    // Detect format: safetensors takes priority over GGUF
-    LOG_DEBUG("WanModel::load: detecting format");
-    std::string model_type, model_version;
-    SDVersion sd_version = VERSION_WAN2;
-
-    bool is_st   = is_safetensors_file(file_path);
-    LOG_DEBUG("WanModel::load: is_safetensors=%d", is_st);
-
-    bool is_gguf = !is_st && Wan::is_wan_gguf(file_path, model_type, model_version);
-    LOG_DEBUG("WanModel::load: is_gguf=%d, model_type='%s', model_version='%s'", is_gguf, model_type.c_str(), model_version.c_str());
-
-    if (!is_st && !is_gguf) {
-        result.error_message = "Not a valid WAN GGUF or safetensors file: " + file_path;
-        LOG_ERROR("WanModel::load: not a valid WAN file: %s", file_path.c_str());
+    // Step 1: Verify config file exists
+    LOG_DEBUG("WanModel::load: validating config file exists");
+    if (!file_exists(config_path)) {
+        result.error_message = "Config file not found: " + config_path;
+        LOG_ERROR("WanModel::load: config file not found: %s", config_path.c_str());
         return result;
     }
 
-    // Initialize CPU backend for weight loading
+    // Step 2: Parse main configuration file
+    LOG_DEBUG("WanModel::load: parsing main config");
+    WanLoadConfig config;
+    try {
+        config = ConfigLoader::load_config(config_path);
+    } catch (const std::exception& e) {
+        result.error_message = std::string("Failed to parse config: ") + e.what();
+        LOG_ERROR("WanModel::load: config parse failed: %s", e.what());
+        return result;
+    }
+
+    // Step 3: Validate required files exist
+    LOG_DEBUG("WanModel::load: validating required files");
+    try {
+        ConfigLoader::validate_required_files(config);
+    } catch (const std::exception& e) {
+        result.error_message = std::string("Missing required files: ") + e.what();
+        LOG_ERROR("WanModel::load: file validation failed: %s", e.what());
+        return result;
+    }
+
+    // Step 4: Load architecture configuration
+    LOG_DEBUG("WanModel::load: loading architecture config");
+    WanArchConfig arch_config;
+    try {
+        arch_config = ConfigLoader::load_arch_config(config.wan_config_file);
+    } catch (const std::exception& e) {
+        result.error_message = std::string("Failed to parse architecture config: ") + e.what();
+        LOG_ERROR("WanModel::load: arch config parse failed: %s", e.what());
+        return result;
+    }
+
+    // Determine SDVersion from model_type
+    LOG_DEBUG("WanModel::load: determining SDVersion from model_type='%s'", arch_config.model_type.c_str());
+    SDVersion sd_version = VERSION_WAN2;
+    std::string model_version = "WAN2.1";
+    if (arch_config.model_type == "i2v") {
+        sd_version = VERSION_WAN2_2_I2V;
+        model_version = "WAN2.2";
+    } else if (arch_config.model_type == "ti2v") {
+        sd_version = VERSION_WAN2_2_TI2V;
+        model_version = "WAN2.2";
+    } else if (arch_config.model_type == "t2v") {
+        sd_version = VERSION_WAN2;
+        model_version = "WAN2.1";
+    }
+
+    // Step 5: Initialize CPU backend for weight loading
     LOG_DEBUG("WanModel::load: initializing CPU backend");
     ggml_backend_t backend = ggml_backend_cpu_init();
     if (!backend) {
@@ -171,171 +200,153 @@ WanModelLoadResult Wan::WanModel::load(const std::string& file_path) {
         return result;
     }
 
-    LOG_DEBUG("WanModel::load: creating ModelLoader");
-    ModelLoader model_loader;
-
-    if (is_st) {
-        LOG_DEBUG("WanModel::load: loading safetensors");
-        // Safetensors path: HF WAN checkpoints already use "model.diffusion_model.*" names.
-        // Do NOT pass a prefix — adding it would double the prefix and break all lookups.
-        if (!model_loader.init_from_file(file_path)) {
-            result.error_message = "Failed to parse safetensors file: " + file_path;
-            ggml_backend_free(backend);
-            LOG_ERROR("WanModel::load: safetensors parse failed");
-            return result;
-        }
-        // Normalize any variant (diffusers-style) tensor names
-        model_loader.convert_tensors_name();
-
-        // Infer WAN model type from tensor names (no metadata in safetensors)
-        SDVersion sv = model_loader.get_sd_version();
-        if (!sd_version_is_wan(sv)) {
-            result.error_message = "safetensors file does not contain a WAN model: " + file_path;
-            ggml_backend_free(backend);
-            LOG_ERROR("WanModel::load: not a WAN model");
-            return result;
-        }
-        sd_version = sv;
-        if (sv == VERSION_WAN2_2_I2V)       { model_type = "i2v";   model_version = "WAN2.2"; }
-        else if (sv == VERSION_WAN2_2_TI2V) { model_type = "ti2v";  model_version = "WAN2.2"; }
-        else                                { model_type = "t2v";   model_version = "WAN2.1"; }
-    } else {
-        LOG_DEBUG("WanModel::load: loading GGUF");
-        // GGUF path: existing logic — model_type and model_version already set by is_wan_gguf()
-        if (model_type == "i2v")  sd_version = VERSION_WAN2_2_I2V;
-        if (model_type == "ti2v") sd_version = VERSION_WAN2_2_TI2V;
-
-        LOG_DEBUG("WanModel::load: calling init_from_file_and_convert_name");
-        if (!model_loader.init_from_file_and_convert_name(file_path, "model.diffusion_model.")) {
-            result.error_message = "ModelLoader failed to init from: " + file_path;
-            ggml_backend_free(backend);
-            LOG_ERROR("WanModel::load: ModelLoader init failed");
-            return result;
-        }
-        LOG_DEBUG("WanModel::load: ModelLoader init succeeded");
+    // --- Load Transformer ---
+    LOG_DEBUG("WanModel::load: loading Transformer from '%s'", config.transformer_path.c_str());
+    ModelLoader transformer_loader;
+    if (!transformer_loader.init_from_file_and_convert_name(config.transformer_path, "model.diffusion_model.")) {
+        result.error_message = "ModelLoader failed to load transformer from: " + config.transformer_path;
+        ggml_backend_free(backend);
+        LOG_ERROR("WanModel::load: transformer ModelLoader init failed");
+        return result;
     }
-    auto& tensor_storage_map = model_loader.get_tensor_storage_map();
+    LOG_DEBUG("WanModel::load: transformer loaded");
+    auto& transformer_tensor_map = transformer_loader.get_tensor_storage_map();
 
-    LOG_DEBUG("WanModel::load: got tensor_storage_map");
-
-    // --- DiT (WanRunner) ---
-    LOG_DEBUG("WanModel::load: creating WanRunner");
+    // Create WanRunner for Transformer
+    LOG_DEBUG("WanModel::load: creating WanRunner for Transformer");
     auto wan_runner = std::make_shared<WAN::WanRunner>(
         backend, /*offload_params_to_cpu=*/false,
-        tensor_storage_map, "model.diffusion_model", sd_version);
+        transformer_tensor_map, "", sd_version);
     LOG_DEBUG("WanModel::load: WanRunner created");
 
-    LOG_DEBUG("WanModel::load: calling wan_runner->alloc_params_buffer()");
+    LOG_DEBUG("WanModel::load: allocating Transformer params buffer");
     wan_runner->alloc_params_buffer();
-    LOG_DEBUG("WanModel::load: wan_runner->alloc_params_buffer() done");
 
     {
-        LOG_DEBUG("WanModel::load: loading DiT tensors");
+        LOG_DEBUG("WanModel::load: loading Transformer tensors");
         std::map<std::string, ggml_tensor*> tensors;
-        wan_runner->get_param_tensors(tensors, "model.diffusion_model");
-        LOG_DEBUG("WanModel::load: got %zu DiT tensors, calling load_tensors", tensors.size());
-        if (!model_loader.load_tensors(tensors)) {
-            result.error_message = "Failed to load DiT tensors from: " + file_path;
+        wan_runner->get_param_tensors(tensors, "");
+        LOG_DEBUG("WanModel::load: got %zu Transformer tensors", tensors.size());
+        if (!transformer_loader.load_tensors(tensors)) {
+            result.error_message = "Failed to load Transformer tensors";
             ggml_backend_free(backend);
-            LOG_ERROR("WanModel::load: DiT tensor load failed");
+            LOG_ERROR("WanModel::load: Transformer tensor load failed");
             return result;
         }
-        LOG_DEBUG("WanModel::load: DiT tensors loaded successfully");
+        LOG_DEBUG("WanModel::load: Transformer tensors loaded successfully");
     }
 
-    // --- VAE (WanVAERunner) — prefix "first_stage_model" (no trailing dot) ---
+    // --- Load VAE ---
+    LOG_DEBUG("WanModel::load: loading VAE from '%s'", config.vae_path.c_str());
+    ModelLoader vae_loader;
+    if (!vae_loader.init_from_file_and_convert_name(config.vae_path, "")) {
+        result.error_message = "ModelLoader failed to load VAE from: " + config.vae_path;
+        ggml_backend_free(backend);
+        LOG_ERROR("WanModel::load: VAE ModelLoader init failed");
+        return result;
+    }
+    LOG_DEBUG("WanModel::load: VAE loaded");
+    auto& vae_tensor_map = vae_loader.get_tensor_storage_map();
+
     LOG_DEBUG("WanModel::load: creating WanVAERunner");
     auto vae_runner = std::make_shared<WAN::WanVAERunner>(
         backend, /*offload_params_to_cpu=*/false,
-        tensor_storage_map, "", /*decode_only=*/false, sd_version);
+        vae_tensor_map, "", /*decode_only=*/false, sd_version);
     LOG_DEBUG("WanModel::load: WanVAERunner created");
 
-    LOG_DEBUG("WanModel::load: calling vae_runner->alloc_params_buffer()");
+    LOG_DEBUG("WanModel::load: allocating VAE params buffer");
     vae_runner->alloc_params_buffer();
-    LOG_DEBUG("WanModel::load: vae_runner->alloc_params_buffer() done");
 
     {
         LOG_DEBUG("WanModel::load: loading VAE tensors");
         std::map<std::string, ggml_tensor*> vae_tensors;
-        vae_runner->get_param_tensors(vae_tensors, "first_stage_model");
-        // best-effort: VAE may be in a separate file
-        model_loader.load_tensors(vae_tensors);
-        LOG_DEBUG("WanModel::load: VAE tensors loaded");
+        vae_runner->get_param_tensors(vae_tensors, "");
+        LOG_DEBUG("WanModel::load: got %zu VAE tensors", vae_tensors.size());
+        if (!vae_loader.load_tensors(vae_tensors)) {
+            result.error_message = "Failed to load VAE tensors";
+            ggml_backend_free(backend);
+            LOG_ERROR("WanModel::load: VAE tensor load failed");
+            return result;
+        }
+        LOG_DEBUG("WanModel::load: VAE tensors loaded successfully");
     }
 
-    // --- T5 encoder — detect prefix dynamically (varies by GGUF file) ---
-    LOG_DEBUG("WanModel::load: detecting T5 prefix");
-    std::string t5_prefix;
-    for (auto& [name, _] : tensor_storage_map) {
-        if (name.find("cond_stage_model.") == 0)    { t5_prefix = "cond_stage_model.";    break; }
-        if (name.find("text_encoders.t5xxl.") == 0) { t5_prefix = "text_encoders.t5xxl."; break; }
+    // --- Load Text Encoder (T5) ---
+    LOG_DEBUG("WanModel::load: loading Text Encoder (T5) from '%s'", config.text_encoder_path.c_str());
+    ModelLoader t5_loader;
+    if (!t5_loader.init_from_file(config.text_encoder_path)) {
+        result.error_message = "ModelLoader failed to load T5 from: " + config.text_encoder_path;
+        ggml_backend_free(backend);
+        LOG_ERROR("WanModel::load: T5 ModelLoader init failed");
+        return result;
     }
-    LOG_DEBUG("WanModel::load: T5 prefix='%s'", t5_prefix.c_str());
+    LOG_DEBUG("WanModel::load: T5 loaded");
+    auto& t5_tensor_map = t5_loader.get_tensor_storage_map();
 
-    std::shared_ptr<T5Embedder> t5_embedder;
-    if (!t5_prefix.empty()) {
-        LOG_DEBUG("WanModel::load: creating T5Embedder with prefix");
-        t5_embedder = std::make_shared<T5Embedder>(
-            backend, false, tensor_storage_map, t5_prefix, /*is_umt5=*/true);
-        LOG_DEBUG("WanModel::load: T5Embedder created");
+    LOG_DEBUG("WanModel::load: creating T5Embedder");
+    auto t5_embedder = std::make_shared<T5Embedder>(
+        backend, false, t5_tensor_map, "", /*is_umt5=*/true);
+    LOG_DEBUG("WanModel::load: T5Embedder created");
 
-        LOG_DEBUG("WanModel::load: calling t5_embedder->alloc_params_buffer()");
-        t5_embedder->alloc_params_buffer();
-        LOG_DEBUG("WanModel::load: t5_embedder->alloc_params_buffer() done");
+    LOG_DEBUG("WanModel::load: allocating T5 params buffer");
+    t5_embedder->alloc_params_buffer();
 
+    {
         LOG_DEBUG("WanModel::load: loading T5 tensors");
         std::map<std::string, ggml_tensor*> t5_tensors;
-        t5_embedder->get_param_tensors(t5_tensors, t5_prefix);
-        model_loader.load_tensors(t5_tensors);
-        LOG_DEBUG("WanModel::load: T5 tensors loaded");
-    } else {
-        // T5 not bundled in this GGUF — construct tokenizer-only embedder
-        LOG_DEBUG("WanModel::load: creating T5Embedder (tokenizer-only)");
-        t5_embedder = std::make_shared<T5Embedder>(
-            backend, false, tensor_storage_map, "", /*is_umt5=*/true);
-        LOG_DEBUG("WanModel::load: T5Embedder (tokenizer-only) created");
+        t5_embedder->get_param_tensors(t5_tensors, "");
+        LOG_DEBUG("WanModel::load: got %zu T5 tensors", t5_tensors.size());
+        if (!t5_loader.load_tensors(t5_tensors)) {
+            result.error_message = "Failed to load T5 tensors";
+            ggml_backend_free(backend);
+            LOG_ERROR("WanModel::load: T5 tensor load failed");
+            return result;
+        }
+        LOG_DEBUG("WanModel::load: T5 tensors loaded successfully");
     }
 
-    // --- CLIP vision encoder — only for i2v / ti2v models ---
-    LOG_DEBUG("WanModel::load: model_type='%s', checking for CLIP", model_type.c_str());
+    // --- Load CLIP (optional, only for i2v and ti2v) ---
+    LOG_DEBUG("WanModel::load: model_type='%s', checking for CLIP", arch_config.model_type.c_str());
     std::shared_ptr<CLIPVisionModelProjectionRunner> clip_runner;
-    if (model_type == "i2v" || model_type == "ti2v") {
-        LOG_DEBUG("WanModel::load: detecting CLIP prefix");
-        std::string clip_prefix;
-        for (auto& [name, _] : tensor_storage_map) {
-            if (name.find("cond_stage_model.visual.") == 0) { clip_prefix = "cond_stage_model.visual."; break; }
-            if (name.find("clip_vision_model.") == 0)       { clip_prefix = "clip_vision_model.";       break; }
-        }
-        LOG_DEBUG("WanModel::load: CLIP prefix='%s'", clip_prefix.c_str());
+    if ((arch_config.model_type == "i2v" || arch_config.model_type == "ti2v") && !config.clip_path.empty()) {
+        LOG_DEBUG("WanModel::load: loading CLIP from '%s'", config.clip_path.c_str());
+        ModelLoader clip_loader;
+        if (!clip_loader.init_from_file_and_convert_name(config.clip_path, "")) {
+            LOG_WARN("WanModel::load: CLIP ModelLoader init failed, continuing without CLIP");
+        } else {
+            LOG_DEBUG("WanModel::load: CLIP loaded");
+            auto& clip_tensor_map = clip_loader.get_tensor_storage_map();
 
-        if (!clip_prefix.empty()) {
             LOG_DEBUG("WanModel::load: creating CLIPVisionModelProjectionRunner");
             clip_runner = std::make_shared<CLIPVisionModelProjectionRunner>(
-                backend, false, tensor_storage_map, clip_prefix, OPEN_CLIP_VIT_H_14);
+                backend, false, clip_tensor_map, "", OPEN_CLIP_VIT_H_14);
             LOG_DEBUG("WanModel::load: CLIPVisionModelProjectionRunner created");
 
-            LOG_DEBUG("WanModel::load: calling clip_runner->alloc_params_buffer()");
+            LOG_DEBUG("WanModel::load: allocating CLIP params buffer");
             clip_runner->alloc_params_buffer();
-            LOG_DEBUG("WanModel::load: clip_runner->alloc_params_buffer() done");
 
-            LOG_DEBUG("WanModel::load: loading CLIP tensors");
-            std::map<std::string, ggml_tensor*> clip_tensors;
-            clip_runner->get_param_tensors(clip_tensors, clip_prefix);
-            model_loader.load_tensors(clip_tensors);
-            LOG_DEBUG("WanModel::load: CLIP tensors loaded");
+            {
+                LOG_DEBUG("WanModel::load: loading CLIP tensors");
+                std::map<std::string, ggml_tensor*> clip_tensors;
+                clip_runner->get_param_tensors(clip_tensors, "");
+                LOG_DEBUG("WanModel::load: got %zu CLIP tensors", clip_tensors.size());
+                if (!clip_loader.load_tensors(clip_tensors)) {
+                    LOG_WARN("WanModel::load: CLIP tensor load failed, continuing without CLIP");
+                    clip_runner = nullptr;
+                } else {
+                    LOG_DEBUG("WanModel::load: CLIP tensors loaded successfully");
+                }
+            }
         }
     }
 
     LOG_DEBUG("WanModel::load: setting result and returning");
-    return result;
-}
-
     result.success       = true;
     result.wan_runner    = wan_runner;
     result.vae_runner    = vae_runner;
     result.t5_embedder   = t5_embedder;
-    result.clip_runner   = clip_runner;  // nullptr for t2v
-    result.model_type    = model_type;
+    result.clip_runner   = clip_runner;  // nullptr for t2v or if CLIP loading failed
+    result.model_type    = arch_config.model_type;
     result.model_version = model_version;
     return result;
 }
