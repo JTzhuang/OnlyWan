@@ -199,6 +199,7 @@ progress:
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260317-nl6 | 分析各个子模型的优化空间：CUDA Graph 优化、算子实现效率、第三方库使用、算子融合机会。整理成 TODO 列表保存到 .planning/OPTIMIZATION_TODOS.md | 2026-03-17 | 20d9aab | [260317-nl6](./quick/260317-nl6-cuda-graph-todo-planning-optimization-to/) |
+| 260325-fcl | spdlog v1.13.0 离线集成 - 将spdlog从编译时网络下载改为离线thirdparty集成，消除FetchContent依赖 | 2026-03-25 | 5fe4a56 | [260325-fcl](./quick/260325-fcl-spdlog-thirdparty/) |
 
 ## Session Continuity
 
@@ -207,4 +208,4 @@ progress:
 **Context:** Added CLI multi-GPU arguments (--gpu-ids/--num-gpus), GPU info query API, benchmark script for performance metrics, and precision validation script. All 4 tasks completed with 4 commits (4774ff9, 4fbf155, cf29dbb, a08dae1). Checkpoint auto-approved in auto mode.
 
 ---
-*State updated: 2026-03-18 — Phase 15 Plan 04 complete*
+*State updated: 2026-03-25 — Quick Task 260325-fcl complete (spdlog offline integration)*
