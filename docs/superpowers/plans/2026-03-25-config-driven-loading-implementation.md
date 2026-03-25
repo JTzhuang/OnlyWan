@@ -29,6 +29,7 @@
 **Files:**
 - Create: `src/config_loader.hpp`
 - Create: `src/config_loader.cpp`
+- Modify: `CMakeLists.txt`
 
 **Description:** 定义并实现 ConfigLoader 类，用于解析主配置文件和 wan_config.json。
 
@@ -40,7 +41,8 @@
 
 #include <string>
 #include <vector>
-#include "json.hpp"
+#include "nlohmann/json.hpp"  // Include nlohmann/json
+#include "model.h"             // For SDVersion
 
 struct WanLoadConfig {
     // Runtime environment
@@ -109,8 +111,13 @@ public:
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 WanLoadConfig ConfigLoader::load_config(const std::string& config_path) {
+    LOG_DEBUG("ConfigLoader::load_config: parsing %s", config_path.c_str());
+
     std::ifstream ifs(config_path);
     if (!ifs.is_open()) {
         throw std::runtime_error("Cannot open config file: " + config_path);
@@ -125,29 +132,36 @@ WanLoadConfig ConfigLoader::load_config(const std::string& config_path) {
 
     WanLoadConfig cfg;
 
-    // Parse required fields
+    // Parse fields with defaults (backend, n_threads, gpu_ids)
+    cfg.backend = j.value("backend", "cpu");
+    cfg.n_threads = j.value("n_threads", 0);
+
+    if (j.contains("gpu_ids") && j["gpu_ids"].is_array()) {
+        cfg.gpu_ids = j["gpu_ids"].get<std::vector<int>>();
+    }
+
+    // Parse required model paths
     try {
-        cfg.backend = j.value("backend", "cpu");
-        cfg.n_threads = j.value("n_threads", 0);
-
-        if (j.contains("gpu_ids")) {
-            cfg.gpu_ids = j["gpu_ids"].get<std::vector<int>>();
-        }
-
-        cfg.transformer_path = j["models"]["transformer_path"];
-        cfg.vae_path = j["models"]["vae_path"];
-        cfg.text_encoder_path = j["models"]["text_encoder_path"];
-        cfg.clip_path = j["models"].value("clip_path", "");  // Optional
-
-        cfg.wan_config_file = j["wan_config_file"];
-    } catch (const std::exception& e) {
+        cfg.transformer_path = j.at("models").at("transformer_path").get<std::string>();
+        cfg.vae_path = j.at("models").at("vae_path").get<std::string>();
+        cfg.text_encoder_path = j.at("models").at("text_encoder_path").get<std::string>();
+        cfg.wan_config_file = j.at("wan_config_file").get<std::string>();
+    } catch (const nlohmann::json::exception& e) {
         throw std::runtime_error("Missing required field in config: " + std::string(e.what()));
     }
 
+    // Parse optional clip_path
+    if (j.contains("models") && j["models"].contains("clip_path")) {
+        cfg.clip_path = j["models"]["clip_path"].get<std::string>();
+    }
+
+    LOG_DEBUG("ConfigLoader::load_config: parsed successfully");
     return cfg;
 }
 
 WanArchConfig ConfigLoader::load_arch_config(const std::string& config_path) {
+    LOG_DEBUG("ConfigLoader::load_arch_config: parsing %s", config_path.c_str());
+
     std::ifstream ifs(config_path);
     if (!ifs.is_open()) {
         throw std::runtime_error("Cannot open arch config file: " + config_path);
@@ -163,24 +177,27 @@ WanArchConfig ConfigLoader::load_arch_config(const std::string& config_path) {
     WanArchConfig cfg;
 
     try {
-        cfg.model_type = j["model_type"];
-        cfg.dim = j["dim"];
-        cfg.num_heads = j["num_heads"];
-        cfg.num_layers = j["num_layers"];
-        cfg.in_dim = j["in_dim"];
-        cfg.out_dim = j["out_dim"];
-        cfg.text_len = j["text_len"];
+        cfg.model_type = j.at("model_type").get<std::string>();
+        cfg.dim = j.at("dim").get<int>();
+        cfg.num_heads = j.at("num_heads").get<int>();
+        cfg.num_layers = j.at("num_layers").get<int>();
+        cfg.in_dim = j.at("in_dim").get<int>();
+        cfg.out_dim = j.at("out_dim").get<int>();
+        cfg.text_len = j.at("text_len").get<int>();
         cfg.eps = j.value("eps", 1e-6f);
-        cfg.ffn_dim = j["ffn_dim"];
-        cfg.freq_dim = j["freq_dim"];
-    } catch (const std::exception& e) {
+        cfg.ffn_dim = j.at("ffn_dim").get<int>();
+        cfg.freq_dim = j.at("freq_dim").get<int>();
+    } catch (const nlohmann::json::exception& e) {
         throw std::runtime_error("Missing required arch field: " + std::string(e.what()));
     }
 
+    LOG_DEBUG("ConfigLoader::load_arch_config: parsed successfully, model_type=%s", cfg.model_type.c_str());
     return cfg;
 }
 
 void ConfigLoader::validate_required_files(const WanLoadConfig& config) {
+    LOG_DEBUG("ConfigLoader::validate_required_files: validating required files");
+
     // Check required files
     std::vector<std::pair<std::string, std::string>> required = {
         {"transformer_path", config.transformer_path},
@@ -189,28 +206,39 @@ void ConfigLoader::validate_required_files(const WanLoadConfig& config) {
     };
 
     for (const auto& [name, path] : required) {
-        std::ifstream f(path);
-        if (!f.good()) {
+        if (!file_exists(path)) {
             throw std::runtime_error("Required model file not found: " + name + " = " + path);
         }
+        LOG_DEBUG("ConfigLoader::validate_required_files: ✓ %s exists", name.c_str());
     }
 
     // Check wan_config_file
-    std::ifstream f(config.wan_config_file);
-    if (!f.good()) {
+    if (!file_exists(config.wan_config_file)) {
         throw std::runtime_error("Architecture config file not found: " + config.wan_config_file);
     }
+    LOG_DEBUG("ConfigLoader::validate_required_files: ✓ wan_config_file exists");
+
+    // Optional: warn if clip_path is empty but might be needed for i2v/ti2v
+    // (actual check is done in WanModel::load() after reading model_type)
 }
 ```
 
 - [ ] **Step 3: 在 CMakeLists.txt 中添加源文件**
 
-修改 `CMakeLists.txt`，在 wan-api 目标的源文件列表中添加 `src/config_loader.cpp`：
+修改 `CMakeLists.txt`，在 `add_library(wan-api ...)` 目标中添加 `src/config_loader.cpp`：
+
+**Before:** 找到包含 wan-api 库定义的行（大约在第 100-150 行）
+```bash
+grep -n "add_library(wan-api" CMakeLists.txt
+```
+
+**After:** 在源文件列表中添加 `src/config_loader.cpp`，例如：
 ```cmake
 add_library(wan-api SHARED
     src/api/wan-api.cpp
-    src/config_loader.cpp
-    ...
+    src/api/wan_loader.cpp
+    src/config_loader.cpp    # ← 添加此行
+    ... other sources ...
 )
 ```
 
@@ -223,6 +251,26 @@ git commit -m "feat: add ConfigLoader class for JSON-based model configuration"
 
 ---
 
+### Task 1.5: 验证编译（ConfigLoader）
+
+**Files:**
+- None (verification only)
+
+**Description:** 确保 ConfigLoader 类能够独立编译。
+
+- [ ] **Step 1: 编译验证**
+
+```bash
+cd /data/zhongwang2/jtzhuang/projects/OnlyWan/build
+cmake .. && make -j$(nproc) 2>&1 | head -50
+```
+
+预期输出：编译成功，或仅显示与尚未修改的 wan-api.cpp 有关的错误（这在 Task 2 中修复）。
+
+如果有 ConfigLoader 相关的编译错误，立即修复。
+
+---
+
 ### Task 2: 修改 WanModel::load() 使用 ConfigLoader
 
 **Files:**
@@ -231,11 +279,26 @@ git commit -m "feat: add ConfigLoader class for JSON-based model configuration"
 
 **Description:** 重写 `WanModel::load()` 方法，使其接收配置文件路径而非权重文件路径，并使用 ConfigLoader 解析配置。
 
+**Includes needed:** 在 `src/api/wan-api.cpp` 顶部，需要确保已有以下 include：
+```cpp
+#include "config_loader.hpp"
+#include "model.h"           // For SDVersion, ModelLoader
+#include "util.h"            // For file_exists, LOG_* macros
+#include "ggml.h"
+// ... 其他现有 include ...
+```
+
 - [ ] **Step 1: 备份原有的 WanModel::load() 逻辑**
 
-在 `src/api/wan-api.cpp` 中，当前 `WanModel::load()` 接收 GGUF/safetensors 文件路径。我们需要：
-1. 将原有逻辑重命名或封装为内部辅助函数（如 `_load_single_model()`)
+在 `src/api/wan-api.cpp` 中，当前 `WanModel::load()` 接收 GGUF/safetensors 文件路径（行号约 131-339）。我们需要：
+1. 将当前实现复制备份（可选），然后整体替换
 2. 重写 `WanModel::load()` 为配置驱动版本
+
+**Before:** 检查当前 WanModel::load() 的位置
+```bash
+grep -n "WanModelLoadResult Wan::WanModel::load" src/api/wan-api.cpp
+# 应该输出: 131:WanModelLoadResult Wan::WanModel::load(const std::string& file_path) {
+```
 
 - [ ] **Step 2: 在 WanModel::load() 顶部添加配置解析**
 
@@ -664,6 +727,9 @@ static int parse_args(cli_options_t* opts, int argc, char** argv) {
             if (positional_count == 0) {
                 opts->config_path = (char*)arg;
                 positional_count++;
+            } else {
+                // Extra positional argument (ignore or warn?)
+                fprintf(stderr, "Warning: unexpected positional argument '%s'\n", arg);
             }
             continue;
         }
@@ -878,12 +944,14 @@ git commit -m "test: add test configuration files"
 ### Task 6: 文档更新与验收
 
 **Files:**
-- Modify: `include/wan.h`
+- Modify: `include/wan-cpp/wan.h`
 - Create: `docs/CONFIG.md`
 
 **Description:** 更新 API 文档，编写配置文件使用指南。
 
-- [ ] **Step 1: 更新 wan.h 中的函数文档**
+- [ ] **Step 1: 更新 include/wan-cpp/wan.h 中的函数文档**
+
+在该文件中找到 `wan_load_model()` 函数声明（使用 `grep "wan_load_model" include/wan-cpp/wan.h`），修改其上方的注释为：
 
 ```cpp
 /**
@@ -1038,13 +1106,31 @@ git commit -m "docs: update API documentation and add config file guide"
 
 ## 验收标准检查清单
 
-- [ ] `./wan-cli config.json -p "A cat"` 能成功启动
-- [ ] 模型类型由 `wan_config.json` 正确决定
-- [ ] 支持分别指定不同路径的 VAE 和 Transformer
-- [ ] 多 GPU 配置通过 `config.json` 正确传递
-- [ ] `-m` 参数已移除，不再支持旧式调用
-- [ ] 错误日志清晰，指出缺失的文件或配置问题
-- [ ] CLIP 可选，缺失时仅记录警告不中断加载
+**核心功能：**
+- [ ] `./wan-cli config.json -p "A cat"` 能成功加载模型
+- [ ] 模型类型（t2v/i2v/ti2v）由 `wan_config.json` 中的 model_type 正确决定
+- [ ] 支持分别指定不同路径的 Transformer、VAE、Text Encoder、CLIP
+- [ ] 多 GPU 配置通过 `config.json` 中的 gpu_ids 正确传递到 context
+- [ ] `-m` 参数已移除，尝试使用 `-m` 会显示 "Unknown option" 错误
+
+**错误处理：**
+- [ ] 配置文件缺失：清晰的错误消息 "Config file not found: ..."
+- [ ] JSON 格式错误：清晰的错误消息 "JSON parse error in ..."
+- [ ] 必需文件缺失（transformer/vae/text_encoder）：加载失败并返回 WAN_ERROR_MODEL_LOAD_FAILED
+- [ ] CLIP 文件缺失（i2v/ti2v）：记录 LOG_WARN "failed to load CLIP, continuing without it"
+
+**配置验证：**
+- [ ] 验证所有必需字段存在（transformer_path, vae_path, text_encoder_path, wan_config_file）
+- [ ] 验证配置文件路径存在（通过 file_exists()）
+
+**日志输出：**
+- [ ] 日志显示配置解析步骤（"ConfigLoader::load_config: parsing ..."）
+- [ ] 日志显示模型加载进度（"WanModel::load: loading Transformer from ..."）
+- [ ] 日志显示最终加载结果（"Model loaded successfully: ..."）
+
+**性能：**
+- [ ] 配置解析耗时 < 100ms（JSON 解析较快）
+- [ ] 整体加载时间与原有方式相近（不应增加显著开销）
 
 ---
 
