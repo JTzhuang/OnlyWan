@@ -124,9 +124,9 @@ typedef void (*wan_log_cb_t)(int level, const char* message, void* user_data);
  * Model Loading
  * ============================================================================ */
 
-/** Load a Wan model from a GGUF file
+/** Load a Wan model from a config file
  *
- * @param model_path Path to the GGUF model file
+ * @param model_path Path to the model config file (JSON format)
  * @param n_threads Number of threads to use (0 = auto-detect)
  * @param backend_type Backend type string (e.g., "cpu", "cuda", "metal", "vulkan")
  * @param out_ctx Output pointer to receive the context handle
@@ -139,7 +139,7 @@ wan_error_t wan_load_model(const char* model_path,
 
 /** Load a Wan model with custom backend parameters
  *
- * @param model_path Path to the GGUF model file
+ * @param model_path Path to the model config file (JSON format)
  * @param params Optional generation parameters (can be NULL)
  * @param out_ctx Output pointer to receive the context handle
  * @return WAN_SUCCESS on success, error code on failure
@@ -424,7 +424,7 @@ typedef struct {
  * Distributes batch requests across available GPUs using round-robin assignment.
  * Each GPU loads a complete model copy and processes requests independently.
  *
- * @param model_path Path to model file
+ * @param model_path Path to the model config file (JSON format)
  * @param prompts Array of text prompts (one per request)
  * @param output_paths Array of output file paths (one per request)
  * @param batch_size Number of requests to process

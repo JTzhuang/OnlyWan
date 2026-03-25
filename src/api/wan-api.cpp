@@ -396,12 +396,12 @@ WAN_API wan_error_t wan_load_model(const char* model_path,
         return WAN_ERROR_OUT_OF_MEMORY;
     }
 
-    ctx->model_path = model_path;
+    ctx->model_path = model_path;  // Now stores config file path (not model weights)
     ctx->n_threads = n_threads;
     ctx->backend_type = backend_type ? backend_type : "cpu";
 
-    // Load model weights via ModelLoader
-    LOG_INFO("Loading model from: %s", ctx->model_path.c_str());
+    // Load model via config-driven approach
+    LOG_INFO("Loading model from config: %s", ctx->model_path.c_str());
     WanModelLoadResult result = Wan::WanModel::load(ctx->model_path);
     if (result.success) {
         LOG_INFO("Model loaded successfully: %s %s", result.model_version.c_str(), result.model_type.c_str());
