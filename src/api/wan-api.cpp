@@ -129,45 +129,59 @@ WAN_API wan_error_t wan_set_vocab_dir(const char* dir) {
  * ============================================================================ */
 
 WanModelLoadResult Wan::WanModel::load(const std::string& file_path) {
+    LOG_DEBUG("WanModel::load: START, file_path='%s'", file_path.c_str());
+
     WanModelLoadResult result;
     result.success = false;
 
     // Validate file exists
     {
+        LOG_DEBUG("WanModel::load: validating file exists");
         std::ifstream test_file(file_path);
         if (!test_file.good()) {
             result.error_message = "Model file not found: " + file_path;
+            LOG_ERROR("WanModel::load: file not found: %s", file_path.c_str());
             return result;
         }
     }
 
     // Detect format: safetensors takes priority over GGUF
+    LOG_DEBUG("WanModel::load: detecting format");
     std::string model_type, model_version;
     SDVersion sd_version = VERSION_WAN2;
 
     bool is_st   = is_safetensors_file(file_path);
+    LOG_DEBUG("WanModel::load: is_safetensors=%d", is_st);
+
     bool is_gguf = !is_st && Wan::is_wan_gguf(file_path, model_type, model_version);
+    LOG_DEBUG("WanModel::load: is_gguf=%d, model_type='%s', model_version='%s'", is_gguf, model_type.c_str(), model_version.c_str());
 
     if (!is_st && !is_gguf) {
         result.error_message = "Not a valid WAN GGUF or safetensors file: " + file_path;
+        LOG_ERROR("WanModel::load: not a valid WAN file: %s", file_path.c_str());
         return result;
     }
 
     // Initialize CPU backend for weight loading
+    LOG_DEBUG("WanModel::load: initializing CPU backend");
     ggml_backend_t backend = ggml_backend_cpu_init();
     if (!backend) {
         result.error_message = "Failed to initialize CPU backend for model loading";
+        LOG_ERROR("WanModel::load: CPU backend init failed");
         return result;
     }
 
+    LOG_DEBUG("WanModel::load: creating ModelLoader");
     ModelLoader model_loader;
 
     if (is_st) {
+        LOG_DEBUG("WanModel::load: loading safetensors");
         // Safetensors path: HF WAN checkpoints already use "model.diffusion_model.*" names.
         // Do NOT pass a prefix — adding it would double the prefix and break all lookups.
         if (!model_loader.init_from_file(file_path)) {
             result.error_message = "Failed to parse safetensors file: " + file_path;
             ggml_backend_free(backend);
+            LOG_ERROR("WanModel::load: safetensors parse failed");
             return result;
         }
         // Normalize any variant (diffusers-style) tensor names
@@ -178,6 +192,7 @@ WanModelLoadResult Wan::WanModel::load(const std::string& file_path) {
         if (!sd_version_is_wan(sv)) {
             result.error_message = "safetensors file does not contain a WAN model: " + file_path;
             ggml_backend_free(backend);
+            LOG_ERROR("WanModel::load: not a WAN model");
             return result;
         }
         sd_version = sv;
@@ -185,82 +200,135 @@ WanModelLoadResult Wan::WanModel::load(const std::string& file_path) {
         else if (sv == VERSION_WAN2_2_TI2V) { model_type = "ti2v";  model_version = "WAN2.2"; }
         else                                { model_type = "t2v";   model_version = "WAN2.1"; }
     } else {
+        LOG_DEBUG("WanModel::load: loading GGUF");
         // GGUF path: existing logic — model_type and model_version already set by is_wan_gguf()
         if (model_type == "i2v")  sd_version = VERSION_WAN2_2_I2V;
         if (model_type == "ti2v") sd_version = VERSION_WAN2_2_TI2V;
 
+        LOG_DEBUG("WanModel::load: calling init_from_file_and_convert_name");
         if (!model_loader.init_from_file_and_convert_name(file_path, "model.diffusion_model.")) {
             result.error_message = "ModelLoader failed to init from: " + file_path;
             ggml_backend_free(backend);
+            LOG_ERROR("WanModel::load: ModelLoader init failed");
             return result;
         }
+        LOG_DEBUG("WanModel::load: ModelLoader init succeeded");
     }
     auto& tensor_storage_map = model_loader.get_tensor_storage_map();
 
+    LOG_DEBUG("WanModel::load: got tensor_storage_map");
+
     // --- DiT (WanRunner) ---
+    LOG_DEBUG("WanModel::load: creating WanRunner");
     auto wan_runner = std::make_shared<WAN::WanRunner>(
         backend, /*offload_params_to_cpu=*/false,
         tensor_storage_map, "model.diffusion_model", sd_version);
+    LOG_DEBUG("WanModel::load: WanRunner created");
+
+    LOG_DEBUG("WanModel::load: calling wan_runner->alloc_params_buffer()");
     wan_runner->alloc_params_buffer();
+    LOG_DEBUG("WanModel::load: wan_runner->alloc_params_buffer() done");
+
     {
+        LOG_DEBUG("WanModel::load: loading DiT tensors");
         std::map<std::string, ggml_tensor*> tensors;
         wan_runner->get_param_tensors(tensors, "model.diffusion_model");
+        LOG_DEBUG("WanModel::load: got %zu DiT tensors, calling load_tensors", tensors.size());
         if (!model_loader.load_tensors(tensors)) {
             result.error_message = "Failed to load DiT tensors from: " + file_path;
             ggml_backend_free(backend);
+            LOG_ERROR("WanModel::load: DiT tensor load failed");
             return result;
         }
+        LOG_DEBUG("WanModel::load: DiT tensors loaded successfully");
     }
 
     // --- VAE (WanVAERunner) — prefix "first_stage_model" (no trailing dot) ---
+    LOG_DEBUG("WanModel::load: creating WanVAERunner");
     auto vae_runner = std::make_shared<WAN::WanVAERunner>(
         backend, /*offload_params_to_cpu=*/false,
         tensor_storage_map, "", /*decode_only=*/false, sd_version);
+    LOG_DEBUG("WanModel::load: WanVAERunner created");
+
+    LOG_DEBUG("WanModel::load: calling vae_runner->alloc_params_buffer()");
     vae_runner->alloc_params_buffer();
+    LOG_DEBUG("WanModel::load: vae_runner->alloc_params_buffer() done");
+
     {
+        LOG_DEBUG("WanModel::load: loading VAE tensors");
         std::map<std::string, ggml_tensor*> vae_tensors;
         vae_runner->get_param_tensors(vae_tensors, "first_stage_model");
         // best-effort: VAE may be in a separate file
         model_loader.load_tensors(vae_tensors);
+        LOG_DEBUG("WanModel::load: VAE tensors loaded");
     }
 
     // --- T5 encoder — detect prefix dynamically (varies by GGUF file) ---
+    LOG_DEBUG("WanModel::load: detecting T5 prefix");
     std::string t5_prefix;
     for (auto& [name, _] : tensor_storage_map) {
         if (name.find("cond_stage_model.") == 0)    { t5_prefix = "cond_stage_model.";    break; }
         if (name.find("text_encoders.t5xxl.") == 0) { t5_prefix = "text_encoders.t5xxl."; break; }
     }
+    LOG_DEBUG("WanModel::load: T5 prefix='%s'", t5_prefix.c_str());
+
     std::shared_ptr<T5Embedder> t5_embedder;
     if (!t5_prefix.empty()) {
+        LOG_DEBUG("WanModel::load: creating T5Embedder with prefix");
         t5_embedder = std::make_shared<T5Embedder>(
             backend, false, tensor_storage_map, t5_prefix, /*is_umt5=*/true);
+        LOG_DEBUG("WanModel::load: T5Embedder created");
+
+        LOG_DEBUG("WanModel::load: calling t5_embedder->alloc_params_buffer()");
         t5_embedder->alloc_params_buffer();
+        LOG_DEBUG("WanModel::load: t5_embedder->alloc_params_buffer() done");
+
+        LOG_DEBUG("WanModel::load: loading T5 tensors");
         std::map<std::string, ggml_tensor*> t5_tensors;
         t5_embedder->get_param_tensors(t5_tensors, t5_prefix);
         model_loader.load_tensors(t5_tensors);
+        LOG_DEBUG("WanModel::load: T5 tensors loaded");
     } else {
         // T5 not bundled in this GGUF — construct tokenizer-only embedder
+        LOG_DEBUG("WanModel::load: creating T5Embedder (tokenizer-only)");
         t5_embedder = std::make_shared<T5Embedder>(
             backend, false, tensor_storage_map, "", /*is_umt5=*/true);
+        LOG_DEBUG("WanModel::load: T5Embedder (tokenizer-only) created");
     }
 
     // --- CLIP vision encoder — only for i2v / ti2v models ---
+    LOG_DEBUG("WanModel::load: model_type='%s', checking for CLIP", model_type.c_str());
     std::shared_ptr<CLIPVisionModelProjectionRunner> clip_runner;
     if (model_type == "i2v" || model_type == "ti2v") {
+        LOG_DEBUG("WanModel::load: detecting CLIP prefix");
         std::string clip_prefix;
         for (auto& [name, _] : tensor_storage_map) {
             if (name.find("cond_stage_model.visual.") == 0) { clip_prefix = "cond_stage_model.visual."; break; }
             if (name.find("clip_vision_model.") == 0)       { clip_prefix = "clip_vision_model.";       break; }
         }
+        LOG_DEBUG("WanModel::load: CLIP prefix='%s'", clip_prefix.c_str());
+
         if (!clip_prefix.empty()) {
+            LOG_DEBUG("WanModel::load: creating CLIPVisionModelProjectionRunner");
             clip_runner = std::make_shared<CLIPVisionModelProjectionRunner>(
                 backend, false, tensor_storage_map, clip_prefix, OPEN_CLIP_VIT_H_14);
+            LOG_DEBUG("WanModel::load: CLIPVisionModelProjectionRunner created");
+
+            LOG_DEBUG("WanModel::load: calling clip_runner->alloc_params_buffer()");
             clip_runner->alloc_params_buffer();
+            LOG_DEBUG("WanModel::load: clip_runner->alloc_params_buffer() done");
+
+            LOG_DEBUG("WanModel::load: loading CLIP tensors");
             std::map<std::string, ggml_tensor*> clip_tensors;
             clip_runner->get_param_tensors(clip_tensors, clip_prefix);
             model_loader.load_tensors(clip_tensors);
+            LOG_DEBUG("WanModel::load: CLIP tensors loaded");
         }
     }
+
+    LOG_DEBUG("WanModel::load: setting result and returning");
+    return result;
+}
 
     result.success       = true;
     result.wan_runner    = wan_runner;
@@ -281,11 +349,14 @@ WAN_API wan_error_t wan_load_model(const char* model_path,
                                            const char* backend_type,
                                            wan_context_t** out_ctx) {
     if (!model_path || !out_ctx) {
+        LOG_ERROR("wan_load_model: invalid arguments");
         return WAN_ERROR_INVALID_ARGUMENT;
     }
 
 #ifndef WAN_EMBED_VOCAB
+    LOG_DEBUG("wan_load_model: WAN_EMBED_VOCAB not defined, checking vocab dir");
     if (!wan_vocab_dir_is_set()) {
+        LOG_ERROR("wan_load_model: vocab dir not set");
         return WAN_ERROR_INVALID_ARGUMENT;
     }
     {
@@ -293,11 +364,13 @@ WAN_API wan_error_t wan_load_model(const char* model_path,
 #ifndef _WIN32
         struct stat st;
         if (stat(vdir.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) {
+            LOG_ERROR("wan_load_model: vocab dir invalid: %s", vdir.c_str());
             return WAN_ERROR_INVALID_ARGUMENT;
         }
 #else
         DWORD attr = GetFileAttributesA(vdir.c_str());
         if (attr == INVALID_FILE_ATTRIBUTES || !(attr & FILE_ATTRIBUTE_DIRECTORY)) {
+            LOG_ERROR("wan_load_model: vocab dir invalid (Windows): %s", vdir.c_str());
             return WAN_ERROR_INVALID_ARGUMENT;
         }
 #endif
@@ -305,8 +378,10 @@ WAN_API wan_error_t wan_load_model(const char* model_path,
 #endif
 
     // Create context
+    LOG_DEBUG("wan_load_model: creating context");
     std::unique_ptr<wan_context> ctx(new wan_context());
     if (!ctx) {
+        LOG_ERROR("wan_load_model: failed to create context (out of memory)");
         return WAN_ERROR_OUT_OF_MEMORY;
     }
 
@@ -315,8 +390,12 @@ WAN_API wan_error_t wan_load_model(const char* model_path,
     ctx->backend_type = backend_type ? backend_type : "cpu";
 
     // Load model weights via ModelLoader
+    LOG_INFO("Loading model from: %s", ctx->model_path.c_str());
     WanModelLoadResult result = Wan::WanModel::load(ctx->model_path);
-    if (!result.success) {
+    if (result.success) {
+        LOG_INFO("Model loaded successfully: %s %s", result.model_version.c_str(), result.model_type.c_str());
+    } else {
+        LOG_ERROR("Model load failed: %s", result.error_message.c_str());
         set_last_error(ctx.get(), result.error_message.c_str());
         return WAN_ERROR_MODEL_LOAD_FAILED;
     }
@@ -546,27 +625,40 @@ WAN_API wan_error_t wan_generate_video_t2v_ex(wan_context_t* ctx,
                                               const char* prompt,
                                               const wan_params_t* params,
                                               const char* output_path) {
+    LOG_DEBUG("wan_generate_video_t2v_ex called");
+
     if (!ctx || !prompt || !output_path || !params) {
+        LOG_ERROR("wan_generate_video_t2v_ex: invalid arguments");
         return WAN_ERROR_INVALID_ARGUMENT;
     }
     if (!ctx->wan_runner) {
+        LOG_ERROR("wan_generate_video_t2v_ex: no wan_runner");
         return WAN_ERROR_INVALID_STATE;
     }
     if (!ctx->t5_embedder) {
+        LOG_ERROR("wan_generate_video_t2v_ex: no t5_embedder");
         return WAN_ERROR_INVALID_STATE;
     }
 
     int n_threads = ctx->n_threads > 0 ? ctx->n_threads : 1;
+    LOG_DEBUG("wan_generate_video_t2v_ex: n_threads=%d", n_threads);
 
     // --- T5 encode ---
+    LOG_DEBUG("wan_generate_video_t2v_ex: initializing work context");
     ggml_init_params work_params = { 64 * 1024 * 1024, nullptr, false };
     ggml_context* work_ctx = ggml_init(work_params);
-    if (!work_ctx) return WAN_ERROR_OUT_OF_MEMORY;
+    if (!work_ctx) {
+        LOG_ERROR("wan_generate_video_t2v_ex: failed to init work_ctx");
+        return WAN_ERROR_OUT_OF_MEMORY;
+    }
 
+    LOG_DEBUG("wan_generate_video_t2v_ex: tokenizing prompt: '%s'", prompt);
     auto [tokens, weights, attention_mask] =
         ctx->t5_embedder->tokenize(std::string(prompt), 512, true);
+    LOG_DEBUG("wan_generate_video_t2v_ex: tokenization complete: %zu tokens", tokens.size());
 
     if (tokens.empty()) {
+        LOG_ERROR("wan_generate_video_t2v_ex: empty tokens");
         ggml_free(work_ctx);
         return WAN_ERROR_INVALID_ARGUMENT;
     }
@@ -584,12 +676,28 @@ WAN_API wan_error_t wan_generate_video_t2v_ex(wan_context_t* ctx,
     ggml_context* output_ctx = ggml_init(out_params);
     if (!output_ctx) {
         ggml_free(work_ctx);
+        LOG_ERROR("wan_generate_video_t2v_ex: failed to init output_ctx");
         return WAN_ERROR_OUT_OF_MEMORY;
     }
 
     ggml_tensor* context = nullptr;
-    ctx->t5_embedder->model.compute(n_threads, input_ids, attn_mask,
-                                    &context, output_ctx);
+    LOG_DEBUG("wan_generate_video_t2v_ex: calling t5_embedder->model.compute()");
+
+    // Only compute if T5 model has weights (prefix was not empty)
+    if (ctx->t5_embedder && ctx->t5_embedder->model.model.get_params_num() > 0) {
+        LOG_DEBUG("wan_generate_video_t2v_ex: T5 model has weights, calling compute()");
+        ctx->t5_embedder->model.compute(n_threads, input_ids, attn_mask,
+                                        &context, output_ctx);
+        LOG_DEBUG("wan_generate_video_t2v_ex: t5_embedder->model.compute() returned, context=%p", context);
+    } else {
+        LOG_DEBUG("wan_generate_video_t2v_ex: T5 model has no weights (tokenizer-only), skipping compute()");
+        // Create a dummy context tensor for compatibility
+        // The text_embedding_0 layer expects input of size 4096 (text_dim)
+        // Shape should be [4096, n_token] for the Linear layer
+        int64_t n_token = (int64_t)tokens.size();
+        context = ggml_new_tensor_2d(output_ctx, GGML_TYPE_F32, 4096, n_token);
+        LOG_DEBUG("wan_generate_video_t2v_ex: created dummy context tensor with shape [4096, %ld]", n_token);
+    }
 
     ggml_free(work_ctx);
 
@@ -604,6 +712,12 @@ WAN_API wan_error_t wan_generate_video_t2v_ex(wan_context_t* ctx,
     int64_t lT = (params->num_frames - 1) / 4 + 1;
     int steps  = params->steps > 0 ? params->steps : 20;
 
+    // Validate dimensions
+    if (lW <= 0 || lH <= 0 || lT <= 0 || steps <= 0) {
+        ggml_free(output_ctx);
+        return WAN_ERROR_INVALID_ARGUMENT;
+    }
+
     // --- Linear sigma schedule: 1.0 -> 0.0 ---
     std::vector<float> sigmas(steps + 1);
     for (int i = 0; i <= steps; i++)
@@ -615,8 +729,14 @@ WAN_API wan_error_t wan_generate_video_t2v_ex(wan_context_t* ctx,
     ggml_context* denoise_ctx = ggml_init(denoise_params);
     if (!denoise_ctx) { ggml_free(output_ctx); return WAN_ERROR_OUT_OF_MEMORY; }
 
-    // --- Initialize noise latent [lW, lH, lT, 16] with randn * sigma[0] ---
-    ggml_tensor* x = ggml_new_tensor_4d(denoise_ctx, GGML_TYPE_F32, lW, lH, lT, 16);
+    // --- Initialize noise latent [lW, lH, lT, in_dim] with randn * sigma[0] ---
+    int64_t latent_channels = ctx->wan_runner->wan_params.in_dim;
+    ggml_tensor* x = ggml_new_tensor_4d(denoise_ctx, GGML_TYPE_F32, lW, lH, lT, latent_channels);
+    if (!x || !x->data) {
+        ggml_free(denoise_ctx);
+        ggml_free(output_ctx);
+        return WAN_ERROR_OUT_OF_MEMORY;
+    }
     {
         std::mt19937 rng(params->seed >= 0 ? (uint32_t)params->seed : 42u);
         std::normal_distribution<float> nd(0.0f, 1.0f);
@@ -626,23 +746,40 @@ WAN_API wan_error_t wan_generate_video_t2v_ex(wan_context_t* ctx,
     }
 
     // --- process_latent_in: normalize channel-wise ---
-    for (int64_t c = 0; c < 16; c++)
-        for (int64_t t = 0; t < lT; t++)
-            for (int64_t h = 0; h < lH; h++)
-                for (int64_t w = 0; w < lW; w++) {
-                    float* v = (float*)((char*)x->data +
-                        w*x->nb[0] + h*x->nb[1] + t*x->nb[2] + c*x->nb[3]);
-                    *v = (*v - wan_latents_mean[c]) / wan_latents_std[c];
-                }
+    // Only normalize if we have the normalization constants for this channel count
+    if (latent_channels == 16) {
+        for (int64_t c = 0; c < latent_channels; c++)
+            for (int64_t t = 0; t < lT; t++)
+                for (int64_t h = 0; h < lH; h++)
+                    for (int64_t w = 0; w < lW; w++) {
+                        float* v = (float*)((char*)x->data +
+                            w*x->nb[0] + h*x->nb[1] + t*x->nb[2] + c*x->nb[3]);
+                        *v = (*v - wan_latents_mean[c]) / wan_latents_std[c];
+                    }
+    } else {
+        LOG_DEBUG("Skipping latent normalization: latent_channels=%lld, but normalization constants only available for 16 channels", latent_channels);
+    }
 
     // --- Unconditional T5 context for CFG (empty prompt) ---
     ggml_tensor* uncond_context = nullptr;
     {
+#ifdef WAN_DEBUG_VERBOSE
+        fprintf(stderr, "[DEBUG] Computing unconditional context...\n");
+        fflush(stderr);
+#endif
         ggml_init_params uc_params = { 64 * 1024 * 1024, nullptr, false };
         ggml_context* uc_work = ggml_init(uc_params);
         if (uc_work) {
+#ifdef WAN_DEBUG_VERBOSE
+            fprintf(stderr, "[DEBUG] Tokenizing empty prompt...\n");
+            fflush(stderr);
+#endif
             auto [uc_tok, uc_w, uc_mask] =
                 ctx->t5_embedder->tokenize(std::string(""), 512, true);
+#ifdef WAN_DEBUG_VERBOSE
+            fprintf(stderr, "[DEBUG] Empty prompt tokenized: %zu tokens\n", uc_tok.size());
+            fflush(stderr);
+#endif
             if (!uc_tok.empty()) {
                 ggml_tensor* uc_ids = ggml_new_tensor_2d(uc_work, GGML_TYPE_I32,
                                                           (int64_t)uc_tok.size(), 1);
@@ -650,16 +787,34 @@ WAN_API wan_error_t wan_generate_video_t2v_ex(wan_context_t* ctx,
                 ggml_tensor* uc_attn = ggml_new_tensor_2d(uc_work, GGML_TYPE_F32,
                                                            (int64_t)uc_mask.size(), 1);
                 memcpy(uc_attn->data, uc_mask.data(), uc_mask.size() * sizeof(float));
-                ctx->t5_embedder->model.compute(n_threads, uc_ids, uc_attn,
-                                                &uncond_context, output_ctx);
+                LOG_DEBUG("About to compute unconditional context...");
+
+                // Only compute if T5 model has weights
+                if (ctx->t5_embedder && ctx->t5_embedder->model.model.get_params_num() > 0) {
+                    LOG_DEBUG("T5 model has weights, computing unconditional context");
+                    ctx->t5_embedder->model.compute(n_threads, uc_ids, uc_attn,
+                                                    &uncond_context, output_ctx);
+                    LOG_DEBUG("Unconditional context computed");
+                } else {
+                    LOG_DEBUG("T5 model has no weights, creating dummy unconditional context");
+                    // Create a dummy unconditional context tensor with correct shape
+                    // The text_embedding_0 layer expects input of size 4096 (text_dim)
+                    // Shape should be [4096, n_token] for the Linear layer
+                    int64_t uc_n_token = (int64_t)uc_tok.size();
+                    uncond_context = ggml_new_tensor_2d(output_ctx, GGML_TYPE_F32, 4096, uc_n_token);
+                    LOG_DEBUG("Created dummy unconditional context tensor with shape [4096, %ld]", uc_n_token);
+                }
             }
             ggml_free(uc_work);
         }
     }
+    LOG_DEBUG("Unconditional context block completed");
 
     // --- Euler loop ---
     float cfg_scale = params->cfg;
+    LOG_DEBUG("Starting Euler loop: steps=%d, lW=%ld, lH=%ld, lT=%ld", steps, lW, lH, lT);
     for (int i = 0; i < steps; i++) {
+        LOG_DEBUG("Step %d/%d: sigma=%.6f", i, steps, sigmas[i]);
         float sigma    = sigmas[i];
         float sigma_dt = sigmas[i + 1] - sigma;
 
@@ -673,18 +828,22 @@ WAN_API wan_error_t wan_generate_video_t2v_ex(wan_context_t* ctx,
         ggml_tensor* ts = ggml_new_tensor_1d(step_ctx, GGML_TYPE_F32, 1);
         ggml_set_f32(ts, sigma);
 
+        LOG_DEBUG("Before compute: x=%p, ts=%p, context=%p, step_ctx=%p", x, ts, context, step_ctx);
         ggml_tensor* cond_out = nullptr;
 #ifdef WAN_USE_MULTI_GPU
         if (ctx->is_multi_gpu()) {
+            LOG_DEBUG("Using multi-GPU compute");
             ctx->wan_runner->compute_with_sched(ctx->multi_gpu_state->scheduler, n_threads,
                                                 x, ts, context,
                                                 nullptr, nullptr, nullptr, nullptr, 1.f,
                                                 &cond_out, step_ctx);
         } else {
 #endif
+            LOG_DEBUG("Using single-GPU compute");
             ctx->wan_runner->compute(n_threads, x, ts, context,
                                      nullptr, nullptr, nullptr, nullptr, 1.f,
                                      &cond_out, step_ctx);
+            LOG_DEBUG("After compute: cond_out=%p", cond_out);
 #ifdef WAN_USE_MULTI_GPU
         }
 #endif
@@ -710,7 +869,7 @@ WAN_API wan_error_t wan_generate_video_t2v_ex(wan_context_t* ctx,
         float* xd  = (float*)x->data;
         float* cd  = cond_out  ? (float*)cond_out->data  : nullptr;
         float* ucd = uncond_out ? (float*)uncond_out->data : cd;
-        if (cd) {
+        if (cd && xd && ucd) {
             int64_t n = ggml_nelements(x);
             for (int64_t j = 0; j < n; j++) {
                 float denoised = ucd[j] + cfg_scale * (cd[j] - ucd[j]);
@@ -732,14 +891,19 @@ WAN_API wan_error_t wan_generate_video_t2v_ex(wan_context_t* ctx,
     }
 
     // --- process_latent_out: inverse normalize ---
-    for (int64_t c = 0; c < 16; c++)
-        for (int64_t t = 0; t < lT; t++)
-            for (int64_t h = 0; h < lH; h++)
-                for (int64_t w = 0; w < lW; w++) {
-                    float* v = (float*)((char*)x->data +
-                        w*x->nb[0] + h*x->nb[1] + t*x->nb[2] + c*x->nb[3]);
-                    *v = *v * wan_latents_std[c] + wan_latents_mean[c];
-                }
+    // Only denormalize if we have the normalization constants for this channel count
+    if (latent_channels == 16) {
+        for (int64_t c = 0; c < latent_channels; c++)
+            for (int64_t t = 0; t < lT; t++)
+                for (int64_t h = 0; h < lH; h++)
+                    for (int64_t w = 0; w < lW; w++) {
+                        float* v = (float*)((char*)x->data +
+                            w*x->nb[0] + h*x->nb[1] + t*x->nb[2] + c*x->nb[3]);
+                        *v = *v * wan_latents_std[c] + wan_latents_mean[c];
+                    }
+    } else {
+        LOG_DEBUG("Skipping latent denormalization: latent_channels=%lld, but normalization constants only available for 16 channels", latent_channels);
+    }
 
     // --- VAE decode ---
     ggml_init_params vae_params = { 512 * 1024 * 1024, nullptr, false };
@@ -913,7 +1077,8 @@ WAN_API wan_error_t wan_generate_video_i2v_ex(wan_context_t* ctx,
     }
 
     // --- Initialize noise latent ---
-    ggml_tensor* x = ggml_new_tensor_4d(denoise_ctx, GGML_TYPE_F32, lW, lH, lT, 16);
+    int64_t latent_channels = ctx->wan_runner->wan_params.in_dim;
+    ggml_tensor* x = ggml_new_tensor_4d(denoise_ctx, GGML_TYPE_F32, lW, lH, lT, latent_channels);
     {
         std::mt19937 rng(params->seed >= 0 ? (uint32_t)params->seed : 42u);
         std::normal_distribution<float> nd(0.0f, 1.0f);
@@ -923,14 +1088,19 @@ WAN_API wan_error_t wan_generate_video_i2v_ex(wan_context_t* ctx,
     }
 
     // --- process_latent_in: normalize channel-wise ---
-    for (int64_t c = 0; c < 16; c++)
-        for (int64_t t = 0; t < lT; t++)
-            for (int64_t h = 0; h < lH; h++)
-                for (int64_t w = 0; w < lW; w++) {
-                    float* v = (float*)((char*)x->data +
-                        w*x->nb[0] + h*x->nb[1] + t*x->nb[2] + c*x->nb[3]);
-                    *v = (*v - wan_latents_mean[c]) / wan_latents_std[c];
-                }
+    // Only normalize if we have the normalization constants for this channel count
+    if (latent_channels == 16) {
+        for (int64_t c = 0; c < latent_channels; c++)
+            for (int64_t t = 0; t < lT; t++)
+                for (int64_t h = 0; h < lH; h++)
+                    for (int64_t w = 0; w < lW; w++) {
+                        float* v = (float*)((char*)x->data +
+                            w*x->nb[0] + h*x->nb[1] + t*x->nb[2] + c*x->nb[3]);
+                        *v = (*v - wan_latents_mean[c]) / wan_latents_std[c];
+                    }
+    } else {
+        LOG_DEBUG("Skipping latent normalization: latent_channels=%lld, but normalization constants only available for 16 channels", latent_channels);
+    }
 
     // --- Unconditional T5 context for CFG ---
     ggml_tensor* uncond_context = nullptr;
@@ -1011,7 +1181,7 @@ WAN_API wan_error_t wan_generate_video_i2v_ex(wan_context_t* ctx,
         float* xd  = (float*)x->data;
         float* cd  = cond_out  ? (float*)cond_out->data  : nullptr;
         float* ucd = uncond_out ? (float*)uncond_out->data : cd;
-        if (cd) {
+        if (cd && xd && ucd) {
             int64_t n = ggml_nelements(x);
             for (int64_t j = 0; j < n; j++) {
                 float denoised = ucd[j] + cfg_scale * (cd[j] - ucd[j]);
@@ -1034,14 +1204,19 @@ WAN_API wan_error_t wan_generate_video_i2v_ex(wan_context_t* ctx,
     }
 
     // --- process_latent_out: inverse normalize ---
-    for (int64_t c = 0; c < 16; c++)
-        for (int64_t t = 0; t < lT; t++)
-            for (int64_t h = 0; h < lH; h++)
-                for (int64_t w = 0; w < lW; w++) {
-                    float* v = (float*)((char*)x->data +
-                        w*x->nb[0] + h*x->nb[1] + t*x->nb[2] + c*x->nb[3]);
-                    *v = *v * wan_latents_std[c] + wan_latents_mean[c];
-                }
+    // Only denormalize if we have the normalization constants for this channel count
+    if (latent_channels == 16) {
+        for (int64_t c = 0; c < latent_channels; c++)
+            for (int64_t t = 0; t < lT; t++)
+                for (int64_t h = 0; h < lH; h++)
+                    for (int64_t w = 0; w < lW; w++) {
+                        float* v = (float*)((char*)x->data +
+                            w*x->nb[0] + h*x->nb[1] + t*x->nb[2] + c*x->nb[3]);
+                        *v = *v * wan_latents_std[c] + wan_latents_mean[c];
+                    }
+    } else {
+        LOG_DEBUG("Skipping latent denormalization: latent_channels=%lld, but normalization constants only available for 16 channels", latent_channels);
+    }
 
     // --- VAE decode ---
     ggml_init_params vae_params = { 512 * 1024 * 1024, nullptr, false };

@@ -369,7 +369,7 @@ void pretty_progress(int step, int steps, float time) {
         speed = 1.0f / speed;
         unit  = "it/s";
     }
-    printf("\r%s %i/%i - %.2f%s\033[K%s", progress.c_str(), step, steps, speed, unit, lf);
+    fprintf(stdout, "\r%s %i/%i - %.2f%s\033[K%s", progress.c_str(), step, steps, speed, unit, lf);
     fflush(stdout);  // for linux
 }
 
