@@ -1,5 +1,14 @@
 # Third-party dependencies for wan-cpp
 
+# spdlog - header-only, already in thirdparty/spdlog/
+if(NOT TARGET spdlog::spdlog)
+    add_library(spdlog INTERFACE)
+    target_include_directories(spdlog INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/spdlog/include
+    )
+    add_library(spdlog::spdlog ALIAS spdlog)
+endif()
+
 # ZIP library (miniz-based)
 set(Z_TARGET zip)
 add_library(${Z_TARGET} OBJECT zip.c zip.h miniz.h)
