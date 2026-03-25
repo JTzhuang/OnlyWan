@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "spdlog/spdlog.h"
+#include "spdlog/fmt/ostr.h"
 #include "wan-types.h"
 
 #define SAFE_STR(s) ((s) ? (s) : "")

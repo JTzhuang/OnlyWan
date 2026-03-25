@@ -228,7 +228,7 @@ endif()
 add_subdirectory(thirdparty)
 
 # Target configurations
-target_link_libraries(${WAN_LIB} PUBLIC ggml zip)
+target_link_libraries(${WAN_LIB} PUBLIC ggml zip spdlog::spdlog)
 
 # Link NCCL if found
 if(NCCL_FOUND)

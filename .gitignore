@@ -1,6 +1,9 @@
 # Build directories
 build/
 bin/
+build_*
+*.pyc
+models
 
 # Object files
 *.o

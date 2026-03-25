@@ -13,6 +13,7 @@
 #include <fstream>
 #include <cstring>
 
+#include "util.h"
 #include "gguf.h"
 #include "ggml-backend.h"
 #include "ggml.h"

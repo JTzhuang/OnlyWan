@@ -5,12 +5,15 @@
 #include <cstdarg>
 #include <fstream>
 #include <locale>
+#include <mutex>
 #include <regex>
 #include <sstream>
 #include <string>
 #include <thread>
 #include <unordered_set>
 #include <vector>
+
+#include "spdlog/sinks/stdout_color_sinks.h"
 #include "preprocessing.hpp"
 
 #if defined(__APPLE__) && defined(__MACH__)
@@ -391,6 +394,38 @@ std::string trim(const std::string& s) {
 static sd_log_cb_t sd_log_cb = nullptr;
 void* sd_log_cb_data         = nullptr;
 
+static std::shared_ptr<spdlog::logger> get_wan_logger() {
+    static std::shared_ptr<spdlog::logger> wan_logger;
+    static std::once_flag init_flag;
+
+    std::call_once(init_flag, []() {
+        wan_logger = spdlog::stdout_color_mt("wan-cpp");
+        wan_logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%n] [%^%l%$] %v");
+
+        const char* level_env = std::getenv("WAN_LOG_LEVEL");
+        if (level_env) {
+            std::string level_str(level_env);
+            std::transform(level_str.begin(), level_str.end(), level_str.begin(), ::tolower);
+
+            if (level_str == "debug") {
+                wan_logger->set_level(spdlog::level::debug);
+            } else if (level_str == "info") {
+                wan_logger->set_level(spdlog::level::info);
+            } else if (level_str == "warn") {
+                wan_logger->set_level(spdlog::level::warn);
+            } else if (level_str == "error") {
+                wan_logger->set_level(spdlog::level::err);
+            } else if (level_str == "off") {
+                wan_logger->set_level(spdlog::level::off);
+            }
+        } else {
+            wan_logger->set_level(spdlog::level::info);
+        }
+    });
+
+    return wan_logger;
+}
+
 #define LOG_BUFFER_SIZE 4096
 
 void log_printf(sd_log_level_t level, const char* file, int line, const char* format, ...) {
@@ -398,21 +433,39 @@ void log_printf(sd_log_level_t level, const char* file, int line, const char* fo
     va_start(args, format);
 
     static char log_buffer[LOG_BUFFER_SIZE + 1];
-    int written = snprintf(log_buffer, LOG_BUFFER_SIZE, "%s:%-4d - ", sd_basename(file).c_str(), line);
+    vsnprintf(log_buffer, LOG_BUFFER_SIZE, format, args);
+    va_end(args);
 
-    if (written >= 0 && written < LOG_BUFFER_SIZE) {
-        vsnprintf(log_buffer + written, LOG_BUFFER_SIZE - written, format, args);
+    std::string msg = sd_basename(file) + ":" + std::to_string(line) + " - " + log_buffer;
+    // Remove trailing newline if it exists, as spdlog adds one
+    if (!msg.empty() && msg.back() == '\n') {
+        msg.pop_back();
     }
-    size_t len = strlen(log_buffer);
-    if (log_buffer[len - 1] != '\n') {
-        strncat(log_buffer, "\n", LOG_BUFFER_SIZE - len);
+
+    auto logger = get_wan_logger();
+    switch (level) {
+        case SD_LOG_DEBUG:
+            logger->debug(msg);
+            break;
+        case SD_LOG_INFO:
+            logger->info(msg);
+            break;
+        case SD_LOG_WARN:
+            logger->warn(msg);
+            break;
+        case SD_LOG_ERROR:
+            logger->error(msg);
+            break;
+        default:
+            logger->info(msg);
+            break;
     }
 
     if (sd_log_cb) {
-        sd_log_cb(level, log_buffer, sd_log_cb_data);
+        // For callback, ensure it has a newline as before
+        std::string cb_msg = msg + "\n";
+        sd_log_cb(level, cb_msg.c_str(), sd_log_cb_data);
     }
-
-    va_end(args);
 }
 
 void sd_set_log_callback(sd_log_cb_t cb, void* data) {
