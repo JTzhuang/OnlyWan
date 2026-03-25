@@ -153,6 +153,7 @@ set(WAN_LIB_SOURCES
     src/name_conversion.cpp
     src/tokenize_util.cpp
     src/vocab/vocab.cpp
+    src/config_loader.cpp
     src/api/wan-api.cpp
     src/api/wan_config.cpp
     src/api/wan_t2v.cpp
