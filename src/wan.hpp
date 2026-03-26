@@ -1029,6 +1029,15 @@ namespace WAN {
             clear_cache();
 
             if (wan2_2) {
+                // Ensure minimum dimensions for patchify (patch_size=2 requires h,w >= 4 to avoid 1x1 after patchify)
+                int64_t h = x->ne[1];
+                int64_t w = x->ne[0];
+                if (h < 4 || w < 4) {
+                    // Pad to minimum 4x4 (becomes 2x2 after patchify)
+                    int64_t padW = (w < 4) ? 4 : w;
+                    int64_t padH = (h < 4) ? 4 : h;
+                    x = ggml_ext_pad_ext(ctx->ggml_ctx, x, 0, padW - w, 0, padH - h, 0, 0, 0, 0, false, false);
+                }
                 x = patchify(ctx->ggml_ctx, x, 2, b);
             }
 
@@ -2032,19 +2041,7 @@ namespace WAN {
                 std::string tensor_name = pair.first;
                 if (tensor_name.find(prefix) == std::string::npos)
                     continue;
-                size_t pos = tensor_name.find("vace_blocks.");
-                if (pos != std::string::npos) {
-                    tensor_name = tensor_name.substr(pos);  // remove prefix
-                    auto items  = split_string(tensor_name, '.');
-                    if (items.size() > 1) {
-                        int block_index = atoi(items[1].c_str());
-                        if (block_index + 1 > wan_params.vace_layers) {
-                            wan_params.vace_layers = block_index + 1;
-                        }
-                    }
-                    continue;
-                }
-                pos = tensor_name.find("blocks.");
+                size_t pos = tensor_name.find("blocks.");
                 if (pos != std::string::npos) {
                     tensor_name = tensor_name.substr(pos);  // remove prefix
                     auto items  = split_string(tensor_name, '.');
@@ -2301,12 +2298,12 @@ namespace WAN {
             std::shared_ptr<WanRunner> wan = std::make_shared<WanRunner>(backend,
                                                                          false,
                                                                          tensor_storage_map,
-                                                                         "model.diffusion_model",
+                                                                         "",
                                                                          VERSION_WAN2_2_TI2V);
 
             wan->alloc_params_buffer();
             std::map<std::string, ggml_tensor*> tensors;
-            wan->get_param_tensors(tensors, "model.diffusion_model");
+            wan->get_param_tensors(tensors, "");
 
             bool success = model_loader.load_tensors(tensors);
 

@@ -1114,9 +1114,9 @@ WAN_API wan_error_t wan_generate_video_i2v_ex(wan_context_t* ctx,
     if (!img_enc_ctx) { ggml_free(output_ctx); return WAN_ERROR_OUT_OF_MEMORY; }
 
     int iW = image->width, iH = image->height;
-    // Pad to even dimensions for WanVAE patchify (requires divisible by 2)
-    int padW = (iW % 2 == 1) ? iW + 1 : iW;
-    int padH = (iH % 2 == 1) ? iH + 1 : iH;
+    // Pad to minimum 4x4 for WanVAE patchify (patch_size=2 requires >= 4 to avoid 1x1 after patchify)
+    int padW = (iW < 4) ? 4 : ((iW % 2 == 1) ? iW + 1 : iW);
+    int padH = (iH < 4) ? 4 : ((iH % 2 == 1) ? iH + 1 : iH);
 
     ggml_tensor* img_tensor = ggml_new_tensor_4d(img_enc_ctx, GGML_TYPE_F32, padW, padH, 3, 1);
     {
@@ -1463,9 +1463,9 @@ WAN_API wan_error_t wan_generate_video_ti2v_ex(wan_context_t* ctx,
     }
 
     int iW = image->width, iH = image->height;
-    // Pad to even dimensions for WanVAE patchify (requires divisible by 2)
-    int padW = (iW % 2 == 1) ? iW + 1 : iW;
-    int padH = (iH % 2 == 1) ? iH + 1 : iH;
+    // Pad to minimum 4x4 for WanVAE patchify (patch_size=2 requires >= 4 to avoid 1x1 after patchify)
+    int padW = (iW < 4) ? 4 : ((iW % 2 == 1) ? iW + 1 : iW);
+    int padH = (iH < 4) ? 4 : ((iH % 2 == 1) ? iH + 1 : iH);
 
     ggml_tensor* img_tensor = ggml_new_tensor_4d(img_enc_ctx, GGML_TYPE_F32, padW, padH, 3, 1);
     {
