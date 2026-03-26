@@ -4,7 +4,7 @@ milestone: v1.1
 milestone_name: 模型格式扩展
 current_phase: 16
 status: v1.2 milestone complete
-last_updated: "2026-03-26T02:21:38.426Z"
+last_updated: "2026-03-26T04:31:36.748Z"
 progress:
   total_phases: 8
   completed_phases: 8
@@ -75,6 +75,7 @@ Plan: Not started
 | Phase 15 P02 | 341 | 3 tasks | 6 files |
 | 15 - Multi-GPU Inference Support | 15-04 | 278 | 4 | 5 | 2026-03-18T05:23:54Z | 2026-03-18T05:28:32Z |
 | Phase 16 P01 | 888 | 4 tasks | 5 files |
+| Phase quick P260326-h31 | 3 min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -188,6 +189,8 @@ Plan: Not started
 - [Phase 16]: Custom sink pattern for callback distribution - sd_callback_sink_mt intercepts formatted messages
 - [Phase 16]: dist_sink_mt composition for multi-sink logging (stdout + callback)
 - [Phase 16]: Simplified callback signature - removed level parameter, spdlog formats complete message
+- [Phase quick]: 新增独立 merge_safetensors_bf16.py CLI，按输入顺序合并并将浮点张量统一转为 bf16
+- [Phase quick]: 检测重复键直接报错退出，避免 silent overwrite；int/bool 等非浮点张量保持原 dtype
 
 ## Todo Items
 
@@ -205,12 +208,13 @@ Plan: Not started
 |---|-------------|------|--------|-----------|
 | 260317-nl6 | 分析各个子模型的优化空间：CUDA Graph 优化、算子实现效率、第三方库使用、算子融合机会。整理成 TODO 列表保存到 .planning/OPTIMIZATION_TODOS.md | 2026-03-17 | 20d9aab | [260317-nl6](./quick/260317-nl6-cuda-graph-todo-planning-optimization-to/) |
 | 260325-fcl | spdlog v1.13.0 离线集成 - 将spdlog从编译时网络下载改为离线thirdparty集成，消除FetchContent依赖 | 2026-03-25 | 5fe4a56 | [260325-fcl](./quick/260325-fcl-spdlog-thirdparty/) |
+| 260326-h31 | 合并多个 safetensors 为单文件并将所有浮点张量统一为 bf16，重复键直接报错退出 | 2026-03-26 | 06660b9 | [260326-h31](./quick/260326-h31-safetensors-dtype-bf16/) |
 
 ## Session Continuity
 
-**Last Action:** Completed Phase 15 Plan 04 - CLI Multi-GPU Integration and Validation
-**Next Action:** Execute Phase 15 Plan 05 (if exists) or complete Phase 15
-**Context:** Added CLI multi-GPU arguments (--gpu-ids/--num-gpus), GPU info query API, benchmark script for performance metrics, and precision validation script. All 4 tasks completed with 4 commits (4774ff9, 4fbf155, cf29dbb, a08dae1). Checkpoint auto-approved in auto mode.
+**Last Action:** Completed quick task 260326-h31 (safetensors merge bf16 CLI + tests)
+**Next Action:** Continue Phase 15 Plan 05 (if pending) or proceed with next scheduled milestone work
+**Context:** Added scripts/merge_safetensors_bf16.py and tests/scripts/test_merge_safetensors_bf16.py with subprocess-based CLI verification for merge success, bf16 float conversion, non-float dtype preservation, duplicate-key failure, and --help coverage. Task commits: d1028dc, 8407352, 06660b9.
 
 ---
-*State updated: 2026-03-25 — Quick Task 260325-fcl complete (spdlog offline integration)*
+*State updated: 2026-03-26 — Quick Task 260326-h31 complete (safetensors merge bf16 utility)*
