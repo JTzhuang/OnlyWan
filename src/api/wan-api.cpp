@@ -946,33 +946,51 @@ WAN_API wan_error_t wan_generate_video_t2v_ex(wan_context_t* ctx,
         LOG_DEBUG("Skipping latent denormalization: latent_channels=%lld, but normalization constants only available for 16 channels", latent_channels);
     }
 
-    // --- VAE decode ---
-    ggml_init_params vae_params = { 512 * 1024 * 1024, nullptr, false };
-    ggml_context* vae_ctx = ggml_init(vae_params);
-    if (!vae_ctx) {
-        ggml_free(denoise_ctx); ggml_free(output_ctx);
-        return WAN_ERROR_OUT_OF_MEMORY;
-    }
-    ggml_tensor* decoded = nullptr;
-    ctx->vae_runner->compute(n_threads, x, /*decode_graph=*/true, &decoded, vae_ctx);
-    if (!decoded) {
-        ggml_free(vae_ctx); ggml_free(denoise_ctx); ggml_free(output_ctx);
-        return WAN_ERROR_BACKEND_FAILED;
-    }
-    ggml_ext_tensor_clamp_inplace(decoded, 0.f, 1.f);
-
-    // --- Float -> uint8 frames ---
-    int T_out = (int)decoded->ne[2];
-    int W     = (int)decoded->ne[0];
-    int H     = (int)decoded->ne[1];
+    // --- VAE decode (frame-by-frame) ---
+    int T_out = (int)lT;
+    int W = (int)(lW * 8);
+    int H = (int)(lH * 8);
     std::vector<std::vector<uint8_t>> frame_bufs(T_out, std::vector<uint8_t>(W * H * 3));
-    for (int t = 0; t < T_out; t++)
-        for (int h = 0; h < H; h++)
-            for (int w = 0; w < W; w++)
-                for (int c = 0; c < 3; c++) {
-                    float v = ggml_get_f32_nd(decoded, w, h, t, c);
-                    frame_bufs[t][(h * W + w) * 3 + c] = (uint8_t)(v * 255.0f + 0.5f);
+
+    for (int t = 0; t < T_out; t++) {
+        ggml_init_params vae_params = { 512 * 1024 * 1024, nullptr, false };
+        ggml_context* vae_ctx = ggml_init(vae_params);
+        if (!vae_ctx) {
+            ggml_free(denoise_ctx); ggml_free(output_ctx);
+            return WAN_ERROR_OUT_OF_MEMORY;
+        }
+
+        // Extract frame t from latent: x[lW, lH, lT, 16] -> frame[lW, lH, 1, 16]
+        // VAE decoder expects 4D tensor [b*c, t, h, w] with time dimension
+        ggml_tensor* frame_latent = ggml_new_tensor_4d(vae_ctx, GGML_TYPE_F32, lW, lH, 1, latent_channels);
+        for (int64_t c = 0; c < latent_channels; c++)
+            for (int64_t h = 0; h < lH; h++)
+                for (int64_t w = 0; w < lW; w++) {
+                    float* src = (float*)((char*)x->data + w*x->nb[0] + h*x->nb[1] + t*x->nb[2] + c*x->nb[3]);
+                    float* dst = (float*)((char*)frame_latent->data + w*frame_latent->nb[0] + h*frame_latent->nb[1] + 0*frame_latent->nb[2] + c*frame_latent->nb[3]);
+                    *dst = *src;
                 }
+
+        ggml_tensor* decoded = nullptr;
+        ctx->vae_runner->compute(n_threads, frame_latent, /*decode_graph=*/true, &decoded, vae_ctx);
+        if (!decoded) {
+            ggml_free(vae_ctx); ggml_free(denoise_ctx); ggml_free(output_ctx);
+            return WAN_ERROR_BACKEND_FAILED;
+        }
+        ggml_ext_tensor_clamp_inplace(decoded, 0.f, 1.f);
+
+        // decoded: [W, H, 3, 1] -> convert to uint8
+        int dW = (int)decoded->ne[0];
+        int dH = (int)decoded->ne[1];
+        for (int h = 0; h < dH; h++)
+            for (int w = 0; w < dW; w++)
+                for (int c = 0; c < 3; c++) {
+                    float v = ggml_get_f32_nd(decoded, w, h, c, 0);
+                    frame_bufs[t][(h * dW + w) * 3 + c] = (uint8_t)(v * 255.0f + 0.5f);
+                }
+
+        ggml_free(vae_ctx);
+    }
 
     // --- Write AVI ---
     std::vector<const uint8_t*> frame_ptrs(T_out);
@@ -980,7 +998,6 @@ WAN_API wan_error_t wan_generate_video_t2v_ex(wan_context_t* ctx,
     int fps = params->fps > 0 ? params->fps : 16;
     int ret = create_mjpg_avi_from_rgb_frames(output_path, frame_ptrs.data(),
                                                T_out, W, H, fps, 90);
-    ggml_free(vae_ctx);
     ggml_free(denoise_ctx);
     ggml_free(output_ctx);
     return (ret == 0) ? WAN_SUCCESS : WAN_ERROR_BACKEND_FAILED;
@@ -1259,33 +1276,51 @@ WAN_API wan_error_t wan_generate_video_i2v_ex(wan_context_t* ctx,
         LOG_DEBUG("Skipping latent denormalization: latent_channels=%lld, but normalization constants only available for 16 channels", latent_channels);
     }
 
-    // --- VAE decode ---
-    ggml_init_params vae_params = { 512 * 1024 * 1024, nullptr, false };
-    ggml_context* vae_ctx = ggml_init(vae_params);
-    if (!vae_ctx) {
-        ggml_free(denoise_ctx); ggml_free(img_enc_ctx); ggml_free(output_ctx);
-        return WAN_ERROR_OUT_OF_MEMORY;
-    }
-    ggml_tensor* decoded = nullptr;
-    ctx->vae_runner->compute(n_threads, x, /*decode_graph=*/true, &decoded, vae_ctx);
-    if (!decoded) {
-        ggml_free(vae_ctx); ggml_free(denoise_ctx); ggml_free(img_enc_ctx); ggml_free(output_ctx);
-        return WAN_ERROR_BACKEND_FAILED;
-    }
-    ggml_ext_tensor_clamp_inplace(decoded, 0.f, 1.f);
-
-    // --- Float -> uint8 frames ---
-    int T_out = (int)decoded->ne[2];
-    int W     = (int)decoded->ne[0];
-    int H     = (int)decoded->ne[1];
+    // --- VAE decode (frame-by-frame) ---
+    int T_out = (int)lT;
+    int W = (int)(lW * 8);
+    int H = (int)(lH * 8);
     std::vector<std::vector<uint8_t>> frame_bufs(T_out, std::vector<uint8_t>(W * H * 3));
-    for (int t = 0; t < T_out; t++)
-        for (int h = 0; h < H; h++)
-            for (int w = 0; w < W; w++)
-                for (int c = 0; c < 3; c++) {
-                    float v = ggml_get_f32_nd(decoded, w, h, t, c);
-                    frame_bufs[t][(h * W + w) * 3 + c] = (uint8_t)(v * 255.0f + 0.5f);
+
+    for (int t = 0; t < T_out; t++) {
+        ggml_init_params vae_params = { 512 * 1024 * 1024, nullptr, false };
+        ggml_context* vae_ctx = ggml_init(vae_params);
+        if (!vae_ctx) {
+            ggml_free(denoise_ctx); ggml_free(img_enc_ctx); ggml_free(output_ctx);
+            return WAN_ERROR_OUT_OF_MEMORY;
+        }
+
+        // Extract frame t from latent: x[lW, lH, lT, 16] -> frame[lW, lH, 1, 16]
+        // VAE decoder expects 4D tensor [b*c, t, h, w] with time dimension
+        ggml_tensor* frame_latent = ggml_new_tensor_4d(vae_ctx, GGML_TYPE_F32, lW, lH, 1, latent_channels);
+        for (int64_t c = 0; c < latent_channels; c++)
+            for (int64_t h = 0; h < lH; h++)
+                for (int64_t w = 0; w < lW; w++) {
+                    float* src = (float*)((char*)x->data + w*x->nb[0] + h*x->nb[1] + t*x->nb[2] + c*x->nb[3]);
+                    float* dst = (float*)((char*)frame_latent->data + w*frame_latent->nb[0] + h*frame_latent->nb[1] + 0*frame_latent->nb[2] + c*frame_latent->nb[3]);
+                    *dst = *src;
                 }
+
+        ggml_tensor* decoded = nullptr;
+        ctx->vae_runner->compute(n_threads, frame_latent, /*decode_graph=*/true, &decoded, vae_ctx);
+        if (!decoded) {
+            ggml_free(vae_ctx); ggml_free(denoise_ctx); ggml_free(img_enc_ctx); ggml_free(output_ctx);
+            return WAN_ERROR_BACKEND_FAILED;
+        }
+        ggml_ext_tensor_clamp_inplace(decoded, 0.f, 1.f);
+
+        // decoded: [W, H, 3, 1] -> convert to uint8
+        int dW = (int)decoded->ne[0];
+        int dH = (int)decoded->ne[1];
+        for (int h = 0; h < dH; h++)
+            for (int w = 0; w < dW; w++)
+                for (int c = 0; c < 3; c++) {
+                    float v = ggml_get_f32_nd(decoded, w, h, c, 0);
+                    frame_bufs[t][(h * dW + w) * 3 + c] = (uint8_t)(v * 255.0f + 0.5f);
+                }
+
+        ggml_free(vae_ctx);
+    }
 
     // --- Write AVI ---
     std::vector<const uint8_t*> frame_ptrs(T_out);
@@ -1293,7 +1328,6 @@ WAN_API wan_error_t wan_generate_video_i2v_ex(wan_context_t* ctx,
     int fps = params->fps > 0 ? params->fps : 16;
     int ret = create_mjpg_avi_from_rgb_frames(output_path, frame_ptrs.data(),
                                                T_out, W, H, fps, 90);
-    ggml_free(vae_ctx);
     ggml_free(denoise_ctx);
     ggml_free(img_enc_ctx);
     ggml_free(output_ctx);
