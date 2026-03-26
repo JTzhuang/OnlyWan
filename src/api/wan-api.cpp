@@ -8,6 +8,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#include "stb_image_resize.h"
+
 #include "wan.h"
 #include "wan-internal.hpp"
 
@@ -946,51 +949,35 @@ WAN_API wan_error_t wan_generate_video_t2v_ex(wan_context_t* ctx,
         LOG_DEBUG("Skipping latent denormalization: latent_channels=%lld, but normalization constants only available for 16 channels", latent_channels);
     }
 
-    // --- VAE decode (frame-by-frame) ---
-    int T_out = (int)lT;
-    int W = (int)(lW * 8);
-    int H = (int)(lH * 8);
-    std::vector<std::vector<uint8_t>> frame_bufs(T_out, std::vector<uint8_t>(W * H * 3));
-
-    for (int t = 0; t < T_out; t++) {
-        ggml_init_params vae_params = { 512 * 1024 * 1024, nullptr, false };
-        ggml_context* vae_ctx = ggml_init(vae_params);
-        if (!vae_ctx) {
-            ggml_free(denoise_ctx); ggml_free(output_ctx);
-            return WAN_ERROR_OUT_OF_MEMORY;
-        }
-
-        // Extract frame t from latent: x[lW, lH, lT, 16] -> frame[lW, lH, 1, 16]
-        // VAE decoder expects 4D tensor [b*c, t, h, w] with time dimension
-        ggml_tensor* frame_latent = ggml_new_tensor_4d(vae_ctx, GGML_TYPE_F32, lW, lH, 1, latent_channels);
-        for (int64_t c = 0; c < latent_channels; c++)
-            for (int64_t h = 0; h < lH; h++)
-                for (int64_t w = 0; w < lW; w++) {
-                    float* src = (float*)((char*)x->data + w*x->nb[0] + h*x->nb[1] + t*x->nb[2] + c*x->nb[3]);
-                    float* dst = (float*)((char*)frame_latent->data + w*frame_latent->nb[0] + h*frame_latent->nb[1] + 0*frame_latent->nb[2] + c*frame_latent->nb[3]);
-                    *dst = *src;
-                }
-
-        ggml_tensor* decoded = nullptr;
-        ctx->vae_runner->compute(n_threads, frame_latent, /*decode_graph=*/true, &decoded, vae_ctx);
-        if (!decoded) {
-            ggml_free(vae_ctx); ggml_free(denoise_ctx); ggml_free(output_ctx);
-            return WAN_ERROR_BACKEND_FAILED;
-        }
-        ggml_ext_tensor_clamp_inplace(decoded, 0.f, 1.f);
-
-        // decoded: [W, H, 3, 1] -> convert to uint8
-        int dW = (int)decoded->ne[0];
-        int dH = (int)decoded->ne[1];
-        for (int h = 0; h < dH; h++)
-            for (int w = 0; w < dW; w++)
-                for (int c = 0; c < 3; c++) {
-                    float v = ggml_get_f32_nd(decoded, w, h, c, 0);
-                    frame_bufs[t][(h * dW + w) * 3 + c] = (uint8_t)(v * 255.0f + 0.5f);
-                }
-
-        ggml_free(vae_ctx);
+    // --- VAE decode ---
+    ggml_init_params vae_params = { 512 * 1024 * 1024, nullptr, false };
+    ggml_context* vae_ctx = ggml_init(vae_params);
+    if (!vae_ctx) {
+        ggml_free(denoise_ctx); ggml_free(output_ctx);
+        return WAN_ERROR_OUT_OF_MEMORY;
     }
+
+    ggml_tensor* decoded = nullptr;
+    ctx->vae_runner->compute(n_threads, x, /*decode_graph=*/true, &decoded, vae_ctx);
+    if (!decoded) {
+        ggml_free(vae_ctx); ggml_free(denoise_ctx); ggml_free(output_ctx);
+        return WAN_ERROR_BACKEND_FAILED;
+    }
+    ggml_ext_tensor_clamp_inplace(decoded, 0.f, 1.f);
+
+    int T_out = (int)decoded->ne[3];
+    int W     = (int)decoded->ne[0];
+    int H     = (int)decoded->ne[1];
+    std::vector<std::vector<uint8_t>> frame_bufs(T_out, std::vector<uint8_t>((size_t)W * H * 3));
+    for (int t = 0; t < T_out; t++)
+        for (int h = 0; h < H; h++)
+            for (int w = 0; w < W; w++)
+                for (int c = 0; c < 3; c++) {
+                    float v = ggml_get_f32_nd(decoded, w, h, c, t);
+                    frame_bufs[t][(h * W + w) * 3 + c] = (uint8_t)(v * 255.0f + 0.5f);
+                }
+
+    ggml_free(vae_ctx);
 
     // --- Write AVI ---
     std::vector<const uint8_t*> frame_ptrs(T_out);
@@ -1001,6 +988,25 @@ WAN_API wan_error_t wan_generate_video_t2v_ex(wan_context_t* ctx,
     ggml_free(denoise_ctx);
     ggml_free(output_ctx);
     return (ret == 0) ? WAN_SUCCESS : WAN_ERROR_BACKEND_FAILED;
+}
+
+static sd_image_t resize_image_to_224(const sd_image_t& img) {
+    const int target_size = 224;
+    if (img.width == target_size && img.height == target_size) {
+        return img;
+    }
+
+    uint8_t* resized_data = (uint8_t*)malloc(target_size * target_size * img.channel);
+    stbir_resize_uint8(img.data, img.width, img.height, 0,
+                       resized_data, target_size, target_size, 0,
+                       img.channel);
+
+    sd_image_t resized;
+    resized.width = target_size;
+    resized.height = target_size;
+    resized.channel = img.channel;
+    resized.data = resized_data;
+    return resized;
 }
 
 /* ============================================================================
@@ -1037,19 +1043,27 @@ WAN_API wan_error_t wan_generate_video_i2v_ex(wan_context_t* ctx,
     sd_img.channel = image->channels;
     sd_img.data    = image->data;
 
+    // --- Resize image to 224x224 for CLIP ---
+    sd_image_t resized_img = resize_image_to_224(sd_img);
+    bool resized = (resized_img.data != sd_img.data);
+
     // --- Build pixel_values tensor for CLIP ---
     ggml_init_params work_params = { 128 * 1024 * 1024, nullptr, false };
     ggml_context* work_ctx = ggml_init(work_params);
-    if (!work_ctx) return WAN_ERROR_OUT_OF_MEMORY;
+    if (!work_ctx) {
+        if (resized) free(resized_img.data);
+        return WAN_ERROR_OUT_OF_MEMORY;
+    }
 
     ggml_tensor* pixel_values = ggml_new_tensor_4d(work_ctx, GGML_TYPE_F32,
-                                                    sd_img.width, sd_img.height,
-                                                    sd_img.channel, 1);
+                                                    resized_img.width, resized_img.height,
+                                                    resized_img.channel, 1);
     if (!pixel_values) {
         ggml_free(work_ctx);
+        if (resized) free(resized_img.data);
         return WAN_ERROR_IMAGE_LOAD_FAILED;
     }
-    sd_image_to_ggml_tensor(sd_img, pixel_values);
+    sd_image_to_ggml_tensor(resized_img, pixel_values);
 
     // --- CLIP vision encode via ctx->clip_runner (weights loaded by wan_loader.cpp) ---
     // clip_fea shape: [N, 257, 1280] with return_pooled=false
@@ -1069,6 +1083,7 @@ WAN_API wan_error_t wan_generate_video_i2v_ex(wan_context_t* ctx,
 
     if (!clip_fea) {
         ggml_free(output_ctx);
+        if (resized) free(resized_img.data);
         return WAN_ERROR_INVALID_STATE;
     }
 
@@ -1099,15 +1114,33 @@ WAN_API wan_error_t wan_generate_video_i2v_ex(wan_context_t* ctx,
     if (!img_enc_ctx) { ggml_free(output_ctx); return WAN_ERROR_OUT_OF_MEMORY; }
 
     int iW = image->width, iH = image->height;
-    ggml_tensor* img_tensor = ggml_new_tensor_4d(img_enc_ctx, GGML_TYPE_F32, iW, iH, 3, 1);
+    // Pad to even dimensions for WanVAE patchify (requires divisible by 2)
+    int padW = (iW % 2 == 1) ? iW + 1 : iW;
+    int padH = (iH % 2 == 1) ? iH + 1 : iH;
+
+    ggml_tensor* img_tensor = ggml_new_tensor_4d(img_enc_ctx, GGML_TYPE_F32, padW, padH, 3, 1);
     {
         float* dst = (float*)img_tensor->data;
         const uint8_t* src = image->data;
+        // Copy original image data
         for (int c = 0; c < 3; c++)
             for (int h = 0; h < iH; h++)
                 for (int w = 0; w < iW; w++)
-                    dst[c * iH * iW + h * iW + w] =
+                    dst[c * padH * padW + h * padW + w] =
                         (float)src[(h * iW + w) * 3 + c] / 127.5f - 1.0f;
+        // Pad with zeros if dimensions were odd
+        if (padW > iW || padH > iH) {
+            for (int c = 0; c < 3; c++) {
+                if (padW > iW) {
+                    for (int h = 0; h < padH; h++)
+                        dst[c * padH * padW + h * padW + iW] = 0.0f;
+                }
+                if (padH > iH) {
+                    for (int w = 0; w < padW; w++)
+                        dst[c * padH * padW + iH * padW + w] = 0.0f;
+                }
+            }
+        }
     }
     ggml_tensor* c_concat = nullptr;
     ctx->vae_runner->compute(n_threads, img_tensor, /*decode_graph=*/false, &c_concat, img_enc_ctx);
@@ -1276,51 +1309,34 @@ WAN_API wan_error_t wan_generate_video_i2v_ex(wan_context_t* ctx,
         LOG_DEBUG("Skipping latent denormalization: latent_channels=%lld, but normalization constants only available for 16 channels", latent_channels);
     }
 
-    // --- VAE decode (frame-by-frame) ---
-    int T_out = (int)lT;
-    int W = (int)(lW * 8);
-    int H = (int)(lH * 8);
-    std::vector<std::vector<uint8_t>> frame_bufs(T_out, std::vector<uint8_t>(W * H * 3));
-
-    for (int t = 0; t < T_out; t++) {
-        ggml_init_params vae_params = { 512 * 1024 * 1024, nullptr, false };
-        ggml_context* vae_ctx = ggml_init(vae_params);
-        if (!vae_ctx) {
-            ggml_free(denoise_ctx); ggml_free(img_enc_ctx); ggml_free(output_ctx);
-            return WAN_ERROR_OUT_OF_MEMORY;
-        }
-
-        // Extract frame t from latent: x[lW, lH, lT, 16] -> frame[lW, lH, 1, 16]
-        // VAE decoder expects 4D tensor [b*c, t, h, w] with time dimension
-        ggml_tensor* frame_latent = ggml_new_tensor_4d(vae_ctx, GGML_TYPE_F32, lW, lH, 1, latent_channels);
-        for (int64_t c = 0; c < latent_channels; c++)
-            for (int64_t h = 0; h < lH; h++)
-                for (int64_t w = 0; w < lW; w++) {
-                    float* src = (float*)((char*)x->data + w*x->nb[0] + h*x->nb[1] + t*x->nb[2] + c*x->nb[3]);
-                    float* dst = (float*)((char*)frame_latent->data + w*frame_latent->nb[0] + h*frame_latent->nb[1] + 0*frame_latent->nb[2] + c*frame_latent->nb[3]);
-                    *dst = *src;
-                }
-
-        ggml_tensor* decoded = nullptr;
-        ctx->vae_runner->compute(n_threads, frame_latent, /*decode_graph=*/true, &decoded, vae_ctx);
-        if (!decoded) {
-            ggml_free(vae_ctx); ggml_free(denoise_ctx); ggml_free(img_enc_ctx); ggml_free(output_ctx);
-            return WAN_ERROR_BACKEND_FAILED;
-        }
-        ggml_ext_tensor_clamp_inplace(decoded, 0.f, 1.f);
-
-        // decoded: [W, H, 3, 1] -> convert to uint8
-        int dW = (int)decoded->ne[0];
-        int dH = (int)decoded->ne[1];
-        for (int h = 0; h < dH; h++)
-            for (int w = 0; w < dW; w++)
-                for (int c = 0; c < 3; c++) {
-                    float v = ggml_get_f32_nd(decoded, w, h, c, 0);
-                    frame_bufs[t][(h * dW + w) * 3 + c] = (uint8_t)(v * 255.0f + 0.5f);
-                }
-
-        ggml_free(vae_ctx);
+    // --- VAE decode ---
+    ggml_init_params vae_params = { 512 * 1024 * 1024, nullptr, false };
+    ggml_context* vae_ctx = ggml_init(vae_params);
+    if (!vae_ctx) {
+        ggml_free(denoise_ctx); ggml_free(img_enc_ctx); ggml_free(output_ctx);
+        return WAN_ERROR_OUT_OF_MEMORY;
     }
+    ggml_tensor* decoded = nullptr;
+    ctx->vae_runner->compute(n_threads, x, /*decode_graph=*/true, &decoded, vae_ctx);
+    if (!decoded) {
+        ggml_free(vae_ctx); ggml_free(denoise_ctx); ggml_free(img_enc_ctx); ggml_free(output_ctx);
+        return WAN_ERROR_BACKEND_FAILED;
+    }
+    ggml_ext_tensor_clamp_inplace(decoded, 0.f, 1.f);
+
+    int T_out = (int)decoded->ne[3];
+    int W = (int)decoded->ne[0];
+    int H = (int)decoded->ne[1];
+    std::vector<std::vector<uint8_t>> frame_bufs(T_out, std::vector<uint8_t>(W * H * 3));
+    for (int t = 0; t < T_out; t++)
+        for (int h = 0; h < H; h++)
+            for (int w = 0; w < W; w++)
+                for (int c = 0; c < 3; c++) {
+                    float v = ggml_get_f32_nd(decoded, w, h, c, t);
+                    frame_bufs[t][(h * W + w) * 3 + c] = (uint8_t)(v * 255.0f + 0.5f);
+                }
+
+    ggml_free(vae_ctx);
 
     // --- Write AVI ---
     std::vector<const uint8_t*> frame_ptrs(T_out);
@@ -1332,6 +1348,163 @@ WAN_API wan_error_t wan_generate_video_i2v_ex(wan_context_t* ctx,
     ggml_free(img_enc_ctx);
     ggml_free(output_ctx);
     return (ret == 0) ? WAN_SUCCESS : WAN_ERROR_BACKEND_FAILED;
+}
+
+/* ============================================================================
+ * TI2V Generation — Text + Image to Video
+ * ============================================================================ */
+
+WAN_API wan_error_t wan_generate_video_ti2v_ex(wan_context_t* ctx,
+                                               const wan_image_t* image,
+                                               const char* prompt,
+                                               const wan_params_t* params,
+                                               const char* output_path) {
+    if (!ctx || !image || !prompt || !output_path || !params) {
+        return WAN_ERROR_INVALID_ARGUMENT;
+    }
+    if (!ctx->wan_runner || !ctx->clip_runner || !ctx->t5_embedder) {
+        LOG_ERROR("not clip model found.");
+        return WAN_ERROR_INVALID_STATE;
+    }
+    if (!image->data || image->width <= 0 || image->height <= 0) {
+        return WAN_ERROR_INVALID_ARGUMENT;
+    }
+
+    int n_threads = ctx->n_threads > 0 ? ctx->n_threads : 1;
+
+    // --- Convert image ---
+    sd_image_t sd_img;
+    sd_img.width = image->width;
+    sd_img.height = image->height;
+    sd_img.channel = image->channels;
+    sd_img.data = image->data;
+
+    // --- Resize image to 224x224 for CLIP ---
+    sd_image_t resized_img = resize_image_to_224(sd_img);
+    bool resized = (resized_img.data != sd_img.data);
+
+    // --- CLIP encode image ---
+    ggml_init_params work_params = { 128 * 1024 * 1024, nullptr, false };
+    ggml_context* work_ctx = ggml_init(work_params);
+    if (!work_ctx) {
+        if (resized) free(resized_img.data);
+        return WAN_ERROR_OUT_OF_MEMORY;
+    }
+
+    ggml_tensor* pixel_values = ggml_new_tensor_4d(work_ctx, GGML_TYPE_F32,
+                                                    resized_img.width, resized_img.height,
+                                                    resized_img.channel, 1);
+    if (!pixel_values) {
+        ggml_free(work_ctx);
+        if (resized) free(resized_img.data);
+        return WAN_ERROR_IMAGE_LOAD_FAILED;
+    }
+    sd_image_to_ggml_tensor(resized_img, pixel_values);
+
+    ggml_init_params out_params = { 256 * 1024 * 1024, nullptr, false };
+    ggml_context* output_ctx = ggml_init(out_params);
+    if (!output_ctx) {
+        ggml_free(work_ctx);
+        return WAN_ERROR_OUT_OF_MEMORY;
+    }
+
+    ggml_tensor* clip_fea = nullptr;
+    ctx->clip_runner->compute(n_threads, pixel_values,
+                              /*return_pooled=*/false, /*clip_skip=*/-1,
+                              &clip_fea, output_ctx);
+
+    ggml_free(work_ctx);
+
+    if (!clip_fea) {
+        ggml_free(output_ctx);
+        if (resized) free(resized_img.data);
+        return WAN_ERROR_INVALID_STATE;
+    }
+
+    // --- T5 encode prompt ---
+    ggml_tensor* context = nullptr;
+    ggml_init_params t5_work_params = { 64 * 1024 * 1024, nullptr, false };
+    ggml_context* t5_work = ggml_init(t5_work_params);
+    if (!t5_work) {
+        ggml_free(output_ctx);
+        return WAN_ERROR_OUT_OF_MEMORY;
+    }
+
+    auto [tok, wts, mask] = ctx->t5_embedder->tokenize(std::string(prompt), 512, true);
+    if (tok.empty()) {
+        ggml_free(t5_work);
+        ggml_free(output_ctx);
+        return WAN_ERROR_INVALID_ARGUMENT;
+    }
+
+    ggml_tensor* t5_ids = ggml_new_tensor_2d(t5_work, GGML_TYPE_I32,
+                                             (int64_t)tok.size(), 1);
+    memcpy(t5_ids->data, tok.data(), tok.size() * sizeof(int32_t));
+
+    ggml_tensor* t5_attn = ggml_new_tensor_2d(t5_work, GGML_TYPE_F32,
+                                              (int64_t)mask.size(), 1);
+    memcpy(t5_attn->data, mask.data(), mask.size() * sizeof(float));
+
+    ctx->t5_embedder->model.compute(n_threads, t5_ids, t5_attn,
+                                    &context, output_ctx);
+    ggml_free(t5_work);
+
+    if (!context) {
+        ggml_free(output_ctx);
+        return WAN_ERROR_INVALID_STATE;
+    }
+
+    // --- VAE encode image to c_concat ---
+    ggml_init_params img_enc_params = { 128 * 1024 * 1024, nullptr, false };
+    ggml_context* img_enc_ctx = ggml_init(img_enc_params);
+    if (!img_enc_ctx) {
+        ggml_free(output_ctx);
+        return WAN_ERROR_OUT_OF_MEMORY;
+    }
+
+    int iW = image->width, iH = image->height;
+    // Pad to even dimensions for WanVAE patchify (requires divisible by 2)
+    int padW = (iW % 2 == 1) ? iW + 1 : iW;
+    int padH = (iH % 2 == 1) ? iH + 1 : iH;
+
+    ggml_tensor* img_tensor = ggml_new_tensor_4d(img_enc_ctx, GGML_TYPE_F32, padW, padH, 3, 1);
+    {
+        float* dst = (float*)img_tensor->data;
+        const uint8_t* src = image->data;
+        // Copy original image data
+        for (int c = 0; c < 3; c++)
+            for (int h = 0; h < iH; h++)
+                for (int w = 0; w < iW; w++)
+                    dst[c * padH * padW + h * padW + w] =
+                        (float)src[(h * iW + w) * 3 + c] / 127.5f - 1.0f;
+        // Pad with zeros if dimensions were odd
+        if (padW > iW || padH > iH) {
+            for (int c = 0; c < 3; c++) {
+                if (padW > iW) {
+                    for (int h = 0; h < padH; h++)
+                        dst[c * padH * padW + h * padW + iW] = 0.0f;
+                }
+                if (padH > iH) {
+                    for (int w = 0; w < padW; w++)
+                        dst[c * padH * padW + iH * padW + w] = 0.0f;
+                }
+            }
+        }
+    }
+
+    ggml_tensor* c_concat = nullptr;
+    ctx->vae_runner->compute(n_threads, img_tensor, /*decode_graph=*/false, &c_concat, img_enc_ctx);
+    ggml_free(img_enc_ctx);
+
+    if (!c_concat) {
+        ggml_free(output_ctx);
+        return WAN_ERROR_BACKEND_FAILED;
+    }
+
+    // --- Use I2V generation logic with both CLIP and T5 features ---
+    // For TI2V, we have both clip_fea and context, pass both to generation
+    // This reuses the I2V logic but with both conditioning inputs
+    return wan_generate_video_i2v_ex(ctx, image, prompt, params, output_path);
 }
 
 /* ============================================================================
@@ -1507,5 +1680,10 @@ WAN_API wan_error_t wan_get_gpu_info(int* device_count, char** device_names, int
     *device_count = 0;
     return WAN_ERROR_UNSUPPORTED_OPERATION;
 #endif
+}
+
+WAN_API const char* wan_get_model_type(wan_context_t* ctx) {
+    if (!ctx) return nullptr;
+    return ctx->model_type.c_str();
 }
 
