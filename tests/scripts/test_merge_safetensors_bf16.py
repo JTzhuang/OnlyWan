@@ -84,3 +84,15 @@ def test_duplicate_key_fails_with_non_zero_exit(tmp_path):
     assert "duplicate" in combined_output or "collision" in combined_output
     assert "shared.weight" in combined_output
     assert not output_file.exists()
+
+
+def test_cli_help_mentions_inputs_and_output():
+    result = subprocess.run(
+        ["python3", str(SCRIPT_PATH), "--help"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "inputs" in result.stdout.lower()
+    assert "--output" in result.stdout
