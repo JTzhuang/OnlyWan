@@ -1499,6 +1499,14 @@ WAN_API wan_error_t wan_generate_video_ti2v_ex(wan_context_t* ctx,
         ggml_free(output_ctx);
         return WAN_ERROR_BACKEND_FAILED;
     }
+
+    // Copy c_concat to output_ctx before freeing img_enc_ctx
+    ggml_tensor* c_concat_copy = ggml_new_tensor_4d(output_ctx, c_concat->type,
+                                                     c_concat->ne[0], c_concat->ne[1],
+                                                     c_concat->ne[2], c_concat->ne[3]);
+    memcpy(c_concat_copy->data, c_concat->data, ggml_nbytes(c_concat));
+    c_concat = c_concat_copy;
+
     ggml_free(img_enc_ctx);
 
     // --- Latent dimensions and sigma schedule ---
