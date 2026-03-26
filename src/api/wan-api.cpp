@@ -85,13 +85,6 @@ static void set_last_error_fmt(wan_context_t* ctx, const char* fmt, ...) {
 }
 
 /* ============================================================================
- * Global State
- * ============================================================================ */
-
-static wan_log_cb_t g_log_callback = nullptr;
-static void* g_log_user_data = nullptr;
-
-/* ============================================================================
  * Utility Functions
  * ============================================================================ */
 
@@ -107,9 +100,11 @@ WAN_API const char* wan_get_last_error(wan_context_t* ctx) {
 }
 
 WAN_API void wan_set_log_callback(wan_log_cb_t callback, void* user_data) {
-    // Store callback in global state
-    g_log_callback = callback;
-    g_log_user_data = user_data;
+    sd_set_log_callback(callback, user_data);
+}
+
+WAN_API void wan_set_log_level(int level) {
+    sd_set_log_level(static_cast<sd_log_level_t>(level));
 }
 
 WAN_API wan_error_t wan_set_vocab_dir(const char* dir) {
@@ -203,7 +198,7 @@ WanModelLoadResult Wan::WanModel::load(const std::string& config_path) {
     // --- Load Transformer ---
     LOG_DEBUG("WanModel::load: loading Transformer from '%s'", config.transformer_path.c_str());
     ModelLoader transformer_loader;
-    if (!transformer_loader.init_from_file_and_convert_name(config.transformer_path, "model.diffusion_model.")) {
+    if (!transformer_loader.init_from_file_and_convert_name(config.transformer_path, "")) {
         result.error_message = "ModelLoader failed to load transformer from: " + config.transformer_path;
         ggml_backend_free(backend);
         LOG_ERROR("WanModel::load: transformer ModelLoader init failed");
