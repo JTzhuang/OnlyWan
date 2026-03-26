@@ -14,7 +14,8 @@ def test_conversion_basic():
 
     try:
         # Run conversion script (expected to fail as script is not yet created)
-        subprocess.run(["python3", "scripts/pth_to_safetensors.py", input_pth, output_st, "--dtype", "fp32"], check=True)
+        script_path = os.path.join(os.path.dirname(__file__), "../../scripts/pth_to_safetensors.py")
+        subprocess.run(["python3", script_path, input_pth, output_st, "--dtype", "fp32"], check=True)
 
         # Verify results
         loaded = load_file(output_st)
@@ -30,7 +31,8 @@ def test_conversion_dtype():
     torch.save(weights, input_pth)
 
     try:
-        subprocess.run(["python3", "scripts/pth_to_safetensors.py", input_pth, output_st, "--dtype", "fp16"], check=True)
+        script_path = os.path.join(os.path.dirname(__file__), "../../scripts/pth_to_safetensors.py")
+        subprocess.run(["python3", script_path, input_pth, output_st, "--dtype", "fp16"], check=True)
         loaded = load_file(output_st)
         assert loaded["w"].dtype == torch.float16
     finally:
