@@ -91,7 +91,7 @@ namespace Wan {
 bool is_wan_gguf(const std::string& file_path, std::string& model_type, std::string& model_version);
 
 struct WanModel {
-    static WanModelLoadResult load(const std::string& file_path);
+    static WanModelLoadResult load(const std::string& file_path, int device_id = 0);
 };
 } // namespace Wan
 

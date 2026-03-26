@@ -125,8 +125,8 @@ WAN_API wan_error_t wan_set_vocab_dir(const char* dir) {
  * exactly one TU. wan-api.cpp already includes all three headers.
  * ============================================================================ */
 
-WanModelLoadResult Wan::WanModel::load(const std::string& config_path) {
-    LOG_DEBUG("WanModel::load: START, config_path='%s'", config_path.c_str());
+WanModelLoadResult Wan::WanModel::load(const std::string& config_path, int device_id) {
+    LOG_DEBUG("WanModel::load: START, config_path='%s', device_id=%d", config_path.c_str(), device_id);
 
     WanModelLoadResult result;
     result.success = false;
@@ -186,12 +186,24 @@ WanModelLoadResult Wan::WanModel::load(const std::string& config_path) {
         model_version = "WAN2.1";
     }
 
-    // Step 5: Initialize CPU backend for weight loading
-    LOG_DEBUG("WanModel::load: initializing CPU backend");
-    ggml_backend_t backend = ggml_backend_cpu_init();
+    // Step 5: Initialize backend for weight loading (uses device_id for GPU)
+    LOG_DEBUG("WanModel::load: initializing backend for device_id=%d", device_id);
+    ggml_backend_t backend = nullptr;
+
+#ifdef WAN_USE_CUDA
+    if (device_id >= 0) {
+        backend = ggml_backend_cuda_init(device_id);
+        LOG_DEBUG("WanModel::load: using CUDA device %d", device_id);
+    }
+#endif
     if (!backend) {
-        result.error_message = "Failed to initialize CPU backend for model loading";
-        LOG_ERROR("WanModel::load: CPU backend init failed");
+        backend = ggml_backend_cpu_init();
+        LOG_DEBUG("WanModel::load: falling back to CPU backend");
+    }
+
+    if (!backend) {
+        result.error_message = "Failed to initialize backend for model loading";
+        LOG_ERROR("WanModel::load: backend init failed");
         return result;
     }
 
@@ -395,20 +407,30 @@ WAN_API wan_error_t wan_load_model(const char* model_path,
     ctx->n_threads = n_threads;
 
     // Determine effective backend: CLI param > config file > "cpu"
+    WanLoadConfig load_cfg;
+    try {
+        load_cfg = ConfigLoader::load_config(model_path);
+    } catch (...) {
+        // Use defaults if config loading fails
+    }
+
     if (backend_type) {
         ctx->backend_type = backend_type;
     } else {
-        try {
-            WanLoadConfig load_cfg = ConfigLoader::load_config(model_path);
-            ctx->backend_type = !load_cfg.backend.empty() ? load_cfg.backend : "cpu";
-        } catch (...) {
-            ctx->backend_type = "cpu";
-        }
+        ctx->backend_type = !load_cfg.backend.empty() ? load_cfg.backend : "cpu";
     }
 
-    // Load model via config-driven approach
-    LOG_INFO("Loading model from config: %s", ctx->model_path.c_str());
-    WanModelLoadResult result = Wan::WanModel::load(ctx->model_path);
+    // Extract gpu_ids from config for single-GPU mode
+    int device_id = 0;  // Default to GPU 0
+    if (!load_cfg.gpu_ids.empty()) {
+        ctx->params.gpu_ids = load_cfg.gpu_ids;
+        device_id = load_cfg.gpu_ids[0];  // Get first GPU ID early
+        LOG_INFO("Using GPU device %d from config", device_id);
+    }
+
+    // Load model via config-driven approach with the target device
+    LOG_INFO("Loading model from config: %s (device_id=%d)", ctx->model_path.c_str(), device_id);
+    WanModelLoadResult result = Wan::WanModel::load(ctx->model_path, device_id);
     if (result.success) {
         LOG_INFO("Model loaded successfully: %s %s", result.model_version.c_str(), result.model_type.c_str());
     } else {
@@ -424,8 +446,8 @@ WAN_API wan_error_t wan_load_model(const char* model_path,
     ctx->model_type  = result.model_type;
     ctx->params.model_version = result.model_version;
 
-    // Create backend
-    ctx->backend = WanBackendPtr(Wan::WanBackend::create(ctx->backend_type, n_threads, 0));
+    // Create backend with GPU device from config (if available)
+    ctx->backend = WanBackendPtr(Wan::WanBackend::create(ctx->backend_type, n_threads, device_id));
     if (!ctx->backend) {
         set_last_error(ctx.get(), "Failed to initialize backend");
         return WAN_ERROR_BACKEND_FAILED;
