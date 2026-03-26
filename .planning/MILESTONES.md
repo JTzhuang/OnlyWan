@@ -1,10 +1,30 @@
 # Milestones
 
+## v1.2 性能优化与多卡推理 (Shipped: 2026-03-26)
+
+**Phases completed:** 8 phases, 14 plans, 22 tasks
+
+**Key accomplishments:**
+
+- Two-branch format dispatch in WanModel::load: safetensors via init_from_file + get_sd_version, GGUF path unchanged, both converging at runner construction
+- One-liner:
+- One-liner:
+- RoPE PE cached per-dimension to eliminate redundant CPU computation, inplace GELU documented for CUDA graph fusion
+- One-liner:
+- One-liner:
+- One-liner:
+- One-liner:
+- One-liner:
+- One-liner:
+
+---
+
 ## v1.2 v1.2 (Shipped: 2026-03-18)
 
 **Phases completed:** 7 phases, 13 plans, 14 tasks
 
 **Key accomplishments:**
+
 - (none recorded)
 
 ---
@@ -14,6 +34,7 @@
 **Phases completed:** 5 phases, 6 plans
 
 **Key accomplishments:**
+
 - Safetensors runtime loading — users can load .safetensors WAN models directly via `wan_load_model` without pre-conversion
 - Standalone `wan-convert` CLI tool for safetensors → GGUF conversion with metadata injection
 - API fixes — T2V/I2V flat API delegates to _ex implementations; progress_cb properly wired on each Euler step
@@ -32,6 +53,7 @@
 **Phases completed:** 8 phases, 11 plans, 6 tasks
 
 **Key accomplishments:**
+
 - Extracted WAN video generation core (wan.hpp, 109K lines) from stable-diffusion.cpp into standalone C++ library
 - Created multi-platform CMake build system with CUDA/Metal/Vulkan/CPU backend support
 - Implemented C-style public API (wan.h) with model loading, T2V, I2V, and config interfaces
@@ -43,4 +65,3 @@
 **Stats:** 179 files changed, ~44,500 LOC, 63 commits, 4 days (2026-03-12 → 2026-03-16)
 
 ---
-
