@@ -114,11 +114,10 @@ typedef struct wan_params {
 
 /** Log callback type
  *
- * @param level Log level (0=DEBUG, 1=INFO, 2=WARN, 3=ERROR)
- * @param message Log message
+ * @param text Formatted log message string
  * @param user_data User-provided data pointer
  */
-typedef void (*wan_log_cb_t)(int level, const char* message, void* user_data);
+typedef void (*wan_log_cb_t)(const char* text, void* user_data);
 
 /* ============================================================================
  * Model Loading
@@ -126,25 +125,25 @@ typedef void (*wan_log_cb_t)(int level, const char* message, void* user_data);
 
 /** Load a Wan model from a config file
  *
- * @param model_path Path to the model config file (JSON format)
+ * @param config_path Path to the main configuration file (config.json)
  * @param n_threads Number of threads to use (0 = auto-detect)
  * @param backend_type Backend type string (e.g., "cpu", "cuda", "metal", "vulkan")
  * @param out_ctx Output pointer to receive the context handle
  * @return WAN_SUCCESS on success, error code on failure
  */
-wan_error_t wan_load_model(const char* model_path,
+wan_error_t wan_load_model(const char* config_path,
                            int n_threads,
                            const char* backend_type,
                            wan_context_t** out_ctx);
 
 /** Load a Wan model with custom backend parameters
  *
- * @param model_path Path to the model config file (JSON format)
+ * @param config_path Path to the main configuration file (config.json)
  * @param params Optional generation parameters (can be NULL)
  * @param out_ctx Output pointer to receive the context handle
  * @return WAN_SUCCESS on success, error code on failure
  */
-wan_error_t wan_load_model_from_file(const char* model_path,
+wan_error_t wan_load_model_from_file(const char* config_path,
                                      const wan_params_t* params,
                                      wan_context_t** out_ctx);
 
@@ -383,6 +382,12 @@ const char* wan_get_last_error(wan_context_t* ctx);
  */
 void wan_set_log_callback(wan_log_cb_t callback, void* user_data);
 
+/** Set global log level
+ *
+ * @param level Log level (0=DEBUG, 1=INFO, 2=WARN, 3=ERROR, 4=OFF)
+ */
+void wan_set_log_level(int level);
+
 /** Get model information
  *
  * @param ctx Wan context handle
@@ -424,7 +429,7 @@ typedef struct {
  * Distributes batch requests across available GPUs using round-robin assignment.
  * Each GPU loads a complete model copy and processes requests independently.
  *
- * @param model_path Path to the model config file (JSON format)
+ * @param config_path Path to the main configuration file (config.json)
  * @param prompts Array of text prompts (one per request)
  * @param output_paths Array of output file paths (one per request)
  * @param batch_size Number of requests to process
@@ -432,7 +437,7 @@ typedef struct {
  * @param results Output array for per-request results (must have batch_size elements)
  * @return WAN_SUCCESS if all requests succeeded, WAN_ERROR_GENERATION_FAILED if any failed
  */
-wan_error_t wan_generate_batch_t2v(const char* model_path,
+wan_error_t wan_generate_batch_t2v(const char* config_path,
                                     const char** prompts,
                                     const char** output_paths,
                                     int batch_size,
