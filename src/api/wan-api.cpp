@@ -1494,12 +1494,12 @@ WAN_API wan_error_t wan_generate_video_ti2v_ex(wan_context_t* ctx,
 
     ggml_tensor* c_concat = nullptr;
     ctx->vae_runner->compute(n_threads, img_tensor, /*decode_graph=*/false, &c_concat, img_enc_ctx);
-    ggml_free(img_enc_ctx);
-
     if (!c_concat) {
+        ggml_free(img_enc_ctx);
         ggml_free(output_ctx);
         return WAN_ERROR_BACKEND_FAILED;
     }
+    ggml_free(img_enc_ctx);
 
     // --- Latent dimensions and sigma schedule ---
     int64_t lW = params->width  / 8;
