@@ -1501,10 +1501,197 @@ WAN_API wan_error_t wan_generate_video_ti2v_ex(wan_context_t* ctx,
         return WAN_ERROR_BACKEND_FAILED;
     }
 
-    // --- Use I2V generation logic with both CLIP and T5 features ---
-    // For TI2V, we have both clip_fea and context, pass both to generation
-    // This reuses the I2V logic but with both conditioning inputs
-    return wan_generate_video_i2v_ex(ctx, image, prompt, params, output_path);
+    // --- Latent dimensions and sigma schedule ---
+    int64_t lW = params->width  / 8;
+    int64_t lH = params->height / 8;
+    int64_t lT = (params->num_frames - 1) / 4 + 1;
+    int steps  = params->steps > 0 ? params->steps : 20;
+    std::vector<float> sigmas(steps + 1);
+    for (int i = 0; i <= steps; i++)
+        sigmas[i] = 1.0f - (float)i / (float)steps;
+
+    // --- Denoising work context ---
+    size_t denoise_mem = (size_t)(lW * lH * lT * 16 * 4) * 32 + 64 * 1024 * 1024;
+    ggml_init_params denoise_params = { denoise_mem, nullptr, false };
+    ggml_context* denoise_ctx = ggml_init(denoise_params);
+    if (!denoise_ctx) {
+        ggml_free(output_ctx);
+        return WAN_ERROR_OUT_OF_MEMORY;
+    }
+
+    // --- Initialize noise latent ---
+    int64_t latent_channels = ctx->wan_runner->wan_params.in_dim;
+    ggml_tensor* x = ggml_new_tensor_4d(denoise_ctx, GGML_TYPE_F32, lW, lH, lT, latent_channels);
+    {
+        std::mt19937 rng(params->seed >= 0 ? (uint32_t)params->seed : 42u);
+        std::normal_distribution<float> nd(0.0f, 1.0f);
+        float* xd = (float*)x->data;
+        int64_t n = ggml_nelements(x);
+        for (int64_t i = 0; i < n; i++) xd[i] = nd(rng) * sigmas[0];
+    }
+
+    // --- process_latent_in: normalize channel-wise ---
+    if (latent_channels == 16) {
+        for (int64_t c = 0; c < latent_channels; c++)
+            for (int64_t t = 0; t < lT; t++)
+                for (int64_t h = 0; h < lH; h++)
+                    for (int64_t w = 0; w < lW; w++) {
+                        float* v = (float*)((char*)x->data +
+                            w*x->nb[0] + h*x->nb[1] + t*x->nb[2] + c*x->nb[3]);
+                        *v = (*v - wan_latents_mean[c]) / wan_latents_std[c];
+                    }
+    }
+
+    // --- Unconditional T5 context for CFG ---
+    ggml_tensor* uncond_context = nullptr;
+    if (ctx->t5_embedder) {
+        ggml_init_params uc_params = { 64 * 1024 * 1024, nullptr, false };
+        ggml_context* uc_work = ggml_init(uc_params);
+        if (uc_work) {
+            auto [uc_tok, uc_w, uc_mask] =
+                ctx->t5_embedder->tokenize(std::string(""), 512, true);
+            if (!uc_tok.empty()) {
+                ggml_tensor* uc_ids = ggml_new_tensor_2d(uc_work, GGML_TYPE_I32,
+                                                          (int64_t)uc_tok.size(), 1);
+                memcpy(uc_ids->data, uc_tok.data(), uc_tok.size() * sizeof(int32_t));
+                ggml_tensor* uc_attn = ggml_new_tensor_2d(uc_work, GGML_TYPE_F32,
+                                                           (int64_t)uc_mask.size(), 1);
+                memcpy(uc_attn->data, uc_mask.data(), uc_mask.size() * sizeof(float));
+                ctx->t5_embedder->model.compute(n_threads, uc_ids, uc_attn,
+                                                &uncond_context, output_ctx);
+            }
+            ggml_free(uc_work);
+        }
+    }
+
+    // --- Euler loop (TI2V: pass both clip_fea and context on conditional pass) ---
+    float cfg_scale = params->cfg;
+    for (int i = 0; i < steps; i++) {
+        float sigma    = sigmas[i];
+        float sigma_dt = sigmas[i + 1] - sigma;
+
+        ggml_init_params step_params = { denoise_mem, nullptr, false };
+        ggml_context* step_ctx = ggml_init(step_params);
+        if (!step_ctx) {
+            ggml_free(denoise_ctx); ggml_free(output_ctx);
+            return WAN_ERROR_OUT_OF_MEMORY;
+        }
+
+        ggml_tensor* ts = ggml_new_tensor_1d(step_ctx, GGML_TYPE_F32, 1);
+        ggml_set_f32(ts, sigma);
+
+        ggml_tensor* cond_out = nullptr;
+#ifdef WAN_USE_MULTI_GPU
+        if (ctx->is_multi_gpu()) {
+            ctx->wan_runner->compute_with_sched(ctx->multi_gpu_state->scheduler, n_threads,
+                                                x, ts, context,
+                                                clip_fea, c_concat,
+                                                nullptr, nullptr, 1.f,
+                                                &cond_out, step_ctx);
+        } else {
+#endif
+            ctx->wan_runner->compute(n_threads, x, ts, context,
+                                     clip_fea, c_concat,
+                                     nullptr, nullptr, 1.f,
+                                     &cond_out, step_ctx);
+#ifdef WAN_USE_MULTI_GPU
+        }
+#endif
+
+        ggml_tensor* uncond_out = nullptr;
+        if (uncond_context && cfg_scale != 1.0f) {
+#ifdef WAN_USE_MULTI_GPU
+            if (ctx->is_multi_gpu()) {
+                ctx->wan_runner->compute_with_sched(ctx->multi_gpu_state->scheduler, n_threads,
+                                                    x, ts, uncond_context,
+                                                    nullptr, nullptr,
+                                                    nullptr, nullptr, 1.f,
+                                                    &uncond_out, step_ctx);
+            } else {
+#endif
+                ctx->wan_runner->compute(n_threads, x, ts, uncond_context,
+                                         nullptr, nullptr,
+                                         nullptr, nullptr, 1.f,
+                                         &uncond_out, step_ctx);
+#ifdef WAN_USE_MULTI_GPU
+            }
+#endif
+        }
+
+        float* xd  = (float*)x->data;
+        float* cd  = cond_out  ? (float*)cond_out->data  : nullptr;
+        float* ucd = uncond_out ? (float*)uncond_out->data : cd;
+        if (cd && xd && ucd) {
+            int64_t n = ggml_nelements(x);
+            for (int64_t j = 0; j < n; j++) {
+                float denoised = ucd[j] + cfg_scale * (cd[j] - ucd[j]);
+                float d        = (xd[j] - denoised) / (sigma > 1e-6f ? sigma : 1e-6f);
+                xd[j]          = xd[j] + d * sigma_dt;
+            }
+        }
+        ggml_free(step_ctx);
+        if (params->progress_cb) {
+            int abort = params->progress_cb(i, steps,
+                                            (float)(i + 1) / (float)steps,
+                                            params->user_data);
+            if (abort) {
+                ggml_free(denoise_ctx);
+                ggml_free(output_ctx);
+                return WAN_ERROR_GENERATION_FAILED;
+            }
+        }
+    }
+
+    // --- process_latent_out: inverse normalize ---
+    if (latent_channels == 16) {
+        for (int64_t c = 0; c < latent_channels; c++)
+            for (int64_t t = 0; t < lT; t++)
+                for (int64_t h = 0; h < lH; h++)
+                    for (int64_t w = 0; w < lW; w++) {
+                        float* v = (float*)((char*)x->data +
+                            w*x->nb[0] + h*x->nb[1] + t*x->nb[2] + c*x->nb[3]);
+                        *v = (*v * wan_latents_std[c]) + wan_latents_mean[c];
+                    }
+    }
+
+    // --- VAE decode latent to video frames ---
+    ggml_tensor* decoded = nullptr;
+    ctx->vae_runner->compute(n_threads, x, /*decode_graph=*/true, &decoded, denoise_ctx);
+    if (!decoded) {
+        ggml_free(denoise_ctx); ggml_free(output_ctx);
+        return WAN_ERROR_BACKEND_FAILED;
+    }
+
+    // --- Extract frames and write video ---
+    int64_t T_out = decoded->ne[2];
+    int64_t W = decoded->ne[0];
+    int64_t H = decoded->ne[1];
+    std::vector<std::vector<uint8_t>> frame_bufs(T_out);
+    for (int t = 0; t < T_out; t++) {
+        frame_bufs[t].resize(W * H * 3);
+        for (int64_t h = 0; h < H; h++) {
+            for (int64_t w = 0; w < W; w++) {
+                for (int64_t c = 0; c < 3; c++) {
+                    float val = ggml_get_f32_nd(decoded, w, h, t, c);
+                    val = (val + 1.0f) / 2.0f;
+                    val = std::max(0.0f, std::min(1.0f, val));
+                    frame_bufs[t][(h * W + w) * 3 + c] = (uint8_t)(val * 255.0f);
+                }
+            }
+        }
+    }
+
+    // --- Write AVI file ---
+    std::vector<const uint8_t*> frame_ptrs(T_out);
+    for (int t = 0; t < T_out; t++) frame_ptrs[t] = frame_bufs[t].data();
+    int fps = params->fps > 0 ? params->fps : 8;
+    int ret = create_mjpg_avi_from_rgb_frames(output_path, frame_ptrs.data(),
+                                               T_out, W, H, fps, 90);
+    ggml_free(denoise_ctx);
+    ggml_free(output_ctx);
+    if (resized) free(resized_img.data);
+
+    return ret == 0 ? WAN_SUCCESS : WAN_ERROR_BACKEND_FAILED;
 }
 
 /* ============================================================================
