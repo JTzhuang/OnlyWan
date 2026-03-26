@@ -1,0 +1,12 @@
+{
+  "backend": "cuda",
+  "n_threads": 4,
+  "gpu_ids": [0],
+  "models": {
+    "transformer_path": "/data/zhongwang2/jtzhuang/projects/OnlyWan/models/open-clip-xlm-roberta-large-vit-huge-14.safetensors",
+    "vae_path": "/data/zhongwang2/jtzhuang/projects/OnlyWan/models/Wan2.2_VAE.safetensors",
+    "text_encoder_path": "/data/zhongwang2/jtzhuang/projects/OnlyWan/models/umt5_xxl_fp16.safetensors",
+    "clip_path": "/data/zhongwang2/jtzhuang/projects/OnlyWan/models/open-clip-xlm-roberta-large-vit-huge-14.safetensors"
+  },
+  "wan_config_file": "/data/zhongwang2/jtzhuang/projects/OnlyWan/models/wan_config.json"
+}

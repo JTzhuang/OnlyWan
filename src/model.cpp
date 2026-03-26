@@ -1582,9 +1582,6 @@ bool ModelLoader::load_tensors(on_new_tensor_cb_t on_new_tensor_cb, int n_thread
         }
         total_tensors_processed += file_tensors.size();
         pretty_progress(static_cast<int>(total_tensors_processed), static_cast<int>(total_tensors_to_process), (ggml_time_ms() - t_start) / 1000.0f / (total_tensors_processed + 1e-6f));
-        if (total_tensors_processed < total_tensors_to_process) {
-            printf("\n");
-        }
     }
 
     int64_t end_time = ggml_time_ms();
@@ -1621,7 +1618,7 @@ bool ModelLoader::load_tensors(std::map<std::string, struct ggml_tensor*>& tenso
                     return true;
                 }
             }
-            LOG_INFO("unknown tensor '%s' in model file", tensor_storage.to_string().c_str());
+            LOG_DEBUG("unknown tensor '%s' in model file", tensor_storage.to_string().c_str());
             return true;
         }
 

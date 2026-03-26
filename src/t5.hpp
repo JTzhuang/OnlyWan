@@ -977,10 +977,13 @@ struct T5Embedder {
             std::vector<int>& tokens    = std::get<0>(tokens_and_weights);
             std::vector<float>& weights = std::get<1>(tokens_and_weights);
             std::vector<float>& masks   = std::get<2>(tokens_and_weights);
-            for (auto token : tokens) {
-                printf("%d ", token);
+            {
+                std::stringstream ss;
+                for (auto token : tokens) {
+                    ss << token << " ";
+                }
+                LOG_DEBUG("tokens: %s", ss.str().c_str());
             }
-            printf("\n");
             auto input_ids          = vector_to_ggml_tensor_i32(work_ctx, tokens);
             auto attention_mask     = vector_to_ggml_tensor(work_ctx, masks);
             struct ggml_tensor* out = nullptr;

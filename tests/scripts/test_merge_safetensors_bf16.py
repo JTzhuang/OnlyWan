@@ -1,7 +1,6 @@
 from pathlib import Path
 import subprocess
 
-import pytest
 import torch
 from safetensors.torch import load_file, save_file
 

@@ -1547,13 +1547,13 @@ namespace Flux {
             std::shared_ptr<FluxRunner> flux = std::make_shared<FluxRunner>(backend,
                                                                             false,
                                                                             tensor_storage_map,
-                                                                            "model.diffusion_model",
+                                                                            "",
                                                                             VERSION_FLUX2,
                                                                             false);
 
             flux->alloc_params_buffer();
             std::map<std::string, ggml_tensor*> tensors;
-            flux->get_param_tensors(tensors, "model.diffusion_model");
+            flux->get_param_tensors(tensors, "");
 
             bool success = model_loader.load_tensors(tensors);
 

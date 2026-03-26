@@ -45,7 +45,7 @@ typedef struct {
     int show_version;             // Show version info
 
     /* Status */
-    int mode;                     // 0 = none, 1 = T2V, 2 = I2V
+    int mode;                     // 0 = none, 1 = T2V, 2 = I2V, 3 = TI2V
 } cli_options_t;
 
 /* ============================================================================
@@ -290,7 +290,9 @@ static int parse_args(cli_options_t* opts, int argc, char** argv) {
     }
 
     /* Determine mode */
-    if (opts->input_image) {
+    if (opts->input_image && opts->prompt) {
+        opts->mode = 3;  // TI2V
+    } else if (opts->input_image) {
         opts->mode = 2;  // I2V
     } else if (opts->prompt) {
         opts->mode = 1;  // T2V
@@ -362,7 +364,10 @@ static void print_generation_info(const cli_options_t* opts) {
     printf("==================================================\n\n");
 
     printf("Mode: ");
-    if (opts->mode == 2) {
+    if (opts->mode == 3) {
+        printf("Text+Image-to-Video (TI2V)\n");
+        printf("Input: %s\n", opts->input_image);
+    } else if (opts->mode == 2) {
         printf("Image-to-Video (I2V)\n");
         printf("Input: %s\n", opts->input_image);
     } else {
@@ -487,7 +492,21 @@ int main(int argc, char** argv) {
     printf("Generating video...\n\n");
     err = WAN_ERROR_UNKNOWN;
 
-    if (opts.mode == 2) {
+    if (opts.mode == 3) {
+        /* TI2V mode */
+        wan_image_t* image = NULL;
+        err = wan_load_image(opts.input_image, &image);
+
+        if (err != WAN_SUCCESS) {
+            fprintf(stderr, "Error loading input image: %d\n", err);
+            wan_params_free(params);
+            wan_free(ctx);
+            return 1;
+        }
+
+        err = wan_generate_video_ti2v_ex(ctx, image, opts.prompt, params, opts.output_path);
+        wan_free_image(image);
+    } else if (opts.mode == 2) {
         /* I2V mode */
         wan_image_t* image = NULL;
         err = wan_load_image(opts.input_image, &image);

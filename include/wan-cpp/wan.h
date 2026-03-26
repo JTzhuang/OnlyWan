@@ -239,6 +239,28 @@ wan_error_t wan_generate_video_i2v_ex(wan_context_t* ctx,
                                       const wan_params_t* params,
                                       const char* output_path);
 
+/** Generate video from text + image (TI2V mode)
+ *
+ * @param ctx Wan context handle
+ * @param image Input image
+ * @param prompt Text prompt for conditioning
+ * @param params Generation parameters
+ * @param output_path Path to save the output video
+ * @return WAN_SUCCESS on success, error code on failure
+ */
+wan_error_t wan_generate_video_ti2v_ex(wan_context_t* ctx,
+                                       const wan_image_t* image,
+                                       const char* prompt,
+                                       const wan_params_t* params,
+                                       const char* output_path);
+
+/** Get the model type
+ *
+ * @param ctx Wan context handle
+ * @return Model type string: "t2v", "i2v", or "ti2v"
+ */
+const char* wan_get_model_type(wan_context_t* ctx);
+
 /** Load an image from file for I2V generation
  *
  * @param image_path Path to the image file (PNG, JPEG, etc.)
