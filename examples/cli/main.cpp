@@ -18,13 +18,12 @@
 
 typedef struct {
     /* Required options */
-    char* model_path;              // Path to GGUF model file
+    char* config_path;             // Path to config.json file
     char* prompt;                  // Text prompt for generation
 
     /* Optional options */
     char* input_image;             // Input image for I2V mode
     char* output_path;             // Output video path
-    char* backend;                 // Backend type (cpu, cuda, metal, vulkan)
     char* negative_prompt;         // Negative prompt
     char* vocab_dir;               // Vocab directory (required for WAN_EMBED_VOCAB=OFF builds)
     char* gpu_ids;                 // Comma-separated GPU IDs (e.g., "0,1,2")
@@ -92,9 +91,9 @@ static int progress_callback(int step, int total_steps, float progress, void* us
 
 static void print_usage(const char* program_name) {
     printf("wan-cpp CLI - Video generation using Wan models (WAN2.1, WAN2.2)\n\n");
-    printf("Usage: %s [options]\n\n", program_name);
-    printf("Required Options:\n");
-    printf("  -m, --model <path>         Path to GG model file\n");
+    printf("Usage: %s <config_json> [options]\n\n", program_name);
+    printf("Required Arguments:\n");
+    printf("  <config_json>              Path to config.json file\n");
     printf("  -p, --prompt <text>         Text prompt for generation\n\n");
     printf("Optional Options:\n");
     printf("  -i, --input <path>         Input image for I2V mode\n");
@@ -119,11 +118,11 @@ static void print_usage(const char* program_name) {
     printf("  --version                   Show version information\n\n");
     printf("Examples:\n");
     printf("  # Text-to-Video generation\n");
-    printf("  %s -m model.gguf -p \"A cat playing\" -o video.avi\n\n", program_name);
+    printf("  %s config.json -p \"A cat playing\" -o video.avi\n\n", program_name);
     printf("  # Image-to-Video generation\n");
-    printf("  %s -m model.gguf -i frame.jpg -p \"Make it move\" -o output.avi\n\n", program_name);
+    printf("  %s config.json -i frame.jpg -p \"Make it move\" -o output.avi\n\n", program_name);
     printf("  # High quality generation\n");
-    printf("  %s -m model.gguf -p \"A sunset beach\" -s 50 --cfg 12.0 -W 1024 -H 576\n\n", program_name);
+    printf("  %s config.json -p \"A sunset beach\" -s 50 --cfg 12.0 -W 1024 -H 576\n\n", program_name);
 }
 
 /* ============================================================================
@@ -131,11 +130,10 @@ static void print_usage(const char* program_name) {
  * ============================================================================ */
 
 static void init_options(cli_options_t* opts) {
-    opts->model_path = NULL;
+    opts->config_path = NULL;
     opts->prompt = NULL;
     opts->input_image = NULL;
     opts->output_path = NULL;
-    opts->backend = NULL;
     opts->negative_prompt = NULL;
     opts->vocab_dir = NULL;
     opts->gpu_ids = NULL;
@@ -158,9 +156,17 @@ static void init_options(cli_options_t* opts) {
 
 static int parse_args(cli_options_t* opts, int argc, char** argv) {
     init_options(opts);
+    int positional_count = 0;
 
     for (int i = 1; i < argc; i++) {
         const char* arg = argv[i];
+
+        /* Positional argument for config path */
+        if (arg[0] != '-' && positional_count == 0) {
+            opts->config_path = (char*)arg;
+            positional_count++;
+            continue;
+        }
 
         /* Help */
         if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
@@ -169,17 +175,11 @@ static int parse_args(cli_options_t* opts, int argc, char** argv) {
         }
 
         /* Version */
-        if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0 && (i == 1 || strcmp(argv[i-1], "-v") != 0)) {
+        if (strcmp(arg, "--version") == 0 || (strcmp(arg, "-v") == 0 && (i == 1 || strcmp(argv[i-1], "-v") != 0))) {
             if (strcmp(arg, "--version") == 0) {
                 opts->show_version = 1;
                 return 0;
             }
-        }
-
-        /* Model path */
-        if ((strcmp(arg, "-m") == 0 || strcmp(arg, "--model") == 0) && i + 1 < argc) {
-            opts->model_path = argv[++i];
-            continue;
         }
 
         /* Prompt */
@@ -197,12 +197,6 @@ static int parse_args(cli_options_t* opts, int argc, char** argv) {
         /* Output path */
         if ((strcmp(arg, "-o") == 0 || strcmp(arg, "--output") == 0) && i + 1 < argc) {
             opts->output_path = argv[++i];
-            continue;
-        }
-
-        /* Backend */
-        if ((strcmp(arg, "-b") == 0 || strcmp(arg, "--backend") == 0) && i + 1 < argc) {
-            opts->backend = argv[++i];
             continue;
         }
 
@@ -285,7 +279,12 @@ static int parse_args(cli_options_t* opts, int argc, char** argv) {
             continue;
         }
 
-        /* Unknown option */
+        /* Unknown option or extra positional argument */
+        if (arg[0] != '-') {
+            fprintf(stderr, "Warning: Ignoring extra positional argument: %s\n", arg);
+            continue;
+        }
+
         fprintf(stderr, "Error: Unknown option: %s\n", arg);
         return 1;
     }
@@ -302,11 +301,6 @@ static int parse_args(cli_options_t* opts, int argc, char** argv) {
         opts->output_path = (char*)"output.avi";
     }
 
-    /* Set default backend */
-    if (!opts->backend) {
-        opts->backend = (char*)"cpu";
-    }
-
     /* Set random seed if needed */
     if (opts->seed < 0) {
         opts->seed = (int)time(NULL);
@@ -320,8 +314,8 @@ static int parse_args(cli_options_t* opts, int argc, char** argv) {
  * ============================================================================ */
 
 static int validate_options(const cli_options_t* opts) {
-    if (!opts->model_path) {
-        fprintf(stderr, "Error: Model path is required. Use -m or --model.\n");
+    if (!opts->config_path) {
+        fprintf(stderr, "Error: config.json path is required.\n");
         return 1;
     }
 
@@ -375,7 +369,7 @@ static void print_generation_info(const cli_options_t* opts) {
         printf("Text-to-Video (T2V)\n");
     }
 
-    printf("\nModel: %s\n", opts->model_path);
+    printf("\nConfig: %s\n", opts->config_path);
     printf("Prompt: %s\n", opts->prompt);
 
     if (opts->negative_prompt) {
@@ -383,7 +377,6 @@ static void print_generation_info(const cli_options_t* opts) {
     }
 
     printf("\nOutput: %s\n", opts->output_path);
-    printf("Backend: %s\n", opts->backend);
     printf("Threads: %d\n", opts->threads);
 
     printf("\nParameters:\n");
@@ -446,7 +439,7 @@ int main(int argc, char** argv) {
     wan_error_t err;
 
     printf("Loading model...\n");
-    err = wan_load_model(opts.model_path, opts.threads, opts.backend, &ctx);
+    err = wan_load_model(opts.config_path, opts.threads, NULL, &ctx);
 
     if (err != WAN_SUCCESS) {
         fprintf(stderr, "Error loading model: %d\n", err);
@@ -474,7 +467,6 @@ int main(int argc, char** argv) {
     wan_params_set_num_frames(params, opts.num_frames);
     wan_params_set_fps(params, opts.fps);
     wan_params_set_n_threads(params, opts.threads);
-    wan_params_set_backend(params, opts.backend);
     wan_params_set_progress_callback(params, progress_callback, NULL);
 
     if (opts.negative_prompt) {

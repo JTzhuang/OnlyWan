@@ -393,7 +393,18 @@ WAN_API wan_error_t wan_load_model(const char* model_path,
 
     ctx->model_path = model_path;  // Now stores config file path (not model weights)
     ctx->n_threads = n_threads;
-    ctx->backend_type = backend_type ? backend_type : "cpu";
+
+    // Determine effective backend: CLI param > config file > "cpu"
+    if (backend_type) {
+        ctx->backend_type = backend_type;
+    } else {
+        try {
+            WanLoadConfig load_cfg = ConfigLoader::load_config(model_path);
+            ctx->backend_type = !load_cfg.backend.empty() ? load_cfg.backend : "cpu";
+        } catch (...) {
+            ctx->backend_type = "cpu";
+        }
+    }
 
     // Load model via config-driven approach
     LOG_INFO("Loading model from config: %s", ctx->model_path.c_str());
@@ -419,6 +430,8 @@ WAN_API wan_error_t wan_load_model(const char* model_path,
         set_last_error(ctx.get(), "Failed to initialize backend");
         return WAN_ERROR_BACKEND_FAILED;
     }
+
+    LOG_INFO("Backend initialized: %s", ggml_backend_name(ctx->backend->backend));
 
     // OP-01: Auto-enable Flash Attention for non-CPU backends
     ggml_backend_t backend = ctx->backend->backend;
