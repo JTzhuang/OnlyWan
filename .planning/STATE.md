@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: 性能优化与多卡推理
+milestone: v1.1
+milestone_name: 模型格式扩展
 current_phase: 16
-status: unknown
-last_updated: "2026-03-25T00:00:00.000Z"
+status: Phase complete — ready for verification
+last_updated: "2026-03-26T02:09:44.323Z"
 progress:
-  total_phases: 16
-  completed_phases: 15
-  total_plans: 26
-  completed_plans: 25
+  total_phases: 8
+  completed_phases: 8
+  total_plans: 14
+  completed_plans: 14
 ---
 
 # Project State: wan-cpp
@@ -20,14 +20,12 @@ progress:
 ## Project Reference
 
 **Core Value:** Provide independent, lightweight, cross-platform WAN video generation inference capabilities
-**Current Focus:** Phase 16 - 集成 spdlog 日志系统
+**Current Focus:** Phase 16 — spdlog
 
 ## Current Position
 
-| Phase | 16 - 集成 spdlog 日志系统 |
-| Plan | 01 |
-| Status | Completed |
-| Progress | 100% (1/1 plans complete) |
+Phase: 16 (spdlog) — EXECUTING
+Plan: 1 of 1
 
 ## Phase Progress
 
@@ -76,6 +74,7 @@ progress:
 | Phase 15 P03 | 167 | 3 tasks | 4 files |
 | Phase 15 P02 | 341 | 3 tasks | 6 files |
 | 15 - Multi-GPU Inference Support | 15-04 | 278 | 4 | 5 | 2026-03-18T05:23:54Z | 2026-03-18T05:28:32Z |
+| Phase 16 P01 | 888 | 4 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -163,18 +162,21 @@ progress:
 ### Phase 15 - Multi-GPU Inference Support
 
 **Decision:** Use ggml_backend_sched_t for multi-GPU scheduling
+
 - **Context:** Need to coordinate multiple GPU backends for distributed inference
 - **Rationale:** GGML provides built-in backend scheduler with automatic memory management and tensor placement optimization
 - **Impact:** Reduces implementation complexity, leverages battle-tested GGML infrastructure
 - **Date:** 2026-03-18
 
 **Decision:** Guard multi-GPU code with WAN_USE_MULTI_GPU
+
 - **Context:** Need to maintain backward compatibility with single-GPU builds
 - **Rationale:** Ensures single-GPU builds remain unaffected and compile without CUDA dependencies
 - **Impact:** Clean separation of concerns, no overhead for CPU/single-GPU users
 - **Date:** 2026-03-18
 
 **Decision:** Make NCCL optional with fallback warning
+
 - **Context:** Not all systems have NCCL installed
 - **Rationale:** Basic multi-GPU can work without NCCL using CUDA peer-to-peer communication
 - **Impact:** Broader compatibility, graceful degradation when NCCL unavailable
@@ -183,6 +185,9 @@ progress:
 - [Phase 15]: Round-robin GPU assignment for balanced load distribution across GPUs
 - [Phase 15]: Use ggml_backend_cuda_split_buffer_type for tensor distribution across GPUs
 - [Phase 15]: Target gpu_ids[0] as main_device for primary backend operations
+- [Phase 16]: Custom sink pattern for callback distribution - sd_callback_sink_mt intercepts formatted messages
+- [Phase 16]: dist_sink_mt composition for multi-sink logging (stdout + callback)
+- [Phase 16]: Simplified callback signature - removed level parameter, spdlog formats complete message
 
 ## Todo Items
 

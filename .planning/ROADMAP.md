@@ -163,7 +163,7 @@ Plans:
 **Goal:** 集成 spdlog 日志系统，支持日志级别控制（通过环境变量 WAN_LOG_LEVEL）并保持 C API 兼容。
 **Requirements**: LOG-01, LOG-02, LOG-03, LOG-04
 **Depends on:** Phase 15
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [x] 16-01-PLAN.md — 基础 spdlog 集成与 util 日志宏重写 (LOG-01, LOG-02, LOG-03, LOG-04)
