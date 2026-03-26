@@ -80,6 +80,7 @@ int32_t sd_get_num_physical_cores();
 
 const char* sd_get_system_info();
 void sd_set_log_callback(sd_log_cb_t cb, void* data);
+void sd_set_log_level(sd_log_level_t level);
 void sd_set_progress_callback(sd_progress_cb_t cb, void* data);
 void sd_set_preview_callback(sd_preview_cb_t cb, preview_t mode, int interval, bool denoised, bool noisy, void* data);
 std::vector<std::pair<std::string, float>> parse_prompt_attention(const std::string& text);

@@ -14,6 +14,8 @@
 #include <vector>
 
 #include "spdlog/sinks/stdout_color_sinks.h"
+#include "spdlog/sinks/base_sink.h"
+#include "spdlog/sinks/dist_sink.h"
 #include "preprocessing.hpp"
 
 #if defined(__APPLE__) && defined(__MACH__)
@@ -394,13 +396,34 @@ std::string trim(const std::string& s) {
 static sd_log_cb_t sd_log_cb = nullptr;
 void* sd_log_cb_data         = nullptr;
 
+// Custom sink for user callbacks
+class sd_callback_sink_mt : public spdlog::sinks::base_sink<std::mutex> {
+protected:
+    void sink_it_(const spdlog::details::log_msg& msg) override {
+        if (sd_log_cb) {
+            spdlog::memory_buf_t formatted;
+            formatter_->format(msg, formatted);
+            std::string text(formatted.data(), formatted.size());
+            sd_log_cb(text.c_str(), sd_log_cb_data);
+        }
+    }
+    void flush_() override {}
+};
+
 static std::shared_ptr<spdlog::logger> get_wan_logger() {
     static std::shared_ptr<spdlog::logger> wan_logger;
     static std::once_flag init_flag;
 
     std::call_once(init_flag, []() {
-        wan_logger = spdlog::stdout_color_mt("wan-cpp");
-        wan_logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%n] [%^%l%$] %v");
+        auto stdout_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+        auto callback_sink = std::make_shared<sd_callback_sink_mt>();
+
+        auto dist_sink = std::make_shared<spdlog::sinks::dist_sink_mt>();
+        dist_sink->add_sink(stdout_sink);
+        dist_sink->add_sink(callback_sink);
+
+        wan_logger = std::make_shared<spdlog::logger>("wan-cpp", dist_sink);
+        wan_logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v");
 
         const char* level_env = std::getenv("WAN_LOG_LEVEL");
         if (level_env) {
@@ -421,6 +444,8 @@ static std::shared_ptr<spdlog::logger> get_wan_logger() {
         } else {
             wan_logger->set_level(spdlog::level::info);
         }
+
+        spdlog::register_logger(wan_logger);
     });
 
     return wan_logger;
@@ -437,7 +462,6 @@ void log_printf(sd_log_level_t level, const char* file, int line, const char* fo
     va_end(args);
 
     std::string msg = sd_basename(file) + ":" + std::to_string(line) + " - " + log_buffer;
-    // Remove trailing newline if it exists, as spdlog adds one
     if (!msg.empty() && msg.back() == '\n') {
         msg.pop_back();
     }
@@ -460,17 +484,32 @@ void log_printf(sd_log_level_t level, const char* file, int line, const char* fo
             logger->info(msg);
             break;
     }
-
-    if (sd_log_cb) {
-        // For callback, ensure it has a newline as before
-        std::string cb_msg = msg + "\n";
-        sd_log_cb(level, cb_msg.c_str(), sd_log_cb_data);
-    }
 }
 
 void sd_set_log_callback(sd_log_cb_t cb, void* data) {
     sd_log_cb      = cb;
     sd_log_cb_data = data;
+}
+
+void sd_set_log_level(sd_log_level_t level) {
+    auto logger = get_wan_logger();
+    switch (level) {
+        case SD_LOG_DEBUG:
+            logger->set_level(spdlog::level::debug);
+            break;
+        case SD_LOG_INFO:
+            logger->set_level(spdlog::level::info);
+            break;
+        case SD_LOG_WARN:
+            logger->set_level(spdlog::level::warn);
+            break;
+        case SD_LOG_ERROR:
+            logger->set_level(spdlog::level::err);
+            break;
+        default:
+            logger->set_level(spdlog::level::info);
+            break;
+    }
 }
 void sd_set_progress_callback(sd_progress_cb_t cb, void* data) {
     sd_progress_cb      = cb;
