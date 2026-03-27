@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: 模型格式扩展
 current_phase: 17
-status: Ready to execute
-last_updated: "2026-03-27T03:47:10.713Z"
+status: Phase complete — ready for verification
+last_updated: "2026-03-27T04:00:00.576Z"
 progress:
   total_phases: 9
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 16
-  completed_plans: 15
+  completed_plans: 16
 ---
 
 # Project State: wan-cpp
@@ -77,6 +77,7 @@ Plan: 2 of 2
 | Phase 16 P01 | 888 | 4 tasks | 5 files |
 | Phase quick P260326-h31 | 3 min | 3 tasks | 2 files |
 | Phase 17 P01 | 1843 | 2 tasks | 11 files |
+| Phase 17 P02 | 9 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -196,6 +197,9 @@ Plan: 2 of 2
 - [Phase 17]: T5Runner::get_desc() always returns 't5' regardless of is_umt5 flag — plan docs were incorrect; source is authoritative
 - [Phase 17]: AutoEncoderKL::get_desc() returns 'vae' not 'AutoEncoderKL' — verified from vae.hpp
 - [Phase 17]: FluxRunner guard head_dim>0 before division to avoid SIGFPE on empty tensor_storage_map
+- [Phase 17]: T5Runner::get_desc() returns 't5' for both STANDARD_T5 and UMT5 — test files reflect source truth over plan docs
+- [Phase 17]: ModelFactory<VAE,SDVersion> used for polymorphic VAE factory (returns unique_ptr<VAE> via AutoEncoderKL)
+- [Phase 17]: VERSION_FLEX_2 is correct enum for Flex-2 Flux variant; VERSION_FLUX2 is separate VAE-only enum
 
 ## Todo Items
 
