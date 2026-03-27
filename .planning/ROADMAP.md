@@ -7,7 +7,8 @@
 
 - ✅ **v1.0 MVP** — Phases 1-8 (shipped 2018-03-16)
 - ✅ **v1.1 模型格式扩展** — Phases 9-13 (completed 2018-03-17)
-- 🔄 **v1.2 性能优化与多卡推理** — Phases 14-15 (in progress)
+- ✅ **v1.2 性能优化与模型工程** — Phases 14-18 (completed 2026-03-27)
+- 🔄 **v1.3 分布式推理与生产环境增强** — Phase 15 Plan 05+ (in progress)
 
 ## Phases
 
@@ -27,164 +28,60 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
 
 </details>
 
-### v1.1 模型格式扩展 (Phases 9-13)
+<details>
+<summary>✅ v1.1 模型格式扩展 (Phases 9-13) — SHIPPED 2018-03-17</summary>
 
-- [x] **Phase 9: API Fixes + Vocab mmap** - 移除遗留 stub，接通 progress_cb，词汇表改为 mmap 加载 (completed 2018-03-16)
-- [x] **Phase 10: Safetensors Runtime Loading** - 运行时直接加载 .safetensors 格式 WAN 模型 (completed 2018-03-17)
-- [x] **Phase 11: Safetensors Conversion Tool** - 独立 CLI 工具将 safetensors 转换为 GGUF (completed 2018-03-17)
-- [x] **Phase 12: Wire Vocab Dir to Public API** - 暴露 wan_set_vocab_dir，修复 T2V/I2V 词汇表加载 (completed 2018-03-17)
-- [x] **Phase 13: Document wan-convert Sub-model Scope** - 明确 vae/t5/clip 转换类型的使用限制 (completed 2018-03-17)
+- [x] Phase 9: API Fixes + Vocab mmap (2/2 plans) — completed 2018-03-16
+- [x] Phase 10: Safetensors Runtime Loading (1/1 plans) — completed 2018-03-17
+- [x] Phase 11: Safetensors Conversion Tool (1/1 plans) — completed 2018-03-17
+- [x] Phase 12: Wire Vocab Dir to Public API (1/1 plans) — completed 2018-03-17
+- [x] Phase 13: Document wan-convert Sub-model Scope (1/1 plans) — completed 2018-03-17
+
+</details>
+
+<details>
+<summary>✅ v1.2 性能优化与模型工程 (Phases 14, 16-18) — SHIPPED 2026-03-27</summary>
+
+- [x] Phase 14: 性能优化 - CUDA Graph 和算子融合 (2/2 plans) — completed 2018-03-17
+- [x] Phase 16: spdlog 日志系统集成 (1/1 plans) — completed 2026-03-26
+- [x] Phase 17: 单元测试 (2/2 plans) — completed 2026-03-27
+- [x] Phase 18: 模型注册机制重构 (1/1 plans) — completed 2026-03-27
+
+</details>
 
 ## Phase Details
 
-### Phase 9: API Fixes + Vocab mmap
-**Goal**: v1.0 遗留问题全部修复，API 行为与文档一致
-**Depends on**: Phase 8 (v1.0 complete)
-**Requirements**: FIX-01, FIX-02, PERF-01
-**Success Criteria** (what must be TRUE):
-  1. 调用 `wan_generate_video_t2v` / `wan_generate_video_i2v` 实际执行生成，不再返回 WAN_ERROR_UNSUPPORTED
-  2. 生成过程中 progress_cb 在每个 Euler 步骤触发，传入正确的 step/total 值
-  3. 库编译时不再嵌入 ~85MB 词汇表头文件；词汇表从外部文件 mmap 加载
-  4. 现有 T2V/I2V 生成结果与 v1.0 _ex 接口输出一致（无回归）
-**Plans**: 2 plans
-Plans:
-- [x] 09-01-PLAN.md — Fix T2V/I2V stubs (FIX-01) + wire progress_cb into both Euler loops (FIX-02)
-- [x] 09-02-PLAN.md — Replace embedded vocab arrays with mmap loading + WAN_EMBED_VOCAB CMake option (PERF-01)
+### Phase 14: 性能优化 - CUDA Graph 和算子融合
+**Goal:** 实现 5 个 Quick Wins 优化，达成 2-5x 去噪循环加速和 10-20% 整体推理加速
+- [x] 14-01-PLAN.md — 缓冲区持久化 + Flash Attention 自动启用 + CUDA Graph 编译标志 (CG-01, OP-01, CG-02)
+- [x] 14-02-PLAN.md — RoPE PE GPU 化 + Linear+GELU 算子融合 (OP-02, FUS-02)
 
-### Phase 10: Safetensors Runtime Loading
-**Goal**: 用户可直接用 .safetensors 文件调用 wan_load_model，无需预转换
-**Depends on**: Phase 9
-**Requirements**: SAFE-01
-**Success Criteria** (what must be TRUE):
-  1. `wan_load_model` 接受 .safetensors 路径，成功返回有效 WanModel 句柄
-  2. 用 safetensors 加载的模型执行 T2V 生成，输出与 GGUF 加载结果等价
-  3. 传入无效或损坏的 safetensors 文件时返回明确错误码，不崩溃
-**Plans**: 1 plan
-Plans:
-- [x] 10-01-PLAN.md — Add safetensors dispatch branch to WanModel::load (SAFE-01)
+### Phase 15: 多卡推理支持
+**Goal:** 支持多 GPU 分布式推理，通过张量并行和数据并行提升吞吐量
+- [x] 15-00-PLAN.md — Wave 0 测试基础设施 (MGPU-01)
+- [x] 15-01-PLAN.md — Wave 1 多卡 API 类型定义 + CMake NCCL 集成 (MGPU-02, MGPU-03)
+- [x] 15-02-PLAN.md — Wave 3 多卡后端初始化 + 张量并行模型加载 (MGPU-04, MGPU-05)
+- [x] 15-03-PLAN.md — Wave 2 数据并行批量生成实现 (MGPU-06)
+- [x] 15-04-PLAN.md — Wave 4 CLI 多卡参数 + GPU 信息查询 (MGPU-08, MGPU-09, MGPU-10)
 
-### Phase 11: Safetensors Conversion Tool
-**Goal**: 用户可将 WAN2.1/2.2 所有子模型从 safetensors 批量转换为 GGUF
-**Depends on**: Phase 10
-**Requirements**: SAFE-02, SAFE-03
-**Success Criteria** (what must be TRUE):
-  1. `wan-convert` CLI 可执行文件存在，`--help` 输出用法说明
-  2. 转换 DiT、VAE、T5、CLIP 子模型各自的 safetensors 文件，生成可被 wan_load_model 加载的 GGUF 文件
-  3. 转换后的 GGUF 文件执行 T2V/I2V 生成，输出与原始 safetensors 直接加载结果一致
-**Plans**: 1 plan
-Plans:
-- [x] 11-01-PLAN.md — Extend save_to_gguf_file with metadata map + wan-convert CLI + CMake wiring (SAFE-02, SAFE-03)
+### Phase 16: spdlog 日志系统集成
+**Goal:** 集成 spdlog 日志系统，支持级别控制并保持 C API 兼容
+- [x] 16-01-PLAN.md — 基础 spdlog 集成与 util 日志宏重写 (LOG-01, LOG-02, LOG-03, LOG-04)
 
-### Phase 12: Wire Vocab Dir to Public API
-**Goal**: T2V/I2V 生成在 WAN_EMBED_VOCAB=OFF 时正常工作，词汇表目录通过公共 API 设置
-**Depends on**: Phase 11
-**Requirements**: PERF-01, ENCODER-01, ENCODER-02, API-03, API-04
-**Success Criteria** (what must be TRUE):
-  1. `wan.h` 声明 `wan_set_vocab_dir(const char* dir)` 函数
-  2. `wan-cli` 支持 `--vocab-dir` 参数，调用 `wan_set_vocab_dir` 后 T2V/I2V 生成成功
-  3. 使用 `WAN_EMBED_VOCAB=OFF` 构建时，提供词汇表目录后生成不返回 `WAN_ERROR_INVALID_ARGUMENT`
-**Plans**: 1 plan
-Plans:
-- [x] 12-01-PLAN.md — Add vocab accessors + wan_set_vocab_dir public API + --vocab-dir CLI arg (PERF-01, ENCODER-01, ENCODER-02, API-03, API-04)
+### Phase 17: 单元测试
+**Goal:** 为核心模型建立 C++ 单元测试框架，使用模板工厂管理版本
+- [x] 17-01-PLAN.md — 测试基础设施 + 模板工厂 + 工厂单元测试 (TEST-01, TEST-02)
+- [x] 17-02-PLAN.md — 四个模型的版本初始化单元测试 (TEST-03)
 
-### Phase 13: Document wan-convert Sub-model Scope
-**Goal**: 用户清楚了解 wan-convert 各 --type 值的适用范围，SAFE-03 限制有文档说明
-**Depends on**: Phase 12
-**Requirements**: SAFE-03
-**Success Criteria** (what must be TRUE):
-  1. `wan-convert --help` 输出说明哪些 `--type` 值（dit-t2v/dit-i2v/dit-ti2v）产生可被 `wan_load_model` 加载的文件
-  2. README 或 examples/convert/ 文档说明 vae/t5/clip 类型为未来多文件加载预留
-  3. REQUIREMENTS.md SAFE-03 追踪性更新，反映当前部分满足状态及限制
-**Plans**: 1 plan
-Plans:
-- [x] 13-01-PLAN.md — Annotate print_usage() + create examples/convert/README.md + verify SAFE-03 traceability (SAFE-03)
+### Phase 18: 模型注册机制重构 - 宏注册 + 字符串版本
+**Goal:** 模型版本注册迁移到 src/，使用宏全局注册，字符串区分版本
+- [x] 18-01-PLAN.md — PerTypeRegistry 基础设施 + 9 个 WAN 模型注册 + 5 个测试重构 (REG-01, REG-02, REG-03, REG-04, REG-05)
 
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 1. Foundation | v1.0 | 1/1 | Complete | 2018-03-12 |
-| 2. Build System | v1.0 | 1/1 | Complete | 2018-03-12 |
-| 3. Public API | v1.0 | 1/1 | Complete | 2018-03-15 |
-| 4. Examples | v1.0 | 1/1 | Complete | 2018-03-15 |
-| 5. Encoders | v1.0 | 1/1 | Complete | 2018-03-16 |
-| 6. Fix Duplicate Symbols | v1.0 | 1/1 | Complete | 2018-03-16 |
-| 7. Wire Core Model to API | v1.0 | 3/3 | Complete | 2018-03-16 |
-| 8. Implement Generation + AVI Output | v1.0 | 2/2 | Complete | 2018-03-16 |
-| 9. API Fixes + Vocab mmap | v1.1 | 2/2 | Complete | 2018-03-16 |
-| 10. Safetensors Runtime Loading | v1.1 | 1/1 | Complete | 2018-03-17 |
-| 11. Safetensors Conversion Tool | v1.1 | 1/1 | Complete | 2018-03-17 |
-| 12. Wire Vocab Dir to Public API | v1.1 | 1/1 | Complete | 2018-03-17 |
-| 13. Document wan-convert Sub-model Scope | v1.1 | 1/1 | Complete | 2018-03-17 |
-| 14. 性能优化 - CUDA Graph 和算子融合 | v1.2 | 2/2 | Complete | 2018-03-17 |
-| 15. 多卡推理支持 | 4/5 | Complete    | 2018-03-18 | - |
-
-### Phase 14: 性能优化 - CUDA Graph 和算子融合
-
-**Goal:** 实现 5 个 Quick Wins 优化（CG-01、OP-01、CG-02、OP-02、FUS-02），达成 2-5x 去噪循环加速和 10-20% 整体推理加速
-**Requirements**: CG-01, OP-01, CG-02, OP-02, FUS-02
-**Depends on:** Phase 13
-**Success Criteria** (what must be TRUE):
-  1. 去噪循环中 compute buffer 只分配一次，graph 结构跨步复用
-  2. CUDA/Metal 后端自动启用 Flash Attention
-  3. GGML_CUDA_USE_GRAPHS 编译标志在 CUDA 构建中自动定义
-  4. RoPE PE 在去噪循环中只计算一次，后续步从缓存读取
-  5. FFN 路径使用 inplace GELU 或融合的 linear_gelu
-**Plans**: 2 plans
-
-Plans:
-- [x] 14-01-PLAN.md — 缓冲区持久化 + Flash Attention 自动启用 + CUDA Graph 编译标志 (CG-01, OP-01, CG-02)
-- [x] 14-02-PLAN.md — RoPE PE GPU 化 + Linear+GELU 算子融合 (OP-02, FUS-02)
-
-### Phase 15: 多卡推理支持
-
-**Goal:** 支持多 GPU 分布式推理，通过张量并行和数据并行提升吞吐量，保持 API 向后兼容
-**Requirements**: MGPU-01, MGPU-02, MGPU-03, MGPU-04, MGPU-05, MGPU-06, MGPU-07, MGPU-08, MGPU-09, MGPU-10, MGPU-11, MGPU-12
-**Depends on:** Phase 14
-**Success Criteria** (what must be TRUE):
-  1. `wan_params_t` 包含 gpu_ids、num_gpus、distribution_strategy 多卡配置字段
-  2. `wan_load_model_from_file` 在 num_gpus > 1 时初始化多个 CUDA 后端和 ggml_backend_sched
-  3. 去噪循环在多卡模式下使用 ggml_backend_sched_graph_compute 执行
-  4. 数据并行批量生成 API 可将多个请求分发到不同 GPU
-  5. wan-cli 支持 --gpu-ids 和 --num-gpus 参数
-  6. 不指定多卡配置时自动回退到单卡推理，现有 API 行为不变
-  7. CMake WAN_NCCL 选项可条件链接 NCCL 库
-**Plans**: 5 plans
-
-Plans:
-- [x] 15-00-PLAN.md — Wave 0 测试基础设施（测试桩文件）
-- [x] 15-01-PLAN.md — Wave 1 多卡 API 类型定义 + CMake NCCL 集成 (MGPU-01, MGPU-02, MGPU-03, MGPU-11, MGPU-12)
-- [x] 15-02-PLAN.md — Wave 3 多卡后端初始化 + 张量并行模型加载 + 去噪循环适配 (MGPU-04, MGPU-05, MGPU-07, MGPU-12)
-- [x] 15-03-PLAN.md — Wave 2 数据并行批量生成实现 (MGPU-06)
-- [x] 15-04-PLAN.md — Wave 4 CLI 多卡参数 + GPU 信息查询 + 人工验证 (MGPU-08, MGPU-09, MGPU-10)
-
-### Phase 16: 帮我修改一下日志系统，替换成spdlog
-
-**Goal:** 集成 spdlog 日志系统，支持日志级别控制（通过环境变量 WAN_LOG_LEVEL）并保持 C API 兼容。
-**Requirements**: LOG-01, LOG-02, LOG-03, LOG-04
-**Depends on:** Phase 15
-**Plans:** 1/1 plans complete
-
-Plans:
-- [x] 16-01-PLAN.md — 基础 spdlog 集成与 util 日志宏重写 (LOG-01, LOG-02, LOG-03, LOG-04)
-
-### Phase 17: 模型单元测试与工厂模式
-
-**Goal:** 为四个核心模型（CLIP、T5/UMT5、VAE、Transformer/Flux）建立 C++ 单元测试框架，使用通用模板工厂模式管理多版本模型的注册与创建，所有测试通过 ctest 运行
-**Requirements**: TEST-01, TEST-02, TEST-03
-**Depends on:** Phase 16
-**Plans:** 2/2 plans complete
-
-Plans:
-- [x] 17-01-PLAN.md — 测试基础设施 + 模板工厂 + 工厂单元测试 (TEST-01, TEST-02)
-- [x] 17-02-PLAN.md — 四个模型的版本初始化单元测试 (TEST-03)
-
-### Phase 18: 模型注册机制重构 - 宏注册 + 字符串版本（仅 WAN 模型）
-
-**Goal:** 将模型版本注册机制从 tests 迁移到 src/，使用宏进行全局类型注册，用字符串而非枚举进行版本区分；同时重构所有 5 个测试文件以使用字符串注册表，并将 test_transformer.cpp 从 Flux（已删除）迁移到 WAN::WanRunner
-**Requirements**: REG-01, REG-02, REG-03, REG-04, REG-05
-**Depends on:** Phase 17
-**Plans:** 1 plan
-
-Plans:
-- [ ] 18-01-PLAN.md — PerTypeRegistry 基础设施 + 9 个 WAN 模型注册 + 全部 5 个测试文件重构 (REG-01, REG-02, REG-03, REG-04, REG-05)
+| 1-8 | v1.0 | 11/11 | Complete | 2018-03-16 |
+| 9-13 | v1.1 | 6/6 | Complete | 2018-03-17 |
+| 14, 16-18 | v1.2 | 6/6 | Complete | 2026-03-27 |
+| 15 | v1.3 | 5/5 | Complete | 2018-03-18 |

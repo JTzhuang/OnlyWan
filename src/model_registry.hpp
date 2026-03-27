@@ -6,7 +6,8 @@
 #include <memory>
 #include <mutex>
 #include <string>
-#include <vector>
+#include <typeinfo>
+#include <stdexcept>
 
 #include "ggml-backend.h"
 #include "model.h"
@@ -61,10 +62,6 @@ private:
 
     template <typename ModelType>
     std::string get_key(const std::string& version) {
-        // Simple type-name based key. In production, we might want something more robust
-        // but for this project's scope, typeid or a manual name works.
-        // We use the version string directly as a key, but we need to distinguish
-        // between different ModelTypes if they share version strings.
         return std::string(typeid(ModelType).name()) + ":" + version;
     }
 
@@ -75,16 +72,19 @@ private:
     std::mutex mutex_;
 };
 
+#define CONCAT_INTERNAL(a, b) a##b
+#define CONCAT(a, b) CONCAT_INTERNAL(a, b)
+
 #define REGISTER_MODEL_FACTORY(ModelType, VersionString, FactoryBody)           \
     namespace {                                                                 \
-    struct Registrar_##ModelType##_##VersionString {                            \
-        Registrar_##ModelType##_##VersionString() {                             \
+    struct CONCAT(Registrar_, __LINE__) {                                       \
+        CONCAT(Registrar_, __LINE__)() {                                        \
             ModelRegistry::instance()->register_factory<ModelType>(             \
                 VersionString,                                                  \
                 FactoryBody);                                                   \
         }                                                                       \
     };                                                                          \
-    static Registrar_##ModelType##_##VersionString global_registrar_##ModelType##_##VersionString; \
+    static CONCAT(Registrar_, __LINE__) CONCAT(global_registrar_, __LINE__);    \
     }
 
 #endif // __MODEL_REGISTRY_HPP__
