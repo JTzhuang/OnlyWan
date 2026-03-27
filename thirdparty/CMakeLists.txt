@@ -13,3 +13,11 @@ endif()
 set(Z_TARGET zip)
 add_library(${Z_TARGET} OBJECT zip.c zip.h miniz.h)
 target_include_directories(${Z_TARGET} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+# libnpy - header-only .npy file I/O
+if(NOT TARGET libnpy)
+    add_library(libnpy INTERFACE)
+    target_include_directories(libnpy INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+endif()
