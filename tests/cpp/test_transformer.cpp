@@ -79,11 +79,52 @@ void test_wan_transformer_init(TestSuite& suite) {
 }
 
 // ---------------------------------------------------------------------------
+// NpyIO: WAN Transformer latent numerical comparison
+// ---------------------------------------------------------------------------
+// WAN DiT operates on video latent tensors: [frames, height, width, channels].
+// Use save_npy to dump C++ tensors then compare with Python WAN reference outputs.
+
+void test_wan_transformer_npy_io(TestSuite& suite) {
+    suite.run("wan_latent_f32_roundtrip", []() {
+        // Small proxy for WAN latent: [frames=2, h=4, w=4, ch=16]
+        constexpr int frames = 2, h = 4, w = 4, ch = 16;
+        const size_t buf_size = ggml_tensor_overhead() * 8 + frames * h * w * ch * sizeof(float) + 64;
+        std::vector<uint8_t> buf(buf_size);
+        ggml_init_params params{buf_size, buf.data(), false};
+        ggml_context* ctx = ggml_init(params);
+        WAN_ASSERT_TRUE(ctx != nullptr);
+
+        // ggml dim order: ne[0]=ch, ne[1]=w, ne[2]=h, ne[3]=frames
+        ggml_tensor* t = ggml_new_tensor_4d(ctx, GGML_TYPE_F32, ch, w, h, frames);
+        float* data = (float*)t->data;
+        for (int i = 0; i < frames * h * w * ch; ++i) data[i] = (float)i * 0.001f;
+
+        fs::path tmp = fs::temp_directory_path() / "test_wan_latent.npy";
+        save_npy(tmp.string(), t);
+
+        ggml_tensor* loaded = load_npy(ctx, tmp.string());
+        WAN_ASSERT_TRUE(loaded != nullptr);
+        WAN_ASSERT_EQ(loaded->ne[0], t->ne[0]);
+        WAN_ASSERT_EQ(loaded->ne[1], t->ne[1]);
+        WAN_ASSERT_EQ(loaded->ne[2], t->ne[2]);
+        WAN_ASSERT_EQ(loaded->ne[3], t->ne[3]);
+
+        float* ldata = (float*)loaded->data;
+        for (int i = 0; i < frames * h * w * ch; ++i)
+            WAN_ASSERT_TRUE(std::abs(ldata[i] - data[i]) < 1e-6f);
+
+        ggml_free(ctx);
+        fs::remove(tmp);
+    });
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
 int main() {
     TestSuite suite{"WAN Transformer Tests"};
     test_wan_transformer_init(suite);
+    test_wan_transformer_npy_io(suite);
     return suite.report();
 }
