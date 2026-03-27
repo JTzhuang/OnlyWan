@@ -1277,7 +1277,10 @@ namespace Flux {
                 flux_params.chroma_radiance_params.fake_patch_size_x2 = true;
             }
 
-            flux_params.num_heads = static_cast<int>(flux_params.hidden_size / head_dim);
+            if (head_dim > 0) {
+                flux_params.num_heads = static_cast<int>(flux_params.hidden_size / head_dim);
+            }
+            // When head_dim == 0 (empty tensor_storage_map), retain default num_heads (24).
 
             LOG_INFO("flux: depth = %d, depth_single_blocks = %d, guidance_embed = %s, context_in_dim = %" PRId64
                      ", hidden_size = %" PRId64 ", num_heads = %d",
