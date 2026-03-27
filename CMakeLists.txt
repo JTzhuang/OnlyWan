@@ -47,6 +47,7 @@ option(WAN_BUILD_SHARED_LIBS "wan-cpp: build shared libs" OFF)
 option(WAN_BUILD_EXAMPLES     "wan-cpp: build examples"    ${WAN_STANDALONE})
 option(WAN_EMBED_VOCAB "wan-cpp: embed vocabulary arrays in binary (increases build time ~2min, binary +85MB)" OFF)
 option(WAN_CUDA_GRAPHS "wan-cpp: enable CUDA graph capture/replay (requires persistent compute buffer)" ON)
+option(WAN_BUILD_TESTS "wan-cpp: build C++ unit tests" ${WAN_STANDALONE})
 
 # Map wan-cpp options to GGML options
 if(WAN_CUDA)
@@ -271,6 +272,11 @@ if(WAN_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
+if(WAN_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests/cpp)
+endif()
+
 # Install configuration
 install(TARGETS ${WAN_LIB} LIBRARY PUBLIC_HEADER)
 
@@ -287,5 +293,6 @@ message(STATUS "OpenCL backend:     ${WAN_OPENCL}")
 message(STATUS "SYCL backend:       ${WAN_SYCL}")
 message(STATUS "HIPBLAS backend:    ${WAN_HIPBLAS}")
 message(STATUS "MUSA backend:       ${WAN_MUSA}")
+message(STATUS "Build tests:        ${WAN_BUILD_TESTS}")
 message(STATUS "==============================")
 message(STATUS "")
