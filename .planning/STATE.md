@@ -14,17 +14,17 @@ progress:
 
 # Project State: wan-cpp
 
-**Last Updated:** 2026-03-25
-**Current Phase:** 16
+**Last Updated:** 2026-03-27
+**Current Phase:** 17
 
 ## Project Reference
 
 **Core Value:** Provide independent, lightweight, cross-platform WAN video generation inference capabilities
-**Current Focus:** Phase 16 — spdlog
+**Current Focus:** Phase 17 — 模型单元测试与工厂模式
 
 ## Current Position
 
-Phase: 16 (spdlog) — EXECUTING
+Phase: 17 (模型单元测试与工厂模式) — CONTEXT GATHERED
 Plan: Not started
 
 ## Phase Progress
@@ -84,6 +84,7 @@ Plan: Not started
 - Phase 14 added: 性能优化 - CUDA Graph 和算子融合（基于优化 TODO 列表，重点关注 Quick Wins）
 - Phase 15 added: 多卡推理支持
 - Phase 16 added: 帮我修改一下日志系统，替换成spdlog
+- Phase 17 added: 加入各个模型单元测试，包括clip、text_encoder、vae以及transformer四个模型，使用抽象工厂模式去注册各个模型的不同版本
 
 ### Key Decisions
 
