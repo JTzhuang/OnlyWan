@@ -1,109 +1,56 @@
 #include "test_framework.hpp"
 #include "test_helpers.hpp"
-#include "model_factory.hpp"
+#include "model_registry.hpp"
 
-// Including model headers directly is SAFE -- all are header-only with
-// implicitly inline member functions. See review_notes in plan context.
-// flux.hpp has a guard (added in 17-01) to prevent SIGFPE on empty tensor_storage_map:
-//   if (head_dim > 0) { flux_params.num_heads = flux_params.hidden_size / head_dim; }
-#include "flux.hpp"
+// WAN Transformer (DiT) header
+// NOTE: flux.hpp has been REMOVED from src/. This file no longer tests FluxRunner.
+// WAN::WanRunner is the WAN DiT Transformer (replaces Flux for video generation).
+#include "wan.hpp"
 #include "ggml_extend.hpp"
 #include "model.h"
 #include "ggml-backend.h"
 
-// ---------------------------------------------------------------------------
-// Factory helper
-// ---------------------------------------------------------------------------
-
-// Returns a ModelFactory with all 5 Flux SDVersion values registered.
-// Using Flux::FluxRunner (fully qualified per Pitfall 2 from RESEARCH.md).
-//
-// VERSION_FLEX_2 is the CORRECT enum name (verified in src/model.h line 42).
-// It is NOT a typo. VERSION_FLUX2 (line 49) is a separate enum value used for VAE.
-static ModelFactory<Flux::FluxRunner, SDVersion> register_flux_factory() {
-    ModelFactory<Flux::FluxRunner, SDVersion> factory;
-
-    factory.register_version(VERSION_FLUX,
-        [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-            return std::make_unique<Flux::FluxRunner>(
-                backend, offload, map, prefix, VERSION_FLUX, /*use_mask=*/false);
-        });
-    factory.register_version(VERSION_FLUX_FILL,
-        [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-            return std::make_unique<Flux::FluxRunner>(
-                backend, offload, map, prefix, VERSION_FLUX_FILL, /*use_mask=*/false);
-        });
-    // NOTE: VERSION_FLEX_2 is the correct enum (verified in src/model.h line 42).
-    // Not a typo. VERSION_FLUX2 is separate (used for VAE).
-    factory.register_version(VERSION_FLEX_2,
-        [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-            return std::make_unique<Flux::FluxRunner>(
-                backend, offload, map, prefix, VERSION_FLEX_2, /*use_mask=*/false);
-        });
-    factory.register_version(VERSION_CHROMA_RADIANCE,
-        [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-            return std::make_unique<Flux::FluxRunner>(
-                backend, offload, map, prefix, VERSION_CHROMA_RADIANCE, /*use_mask=*/false);
-        });
-    factory.register_version(VERSION_OVIS_IMAGE,
-        [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-            return std::make_unique<Flux::FluxRunner>(
-                backend, offload, map, prefix, VERSION_OVIS_IMAGE, /*use_mask=*/false);
-        });
-
-    return factory;
-}
+// Force-link model_factory.cpp to ensure static registrations are not DCE'd by linker.
+extern "C" void wan_force_model_registrations();
 
 // ---------------------------------------------------------------------------
-// Test: initialization for all 5 Flux versions
+// WAN Transformer (WanRunner) registry test
 // ---------------------------------------------------------------------------
+// WAN::WanRunner supports T2V, I2V, and TI2V variants via SDVersion.
 
-void test_flux_init_all_versions(TestSuite& suite) {
-    struct VersionEntry {
-        SDVersion version;
-        const char* name;
-    };
-    const VersionEntry versions[] = {
-        {VERSION_FLUX,            "init_VERSION_FLUX"},
-        {VERSION_FLUX_FILL,       "init_VERSION_FLUX_FILL"},
-        {VERSION_FLEX_2,          "init_VERSION_FLEX_2"},
-        {VERSION_CHROMA_RADIANCE, "init_VERSION_CHROMA_RADIANCE"},
-        {VERSION_OVIS_IMAGE,      "init_VERSION_OVIS_IMAGE"},
-    };
+void test_wan_transformer_init(TestSuite& suite) {
+    wan_force_model_registrations();
 
-    auto factory = register_flux_factory();
-    String2TensorStorage empty_map{};
-
-    for (const auto& entry : versions) {
-        SDVersion version = entry.version;
-        suite.run(entry.name, [&factory, version, &empty_map]() {
-            // BackendRAII MUST be declared BEFORE runner (reverse destruction order).
-            BackendRAII guard(ggml_backend_cpu_init());
-            auto runner = factory.create(version, guard.backend, false, empty_map, "");
-            runner->alloc_params_buffer();
-            WAN_ASSERT_TRUE(runner != nullptr);
-            WAN_ASSERT_EQ(runner->get_desc(), std::string("flux"));
-        });
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Test: factory registration mechanics
-// ---------------------------------------------------------------------------
-
-void test_flux_factory_registration(TestSuite& suite) {
-    suite.run("all_5_versions_registered", []() {
-        auto factory = register_flux_factory();
-        WAN_ASSERT_EQ(factory.registered_versions().size(), size_t(5));
+    suite.run("init_wan_runner_t2v", []() {
+        BackendRAII guard(ggml_backend_cpu_init());
+        String2TensorStorage empty_map{};
+        // WAN::WanRunner constructor: (backend, offload, tensor_map, prefix, SDVersion)
+        auto runner = std::make_unique<WAN::WanRunner>(
+            guard.backend, false, empty_map, "", VERSION_WAN2);
+        WAN_ASSERT_TRUE(runner != nullptr);
+        runner->alloc_params_buffer();
+        // WAN::WanRunner::get_desc() returns "wan" by default if no layers found in empty map
+        WAN_ASSERT_EQ(runner->get_desc(), std::string("wan"));
     });
 
-    suite.run("has_version_checks", []() {
-        auto factory = register_flux_factory();
-        WAN_ASSERT_TRUE(factory.has_version(VERSION_FLUX));
-        WAN_ASSERT_TRUE(factory.has_version(VERSION_FLUX_FILL));
-        WAN_ASSERT_TRUE(factory.has_version(VERSION_FLEX_2));
-        WAN_ASSERT_TRUE(factory.has_version(VERSION_CHROMA_RADIANCE));
-        WAN_ASSERT_TRUE(factory.has_version(VERSION_OVIS_IMAGE));
+    suite.run("init_wan_runner_i2v", []() {
+        BackendRAII guard(ggml_backend_cpu_init());
+        String2TensorStorage empty_map{};
+        auto runner = std::make_unique<WAN::WanRunner>(
+            guard.backend, false, empty_map, "", VERSION_WAN2_2_I2V);
+        WAN_ASSERT_TRUE(runner != nullptr);
+        runner->alloc_params_buffer();
+        WAN_ASSERT_EQ(runner->get_desc(), std::string("wan"));
+    });
+
+    suite.run("init_wan_runner_ti2v", []() {
+        BackendRAII guard(ggml_backend_cpu_init());
+        String2TensorStorage empty_map{};
+        auto runner = std::make_unique<WAN::WanRunner>(
+            guard.backend, false, empty_map, "", VERSION_WAN2_2_TI2V);
+        WAN_ASSERT_TRUE(runner != nullptr);
+        runner->alloc_params_buffer();
+        WAN_ASSERT_EQ(runner->get_desc(), std::string("wan"));
     });
 }
 
@@ -112,8 +59,7 @@ void test_flux_factory_registration(TestSuite& suite) {
 // ---------------------------------------------------------------------------
 
 int main() {
-    TestSuite suite{"Transformer/Flux Model Tests"};
-    test_flux_init_all_versions(suite);
-    test_flux_factory_registration(suite);
+    TestSuite suite{"WAN Transformer Tests"};
+    test_wan_transformer_init(suite);
     return suite.report();
 }
