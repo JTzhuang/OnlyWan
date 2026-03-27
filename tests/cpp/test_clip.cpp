@@ -106,6 +106,49 @@ void test_clip_npy_io(TestSuite& suite) {
 }
 
 // ---------------------------------------------------------------------------
+// Test: CLIP inference with random data
+// ---------------------------------------------------------------------------
+
+void test_clip_inference_with_random_data(TestSuite& suite) {
+    suite.run("clip_forward_with_random_input", []() {
+        wan_force_model_registrations();
+        BackendRAII guard(ggml_backend_cpu_init());
+        String2TensorStorage empty_map{};
+
+        auto runner = ModelRegistry::instance()->create<CLIPTextModelRunner>(
+            "clip-vit-l-14", guard.backend, false, empty_map, "");
+        WAN_ASSERT_TRUE(runner != nullptr);
+        runner->alloc_params_buffer();
+
+        // Create random input: [1, 77] token IDs
+        ggml_init_params params{10*1024*1024, nullptr, false};
+        ggml_context* ctx = ggml_init(params);
+        ggml_tensor* input_ids = ggml_new_tensor_2d(ctx, GGML_TYPE_I32, 77, 1);
+        int32_t* ids = (int32_t*)input_ids->data;
+        for (int i = 0; i < 77; ++i) ids[i] = (i % 49152);  // random token IDs
+
+        // Create attention mask: [1, 77]
+        ggml_tensor* mask = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, 77, 1);
+        float* mask_data = (float*)mask->data;
+        for (int i = 0; i < 77; ++i) mask_data[i] = 1.0f;
+
+        // Run inference
+        struct ggml_tensor* output = runner->forward(ctx, input_ids, nullptr, mask, 0, false, -1);
+        WAN_ASSERT_TRUE(output != nullptr);
+        WAN_ASSERT_EQ(output->ne[0], 768);  // hidden_size for vit-l-14
+        WAN_ASSERT_EQ(output->ne[1], 77);   // seq_len
+
+        // Save output to .npy for comparison
+        fs::path tmp = fs::temp_directory_path() / "test_clip_output.npy";
+        save_npy(tmp.string(), output);
+        WAN_ASSERT_TRUE(fs::exists(tmp));
+
+        ggml_free(ctx);
+        fs::remove(tmp);
+    });
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -113,5 +156,7 @@ int main() {
     TestSuite suite{"CLIP Model Tests"};
     test_clip_init_all_versions(suite);
     test_clip_registry_roundtrip(suite);
+    test_clip_npy_io(suite);
+    test_clip_inference_with_random_data(suite);
     return suite.report();
 }

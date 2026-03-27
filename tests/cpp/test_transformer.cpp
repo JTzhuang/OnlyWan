@@ -119,6 +119,61 @@ void test_wan_transformer_npy_io(TestSuite& suite) {
 }
 
 // ---------------------------------------------------------------------------
+// Test: WAN Transformer inference with random data
+// ---------------------------------------------------------------------------
+
+void test_wan_transformer_inference_with_random_data(TestSuite& suite) {
+    suite.run("wan_dit_forward_with_random_input", []() {
+        wan_force_model_registrations();
+        BackendRAII guard(ggml_backend_cpu_init());
+        String2TensorStorage tensor_map{};
+        tensor_map["blocks.39.weight"] = TensorStorage();
+
+        auto runner = ModelRegistry::instance()->create<WAN::WanRunner>(
+            "wan-runner-t2v", guard.backend, false, tensor_map, "");
+        WAN_ASSERT_TRUE(runner != nullptr);
+        runner->alloc_params_buffer();
+
+        // Create random inputs
+        ggml_init_params params{100*1024*1024, nullptr, false};
+        ggml_context* ctx = ggml_init(params);
+
+        // x: [16, 2, 8, 8] (c=16, t=2, h=8, w=8)
+        ggml_tensor* x = ggml_new_tensor_4d(ctx, GGML_TYPE_F32, 8, 8, 2, 16);
+        float* x_data = (float*)x->data;
+        for (int i = 0; i < 16*2*8*8; ++i) x_data[i] = (float)(i % 100) * 0.01f - 0.5f;
+
+        // timesteps: [1]
+        ggml_tensor* timesteps = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, 1);
+        int32_t* ts_data = (int32_t*)timesteps->data;
+        ts_data[0] = 500;
+
+        // context: [1, 77, 4096] (text embeddings)
+        ggml_tensor* context = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, 4096, 77, 1);
+        float* ctx_data = (float*)context->data;
+        for (int i = 0; i < 1*77*4096; ++i) ctx_data[i] = (float)(i % 1000) * 0.001f - 0.5f;
+
+        // Run inference
+        struct ggml_tensor* output = nullptr;
+        bool ok = runner->compute(4, x, timesteps, context, nullptr, nullptr, nullptr, nullptr, 1.0f, &output, ctx);
+        WAN_ASSERT_TRUE(ok);
+        WAN_ASSERT_TRUE(output != nullptr);
+        WAN_ASSERT_EQ(output->ne[0], 8);   // w
+        WAN_ASSERT_EQ(output->ne[1], 8);   // h
+        WAN_ASSERT_EQ(output->ne[2], 2);   // t
+        WAN_ASSERT_EQ(output->ne[3], 16);  // c
+
+        // Save output to .npy for comparison
+        fs::path tmp = fs::temp_directory_path() / "test_wan_output.npy";
+        save_npy(tmp.string(), output);
+        WAN_ASSERT_TRUE(fs::exists(tmp));
+
+        ggml_free(ctx);
+        fs::remove(tmp);
+    });
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -126,5 +181,6 @@ int main() {
     TestSuite suite{"WAN Transformer Tests"};
     test_wan_transformer_init(suite);
     test_wan_transformer_npy_io(suite);
+    test_wan_transformer_inference_with_random_data(suite);
     return suite.report();
 }

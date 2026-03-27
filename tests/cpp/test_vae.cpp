@@ -95,6 +95,56 @@ void test_vae_npy_io(TestSuite& suite) {
 }
 
 // ---------------------------------------------------------------------------
+// Test: WAN VAE inference with random data
+// ---------------------------------------------------------------------------
+
+void test_vae_inference_with_random_data(TestSuite& suite) {
+    suite.run("vae_encode_decode_with_random_latent", []() {
+        wan_force_model_registrations();
+        BackendRAII guard(ggml_backend_cpu_init());
+        String2TensorStorage empty_map{};
+
+        auto runner = ModelRegistry::instance()->create<WAN::WanVAERunner>(
+            "wan-vae-t2v", guard.backend, false, empty_map, "");
+        WAN_ASSERT_TRUE(runner != nullptr);
+        runner->alloc_params_buffer();
+
+        // Create random latent: [16, 1, 8, 8] (c, t, h, w)
+        ggml_init_params params{50*1024*1024, nullptr, false};
+        ggml_context* ctx = ggml_init(params);
+        ggml_tensor* z = ggml_new_tensor_4d(ctx, GGML_TYPE_F32, 8, 8, 1, 16);
+        float* z_data = (float*)z->data;
+        for (int i = 0; i < 16*1*8*8; ++i) z_data[i] = (float)(i % 100) * 0.01f - 0.5f;
+
+        // Run encode
+        struct ggml_tensor* encoded = nullptr;
+        bool encode_ok = runner->compute(4, z, false, &encoded, ctx);
+        WAN_ASSERT_TRUE(encode_ok);
+        WAN_ASSERT_TRUE(encoded != nullptr);
+
+        // Save encoded output
+        fs::path tmp_enc = fs::temp_directory_path() / "test_vae_encoded.npy";
+        save_npy(tmp_enc.string(), encoded);
+        WAN_ASSERT_TRUE(fs::exists(tmp_enc));
+
+        // Run decode
+        struct ggml_tensor* decoded = nullptr;
+        bool decode_ok = runner->compute(4, encoded, true, &decoded, ctx);
+        WAN_ASSERT_TRUE(decode_ok);
+        WAN_ASSERT_TRUE(decoded != nullptr);
+
+        // Save decoded output
+        fs::path tmp_dec = fs::temp_directory_path() / "test_vae_decoded.npy";
+        save_npy(tmp_dec.string(), decoded);
+        WAN_ASSERT_TRUE(fs::exists(tmp_dec));
+
+        ggml_free(ctx);
+        fs::remove(tmp_enc);
+        fs::remove(tmp_dec);
+    });
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -102,5 +152,7 @@ int main() {
     TestSuite suite{"WAN VAE Tests"};
     test_vae_init_all_versions(suite);
     test_vae_registry_registration(suite);
+    test_vae_npy_io(suite);
+    test_vae_inference_with_random_data(suite);
     return suite.report();
 }

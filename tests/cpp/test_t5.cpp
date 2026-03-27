@@ -88,6 +88,49 @@ void test_t5_npy_io(TestSuite& suite) {
 }
 
 // ---------------------------------------------------------------------------
+// Test: T5 inference with random data
+// ---------------------------------------------------------------------------
+
+void test_t5_inference_with_random_data(TestSuite& suite) {
+    suite.run("t5_forward_with_random_input", []() {
+        wan_force_model_registrations();
+        BackendRAII guard(ggml_backend_cpu_init());
+        String2TensorStorage empty_map{};
+
+        auto runner = ModelRegistry::instance()->create<T5Runner>(
+            "t5-standard", guard.backend, false, empty_map, "");
+        WAN_ASSERT_TRUE(runner != nullptr);
+        runner->alloc_params_buffer();
+
+        // Create random input: [1, 16] token IDs
+        ggml_init_params params{20*1024*1024, nullptr, false};
+        ggml_context* ctx = ggml_init(params);
+        ggml_tensor* input_ids = ggml_new_tensor_2d(ctx, GGML_TYPE_I32, 16, 1);
+        int32_t* ids = (int32_t*)input_ids->data;
+        for (int i = 0; i < 16; ++i) ids[i] = (i % 32128);  // random token IDs
+
+        // Create relative position bucket: [16, 16]
+        ggml_tensor* pos_bucket = ggml_new_tensor_2d(ctx, GGML_TYPE_I32, 16, 16);
+        int32_t* pos_data = (int32_t*)pos_bucket->data;
+        for (int i = 0; i < 256; ++i) pos_data[i] = (i % 32);
+
+        // Run inference
+        struct ggml_tensor* output = runner->forward(ctx, input_ids, pos_bucket, nullptr);
+        WAN_ASSERT_TRUE(output != nullptr);
+        WAN_ASSERT_EQ(output->ne[0], 4096);  // model_dim for T5
+        WAN_ASSERT_EQ(output->ne[1], 16);    // seq_len
+
+        // Save output to .npy for comparison
+        fs::path tmp = fs::temp_directory_path() / "test_t5_output.npy";
+        save_npy(tmp.string(), output);
+        WAN_ASSERT_TRUE(fs::exists(tmp));
+
+        ggml_free(ctx);
+        fs::remove(tmp);
+    });
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -95,5 +138,7 @@ int main() {
     TestSuite suite{"T5 Model Tests"};
     test_t5_init_all_versions(suite);
     test_t5_registry_registration(suite);
+    test_t5_npy_io(suite);
+    test_t5_inference_with_random_data(suite);
     return suite.report();
 }
