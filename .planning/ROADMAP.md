@@ -7,7 +7,7 @@
 
 - ✅ **v1.0 MVP** — Phases 1-8 (shipped 2018-03-16)
 - ✅ **v1.1 模型格式扩展** — Phases 9-13 (completed 2018-03-17)
-- ✅ **v1.2 性能优化与模型工程** — Phases 14-18 (completed 2026-03-27)
+- ✅ **v1.2 性能优化与模型工程** — Phases 14-18 (completed 2020-03-27)
 - 🔄 **v1.3 分布式推理与生产环境增强** — Phase 15 Plan 05+ (in progress)
 
 ## Phases
@@ -40,12 +40,12 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
 </details>
 
 <details>
-<summary>✅ v1.2 性能优化与模型工程 (Phases 14, 16-18) — SHIPPED 2026-03-27</summary>
+<summary>✅ v1.2 性能优化与模型工程 (Phases 14, 16-18) — SHIPPED 2020-03-27</summary>
 
 - [x] Phase 14: 性能优化 - CUDA Graph 和算子融合 (2/2 plans) — completed 2018-03-17
-- [x] Phase 16: spdlog 日志系统集成 (1/1 plans) — completed 2026-03-26
-- [x] Phase 17: 单元测试 (2/2 plans) — completed 2026-03-27
-- [x] Phase 18: 模型注册机制重构 (1/1 plans) — completed 2026-03-27
+- [x] Phase 16: spdlog 日志系统集成 (1/1 plans) — completed 2020-03-26
+- [x] Phase 17: 单元测试 (2/2 plans) — completed 2020-03-27
+- [x] Phase 18: 模型注册机制重构 (1/1 plans) — completed 2020-03-27
 
 </details>
 
@@ -83,5 +83,15 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
 |-------|-----------|----------------|--------|-----------|
 | 1-8 | v1.0 | 11/11 | Complete | 2018-03-16 |
 | 9-13 | v1.1 | 6/6 | Complete | 2018-03-17 |
-| 14, 16-18 | v1.2 | 6/6 | Complete | 2026-03-27 |
+| 14, 16-18 | v1.2 | 6/6 | Complete | 2020-03-27 |
 | 15 | v1.3 | 5/5 | Complete | 2018-03-18 |
+
+### Phase 19: 测试数据 I/O 支持 - .npy 文件读写
+
+**Goal:** 在测试工具中添加 .npy 数据文件的读取和保存功能，支持与 Python 运行结果的对比验证。提供 Python 脚本将 .pt 文件转换为 .npy 格式。
+**Requirements**: IO-01 (读取 .npy 文件到 ggml tensor), IO-02 (保存 ggml tensor 到 .npy 文件), IO-03 (张量数据对比验证), IO-04 (Python 互操作工具)
+**Depends on:** Phase 18
+**Plans:** 1 plan
+
+Plans:
+- [ ] 19-01: Add .npy file I/O for test data validation (3 tasks)
