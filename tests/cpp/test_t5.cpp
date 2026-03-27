@@ -114,8 +114,13 @@ void test_t5_inference_with_random_data(TestSuite& suite) {
         int32_t* pos_data = (int32_t*)pos_bucket->data;
         for (int i = 0; i < 256; ++i) pos_data[i] = (i % 32);
 
+        // Create GGMLRunnerContext
+        GGMLRunnerContext runner_ctx;
+        runner_ctx.ggml_ctx = ctx;
+        runner_ctx.backend = guard.backend;
+
         // Run inference
-        struct ggml_tensor* output = runner->forward(ctx, input_ids, pos_bucket, nullptr);
+        struct ggml_tensor* output = runner->forward(&runner_ctx, input_ids, pos_bucket, nullptr);
         WAN_ASSERT_TRUE(output != nullptr);
         WAN_ASSERT_EQ(output->ne[0], 4096);  // model_dim for T5
         WAN_ASSERT_EQ(output->ne[1], 16);    // seq_len

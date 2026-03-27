@@ -132,8 +132,13 @@ void test_clip_inference_with_random_data(TestSuite& suite) {
         float* mask_data = (float*)mask->data;
         for (int i = 0; i < 77; ++i) mask_data[i] = 1.0f;
 
+        // Create GGMLRunnerContext
+        GGMLRunnerContext runner_ctx;
+        runner_ctx.ggml_ctx = ctx;
+        runner_ctx.backend = guard.backend;
+
         // Run inference
-        struct ggml_tensor* output = runner->forward(ctx, input_ids, nullptr, mask, 0, false, -1);
+        struct ggml_tensor* output = runner->forward(&runner_ctx, input_ids, nullptr, mask, 0, false, -1);
         WAN_ASSERT_TRUE(output != nullptr);
         WAN_ASSERT_EQ(output->ne[0], 768);  // hidden_size for vit-l-14
         WAN_ASSERT_EQ(output->ne[1], 77);   // seq_len

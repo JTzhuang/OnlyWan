@@ -153,6 +153,11 @@ void test_wan_transformer_inference_with_random_data(TestSuite& suite) {
         float* ctx_data = (float*)context->data;
         for (int i = 0; i < 1*77*4096; ++i) ctx_data[i] = (float)(i % 1000) * 0.001f - 0.5f;
 
+        // Create GGMLRunnerContext
+        GGMLRunnerContext runner_ctx;
+        runner_ctx.ggml_ctx = ctx;
+        runner_ctx.backend = guard.backend;
+
         // Run inference
         struct ggml_tensor* output = nullptr;
         bool ok = runner->compute(4, x, timesteps, context, nullptr, nullptr, nullptr, nullptr, 1.0f, &output, ctx);

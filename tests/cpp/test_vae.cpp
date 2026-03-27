@@ -116,6 +116,11 @@ void test_vae_inference_with_random_data(TestSuite& suite) {
         float* z_data = (float*)z->data;
         for (int i = 0; i < 16*1*8*8; ++i) z_data[i] = (float)(i % 100) * 0.01f - 0.5f;
 
+        // Create GGMLRunnerContext
+        GGMLRunnerContext runner_ctx;
+        runner_ctx.ggml_ctx = ctx;
+        runner_ctx.backend = guard.backend;
+
         // Run encode
         struct ggml_tensor* encoded = nullptr;
         bool encode_ok = runner->compute(4, z, false, &encoded, ctx);
