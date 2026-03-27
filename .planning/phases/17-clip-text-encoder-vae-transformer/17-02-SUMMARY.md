@@ -119,6 +119,21 @@ None — no external service configuration required. Tests run via `ctest --test
 
 None — all 4 test files fully implement their plan objectives. No stubs or placeholders remain.
 
+## Self-Check: PASSED
+
+All created files confirmed on disk. All task commits confirmed in git history.
+
+| Check | Result |
+|-------|--------|
+| tests/cpp/test_clip.cpp exists | FOUND |
+| tests/cpp/test_t5.cpp exists | FOUND |
+| tests/cpp/test_vae.cpp exists | FOUND |
+| tests/cpp/test_transformer.cpp exists | FOUND |
+| .planning/phases/17-.../17-02-SUMMARY.md exists | FOUND |
+| Commit c8ec22f exists (Task 1) | FOUND |
+| Commit f4a2cc4 exists (Task 2) | FOUND |
+| ctest 5/5 pass | PASS |
+
 ---
 *Phase: 17-clip-text-encoder-vae-transformer*
 *Completed: 2026-03-27*
