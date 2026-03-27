@@ -2,30 +2,30 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 18
-status: Milestone complete
-last_updated: "2026-03-27T09:28:42.051Z"
+current_phase: 19
+status: In Progress
+last_updated: "2026-03-27T13:34:25Z"
 progress:
-  total_phases: 6
+  total_phases: 7
   completed_phases: 5
   total_plans: 12
-  completed_plans: 11
+  completed_plans: 12
 ---
 
 # Project State: wan-cpp
 
 **Last Updated:** 2026-03-27
-**Current Phase:** 18
+**Current Phase:** 19
 
 ## Project Reference
 
 **Core Value:** Provide independent, lightweight, cross-platform WAN video generation inference capabilities
-**Current Focus:** Phase 18 — model-registration-refactor
+**Current Focus:** Phase 19 — I/O: .npy/.pt goal: .npy/.pt (Python)
 
 ## Current Position
 
-Phase: 18 (model-registration-refactor) — COMPLETED
-Plan: Not started
+Phase: 19 (i-o-npy-pt-goal-npy-pt-python) — Plan 01 COMPLETED
+Plan: 19-01 complete
 
 ## Phase Progress
 
@@ -48,6 +48,7 @@ Plan: Not started
 | 15 - 多卡推理支持 | In Progress | 4/5 | 15-00, 15-01, 15-02, 15-03, 15-04 |
 | 17 - 单元测试 | Completed | 2/2 | 17-01, 17-02 |
 | 18 - 模型注册机制重构 | Completed | 1/1 | 18-01 |
+| 19 - I/O .npy/.pt | Completed | 1/1 | 19-01 |
 
 ## Performance Metrics
 
@@ -80,6 +81,9 @@ Plan: Not started
 | Macro-based Model Registry | Phase 18 plan 01 | Enables global model registration at compile-time with string identifiers, decoupling version identity from implementation. |
 | extern "C" DCE Guard | Phase 18 plan 01 | Prevents linker from discarding translation units that only contain static registration initializers. |
 | Dummy Tensors in Unit Tests | Phase 18 plan 01 | Ensures model runners with dynamic configuration (like layer count) can be initialized in tests without actual model files. |
+| libnpy header-only (custom) | Phase 19 plan 01 | Written from scratch as a self-contained header with only the dtypes needed (F32/F16/I32/I64), zero external dependencies. |
+| DType enum not string | Phase 19 plan 01 | npy::DType enum over string dtype descriptors in test_io_utils.hpp avoids parsing and is type-safe at compile time. |
+| ggml ne[] reversed from NumPy | Phase 19 plan 01 | ggml ne[0] is innermost/fastest dim (NumPy's last axis); load_npy reverses shape to map correctly without transposition. |
 
 ## Quick Tasks Completed
 
@@ -89,9 +93,9 @@ Plan: Not started
 
 ## Session Continuity
 
-**Last Action:** Completed Phase 18 Plan 01 (Model Registration Refactor)
-**Next Action:** Proceed with Phase 15 Plan 05 (Distributed Generation) or other pending tasks.
-**Context:** All tests pass (test_factory, test_clip, test_t5, test_vae, test_transformer). String-based registry for CLIP, T5, and WanVAE is fully functional.
+**Last Action:** Completed Phase 19 Plan 01 (NPY I/O library + ggml bridge + tests)
+**Next Action:** Proceed with next planned task or phase.
+**Context:** libnpy integrated, test_io_utils.hpp provides load_npy/save_npy, test_io_npy.cpp passes 10/10 tests, Python generate_test_data.py verified.
 
 ---
-*State updated: 2026-03-27 — Phase 18 complete (Model Registration Refactor)*
+*State updated: 2026-03-27 — Phase 19 Plan 01 complete (.npy I/O for C++ tests)*
