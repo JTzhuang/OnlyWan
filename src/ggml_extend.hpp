@@ -1615,8 +1615,13 @@ __STATIC_INLINE__ struct ggml_tensor* ggml_ext_timestep_embedding(
     int dim,
     int max_period    = 10000,
     float time_factor = 1.0f) {
-    timesteps = ggml_ext_scale(ctx, timesteps, time_factor);
-    return ggml_timestep_embedding(ctx, timesteps, dim, max_period);
+    if (time_factor != 1.0f) {
+        auto ts_f32 = ggml_cast(ctx, timesteps, GGML_TYPE_F32);
+        ts_f32 = ggml_ext_scale(ctx, ts_f32, time_factor);
+        return ggml_timestep_embedding(ctx, ts_f32, dim, max_period);
+    }
+    auto ts_f32 = ggml_cast(ctx, timesteps, GGML_TYPE_F32);
+    return ggml_timestep_embedding(ctx, ts_f32, dim, max_period);
 }
 
 __STATIC_INLINE__ size_t ggml_tensor_num(ggml_context* ctx) {

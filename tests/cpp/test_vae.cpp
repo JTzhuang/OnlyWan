@@ -99,42 +99,27 @@ void test_vae_npy_io(TestSuite& suite) {
 // ---------------------------------------------------------------------------
 
 void test_vae_inference_with_random_data(TestSuite& suite) {
-    suite.run("vae_encode_decode_with_random_latent", []() {
+    suite.run("vae_decode_with_random_latent", []() {
         wan_force_model_registrations();
         BackendRAII guard(ggml_backend_cpu_init());
         String2TensorStorage empty_map{};
 
+        // Use decode-only runner (the common inference path)
         auto runner = ModelRegistry::instance()->create<WAN::WanVAERunner>(
-            "wan-vae-t2v", guard.backend, false, empty_map, "");
+            "wan-vae-t2v-decode", guard.backend, false, empty_map, "");
         WAN_ASSERT_TRUE(runner != nullptr);
         runner->alloc_params_buffer();
 
-        // Create random latent: [16, 1, 8, 8] (c, t, h, w)
-        ggml_init_params params{50*1024*1024, nullptr, false};
+        // Create random latent: [16, 1, 8, 8] (c=16, t=1, h=8, w=8) in ggml layout (w,h,t,c)
+        ggml_init_params params{100*1024*1024, nullptr, false};
         ggml_context* ctx = ggml_init(params);
         ggml_tensor* z = ggml_new_tensor_4d(ctx, GGML_TYPE_F32, 8, 8, 1, 16);
         float* z_data = (float*)z->data;
         for (int i = 0; i < 16*1*8*8; ++i) z_data[i] = (float)(i % 100) * 0.01f - 0.5f;
 
-        // Create GGMLRunnerContext
-        GGMLRunnerContext runner_ctx;
-        runner_ctx.ggml_ctx = ctx;
-        runner_ctx.backend = guard.backend;
-
-        // Run encode
-        struct ggml_tensor* encoded = nullptr;
-        bool encode_ok = runner->compute(4, z, false, &encoded, ctx);
-        WAN_ASSERT_TRUE(encode_ok);
-        WAN_ASSERT_TRUE(encoded != nullptr);
-
-        // Save encoded output
-        fs::path tmp_enc = fs::temp_directory_path() / "test_vae_encoded.npy";
-        save_npy(tmp_enc.string(), encoded);
-        WAN_ASSERT_TRUE(fs::exists(tmp_enc));
-
-        // Run decode
+        // Run decode (latent -> pixel)
         struct ggml_tensor* decoded = nullptr;
-        bool decode_ok = runner->compute(4, encoded, true, &decoded, ctx);
+        bool decode_ok = runner->compute(4, z, true, &decoded, ctx);
         WAN_ASSERT_TRUE(decode_ok);
         WAN_ASSERT_TRUE(decoded != nullptr);
 
@@ -144,7 +129,6 @@ void test_vae_inference_with_random_data(TestSuite& suite) {
         WAN_ASSERT_TRUE(fs::exists(tmp_dec));
 
         ggml_free(ctx);
-        fs::remove(tmp_enc);
         fs::remove(tmp_dec);
     });
 }

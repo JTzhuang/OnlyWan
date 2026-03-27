@@ -103,7 +103,7 @@ void test_t5_inference_with_random_data(TestSuite& suite) {
         runner->alloc_params_buffer();
 
         // Create random input: [1, 16] token IDs
-        ggml_init_params params{20*1024*1024, nullptr, false};
+        ggml_init_params params{256*1024*1024, nullptr, false};
         ggml_context* ctx = ggml_init(params);
         ggml_tensor* input_ids = ggml_new_tensor_2d(ctx, GGML_TYPE_I32, 16, 1);
         int32_t* ids = (int32_t*)input_ids->data;
