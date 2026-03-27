@@ -1,61 +1,78 @@
 #include "model_factory.hpp"
 
-// CLIP
-REGISTER_MODEL_FACTORY(CLIPTextModelRunner, "clip-vit-l-14", [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-    return std::make_unique<CLIPTextModelRunner>(backend, offload, map, prefix, OPENAI_CLIP_VIT_L_14, true);
-})
+// ---- CLIP: 3 registrations ----
+// All use with_final_ln=true (standard WAN usage pattern)
+REGISTER_MODEL_FACTORY(CLIPTextModelRunner, "clip-vit-l-14",
+    [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
+        return std::make_unique<CLIPTextModelRunner>(
+            backend, offload, map, prefix, OPENAI_CLIP_VIT_L_14, /*with_final_ln=*/true);
+    })
 
-REGISTER_MODEL_FACTORY(CLIPTextModelRunner, "clip-vit-h-14", [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-    return std::make_unique<CLIPTextModelRunner>(backend, offload, map, prefix, OPEN_CLIP_VIT_H_14, true);
-})
+REGISTER_MODEL_FACTORY(CLIPTextModelRunner, "clip-vit-h-14",
+    [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
+        return std::make_unique<CLIPTextModelRunner>(
+            backend, offload, map, prefix, OPEN_CLIP_VIT_H_14, /*with_final_ln=*/true);
+    })
 
-REGISTER_MODEL_FACTORY(CLIPTextModelRunner, "clip-vit-bigg-14", [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-    return std::make_unique<CLIPTextModelRunner>(backend, offload, map, prefix, OPEN_CLIP_VIT_BIGG_14, true);
-})
+REGISTER_MODEL_FACTORY(CLIPTextModelRunner, "clip-vit-bigg-14",
+    [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
+        return std::make_unique<CLIPTextModelRunner>(
+            backend, offload, map, prefix, OPEN_CLIP_VIT_BIGG_14, /*with_final_ln=*/true);
+    })
 
-// T5
-REGISTER_MODEL_FACTORY(T5Runner, "t5-standard", [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-    return std::make_unique<T5Runner>(backend, offload, map, prefix, false);
-})
+// ---- T5: 2 registrations ----
+REGISTER_MODEL_FACTORY(T5Runner, "t5-standard",
+    [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
+        return std::make_unique<T5Runner>(backend, offload, map, prefix, /*is_umt5=*/false);
+    })
 
-REGISTER_MODEL_FACTORY(T5Runner, "t5-umt5", [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-    return std::make_unique<T5Runner>(backend, offload, map, prefix, true);
-})
+REGISTER_MODEL_FACTORY(T5Runner, "t5-umt5",
+    [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
+        return std::make_unique<T5Runner>(backend, offload, map, prefix, /*is_umt5=*/true);
+    })
 
-// VAE
-REGISTER_MODEL_FACTORY(VAE, "vae-sd1", [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-    return std::make_unique<AutoEncoderKL>(backend, offload, map, prefix, true, false, VERSION_SD1);
-})
+// ---- WAN VAE: 4 registrations ----
+// Uses WAN::WanVAERunner (from wan.hpp), NOT AutoEncoderKL.
+// WAN::WanVAERunner::get_desc() returns "wan_vae".
+REGISTER_MODEL_FACTORY(WAN::WanVAERunner, "wan-vae-t2v",
+    [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
+        return std::make_unique<WAN::WanVAERunner>(backend, offload, map, prefix, /*decode_only=*/false, VERSION_WAN2);
+    })
 
-REGISTER_MODEL_FACTORY(VAE, "vae-sd2", [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-    return std::make_unique<AutoEncoderKL>(backend, offload, map, prefix, true, false, VERSION_SD2);
-})
+REGISTER_MODEL_FACTORY(WAN::WanVAERunner, "wan-vae-t2v-decode",
+    [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
+        return std::make_unique<WAN::WanVAERunner>(backend, offload, map, prefix, /*decode_only=*/true, VERSION_WAN2);
+    })
 
-REGISTER_MODEL_FACTORY(VAE, "vae-flux", [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-    return std::make_unique<AutoEncoderKL>(backend, offload, map, prefix, true, false, VERSION_FLUX);
-})
+REGISTER_MODEL_FACTORY(WAN::WanVAERunner, "wan-vae-i2v",
+    [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
+        return std::make_unique<WAN::WanVAERunner>(backend, offload, map, prefix, /*decode_only=*/false, VERSION_WAN2_2_I2V);
+    })
 
-REGISTER_MODEL_FACTORY(VAE, "vae-flux2", [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-    return std::make_unique<AutoEncoderKL>(backend, offload, map, prefix, true, false, VERSION_FLUX2);
-})
+REGISTER_MODEL_FACTORY(WAN::WanVAERunner, "wan-vae-ti2v",
+    [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
+        return std::make_unique<WAN::WanVAERunner>(backend, offload, map, prefix, /*decode_only=*/false, VERSION_WAN2_2_TI2V);
+    })
 
-// Flux
-REGISTER_MODEL_FACTORY(FluxRunner, "flux-dev", [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-    return std::make_unique<FluxRunner>(backend, offload, map, prefix, VERSION_FLUX, false);
-})
+// ---- WAN Transformer (DiT): 3 registrations ----
+// WAN::WanRunner supports T2V, I2V, and TI2V variants via SDVersion.
+REGISTER_MODEL_FACTORY(WAN::WanRunner, "wan-runner-t2v",
+    [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
+        return std::make_unique<WAN::WanRunner>(backend, offload, map, prefix, VERSION_WAN2);
+    })
 
-REGISTER_MODEL_FACTORY(FluxRunner, "flux-fill", [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-    return std::make_unique<FluxRunner>(backend, offload, map, prefix, VERSION_FLUX_FILL, false);
-})
+REGISTER_MODEL_FACTORY(WAN::WanRunner, "wan-runner-i2v",
+    [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
+        return std::make_unique<WAN::WanRunner>(backend, offload, map, prefix, VERSION_WAN2_2_I2V);
+    })
 
-REGISTER_MODEL_FACTORY(FluxRunner, "flux-flex2", [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-    return std::make_unique<FluxRunner>(backend, offload, map, prefix, VERSION_FLEX_2, false);
-})
+REGISTER_MODEL_FACTORY(WAN::WanRunner, "wan-runner-ti2v",
+    [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
+        return std::make_unique<WAN::WanRunner>(backend, offload, map, prefix, VERSION_WAN2_2_TI2V);
+    })
 
-REGISTER_MODEL_FACTORY(FluxRunner, "flux-chroma", [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-    return std::make_unique<FluxRunner>(backend, offload, map, prefix, VERSION_CHROMA_RADIANCE, false);
-})
-
-REGISTER_MODEL_FACTORY(FluxRunner, "flux-ovis", [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-    return std::make_unique<FluxRunner>(backend, offload, map, prefix, VERSION_OVIS_IMAGE, false);
-})
+// ---- Force-load function ----
+// Called by tests to prevent linker dead-code elimination of this TU.
+extern "C" void wan_force_model_registrations() {
+    // Intentionally empty — its existence forces the linker to include this TU.
+}
