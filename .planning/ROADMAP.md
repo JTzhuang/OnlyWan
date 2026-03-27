@@ -178,3 +178,13 @@ Plans:
 Plans:
 - [x] 17-01-PLAN.md — 测试基础设施 + 模板工厂 + 工厂单元测试 (TEST-01, TEST-02)
 - [x] 17-02-PLAN.md — 四个模型的版本初始化单元测试 (TEST-03)
+
+### Phase 18: 模型注册机制重构 - 宏注册 + 字符串版本（仅 WAN 模型）
+
+**Goal:** 将模型版本注册机制从 tests 迁移到 src/，使用宏进行全局类型注册，用字符串而非枚举进行版本区分；同时重构所有 5 个测试文件以使用字符串注册表，并将 test_transformer.cpp 从 Flux（已删除）迁移到 WAN::WanRunner
+**Requirements**: REG-01, REG-02, REG-03, REG-04, REG-05
+**Depends on:** Phase 17
+**Plans:** 1 plan
+
+Plans:
+- [ ] 18-01-PLAN.md — PerTypeRegistry 基础设施 + 9 个 WAN 模型注册 + 全部 5 个测试文件重构 (REG-01, REG-02, REG-03, REG-04, REG-05)
