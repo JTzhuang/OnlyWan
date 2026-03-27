@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: 模型格式扩展
-current_phase: 16
-status: v1.2 milestone complete
-last_updated: "2026-03-26T04:31:36.748Z"
+current_phase: 17
+status: Ready to execute
+last_updated: "2026-03-27T03:47:10.713Z"
 progress:
-  total_phases: 8
+  total_phases: 9
   completed_phases: 8
-  total_plans: 14
-  completed_plans: 14
+  total_plans: 16
+  completed_plans: 15
 ---
 
 # Project State: wan-cpp
@@ -20,12 +20,12 @@ progress:
 ## Project Reference
 
 **Core Value:** Provide independent, lightweight, cross-platform WAN video generation inference capabilities
-**Current Focus:** Phase 17 — 模型单元测试与工厂模式
+**Current Focus:** Phase 17 — clip-text-encoder-vae-transformer
 
 ## Current Position
 
-Phase: 17 (模型单元测试与工厂模式) — CONTEXT GATHERED
-Plan: Not started
+Phase: 17 (clip-text-encoder-vae-transformer) — EXECUTING
+Plan: 2 of 2
 
 ## Phase Progress
 
@@ -76,6 +76,7 @@ Plan: Not started
 | 15 - Multi-GPU Inference Support | 15-04 | 278 | 4 | 5 | 2026-03-18T05:23:54Z | 2026-03-18T05:28:32Z |
 | Phase 16 P01 | 888 | 4 tasks | 5 files |
 | Phase quick P260326-h31 | 3 min | 3 tasks | 2 files |
+| Phase 17 P01 | 1843 | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -192,6 +193,9 @@ Plan: Not started
 - [Phase 16]: Simplified callback signature - removed level parameter, spdlog formats complete message
 - [Phase quick]: 新增独立 merge_safetensors_bf16.py CLI，按输入顺序合并并将浮点张量统一转为 bf16
 - [Phase quick]: 检测重复键直接报错退出，避免 silent overwrite；int/bool 等非浮点张量保持原 dtype
+- [Phase 17]: T5Runner::get_desc() always returns 't5' regardless of is_umt5 flag — plan docs were incorrect; source is authoritative
+- [Phase 17]: AutoEncoderKL::get_desc() returns 'vae' not 'AutoEncoderKL' — verified from vae.hpp
+- [Phase 17]: FluxRunner guard head_dim>0 before division to avoid SIGFPE on empty tensor_storage_map
 
 ## Todo Items
 

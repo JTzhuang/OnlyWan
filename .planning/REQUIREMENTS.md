@@ -104,8 +104,8 @@
 
 ### 测试基础设施
 
-- [ ] **TEST-01**: 建立 C++ 测试构建系统 — CMake `WAN_BUILD_TESTS` 选项、`tests/cpp/` 子目录、`ctest` 集成、自定义轻量测试框架（断言宏 + 测试套件 + 报告）
-- [ ] **TEST-02**: 实现通用模板工厂模式 — `ModelFactory<ModelType, VersionEnum>` 支持动态注册 (`register_version`) 和统一创建 (`create`) 所有 Runner 版本，工厂自身通过单元测试验证
+- [x] **TEST-01**: 建立 C++ 测试构建系统 — CMake `WAN_BUILD_TESTS` 选项、`tests/cpp/` 子目录、`ctest` 集成、自定义轻量测试框架（断言宏 + 测试套件 + 报告）
+- [x] **TEST-02**: 实现通用模板工厂模式 — `ModelFactory<ModelType, VersionEnum>` 支持动态注册 (`register_version`) 和统一创建 (`create`) 所有 Runner 版本，工厂自身通过单元测试验证
 - [ ] **TEST-03**: 为四个核心 Runner 建立初始化单元测试 — CLIP (3版本)、T5/UMT5 (2版本)、VAE/AutoEncoderKL (4版本)、Transformer/FluxRunner (5版本)，使用合成数据（无需真实权重）验证构造、`alloc_params_buffer`、`get_desc` 等基本接口
 
 ## v2 Requirements
