@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: 模型格式扩展
+milestone: v1.0
+milestone_name: milestone
 current_phase: 18
-status: Phase 18 Complete
-last_updated: "2026-03-27T09:45:00.000Z"
+status: Milestone complete
+last_updated: "2026-03-27T09:28:42.051Z"
 progress:
-  total_phases: 11
-  completed_phases: 10
-  total_plans: 19
-  completed_plans: 17
+  total_phases: 6
+  completed_phases: 5
+  total_plans: 12
+  completed_plans: 11
 ---
 
 # Project State: wan-cpp
@@ -25,7 +25,7 @@ progress:
 ## Current Position
 
 Phase: 18 (model-registration-refactor) — COMPLETED
-Plan: 1 of 1
+Plan: Not started
 
 ## Phase Progress
 
