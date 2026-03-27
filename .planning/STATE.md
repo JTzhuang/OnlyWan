@@ -4,7 +4,7 @@ milestone: v1.1
 milestone_name: 模型格式扩展
 current_phase: 17
 status: Milestone complete
-last_updated: "2026-03-27T04:14:13.890Z"
+last_updated: "2026-03-27T06:59:36.607Z"
 progress:
   total_phases: 9
   completed_phases: 9
@@ -87,6 +87,7 @@ Plan: Not started
 - Phase 15 added: 多卡推理支持
 - Phase 16 added: 帮我修改一下日志系统，替换成spdlog
 - Phase 17 added: 加入各个模型单元测试，包括clip、text_encoder、vae以及transformer四个模型，使用抽象工厂模式去注册各个模型的不同版本
+- Phase 18 added: 模型注册机制重构 - 宏注册 + 字符串版本（将注册机制从tests迁移到src，使用宏进行全局类型注册，用字符串而非枚举进行版本区分）
 
 ### Key Decisions
 

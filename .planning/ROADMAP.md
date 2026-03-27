@@ -1,27 +1,27 @@
 # Roadmap: wan-cpp
 
 **Project:** Standalone C++ Library for WAN Video Generation
-**Created:** 2026-03-12
+**Created:** 2018-03-12
 
 ## Milestones
 
-- ✅ **v1.0 MVP** — Phases 1-8 (shipped 2026-03-16)
-- ✅ **v1.1 模型格式扩展** — Phases 9-13 (completed 2026-03-17)
+- ✅ **v1.0 MVP** — Phases 1-8 (shipped 2018-03-16)
+- ✅ **v1.1 模型格式扩展** — Phases 9-13 (completed 2018-03-17)
 - 🔄 **v1.2 性能优化与多卡推理** — Phases 14-15 (in progress)
 
 ## Phases
 
 <details>
-<summary>✅ v1.0 MVP (Phases 1-8) — SHIPPED 2026-03-16</summary>
+<summary>✅ v1.0 MVP (Phases 1-8) — SHIPPED 2018-03-16</summary>
 
-- [x] Phase 1: Foundation (1/1 plans) — completed 2026-03-12
-- [x] Phase 2: Build System (1/1 plans) — completed 2026-03-12
-- [x] Phase 3: Public API (1/1 plans) — completed 2026-03-15
-- [x] Phase 4: Examples (1/1 plans) — completed 2026-03-15
-- [x] Phase 5: Encoders (1/1 plans) — completed 2026-03-16
-- [x] Phase 6: Fix Duplicate Symbols (1/1 plans) — completed 2026-03-16
-- [x] Phase 7: Wire Core Model to API (3/3 plans) — completed 2026-03-16
-- [x] Phase 8: Implement Generation + AVI Output (2/2 plans) — completed 2026-03-16
+- [x] Phase 1: Foundation (1/1 plans) — completed 2018-03-12
+- [x] Phase 2: Build System (1/1 plans) — completed 2018-03-12
+- [x] Phase 3: Public API (1/1 plans) — completed 2018-03-15
+- [x] Phase 4: Examples (1/1 plans) — completed 2018-03-15
+- [x] Phase 5: Encoders (1/1 plans) — completed 2018-03-16
+- [x] Phase 6: Fix Duplicate Symbols (1/1 plans) — completed 2018-03-16
+- [x] Phase 7: Wire Core Model to API (3/3 plans) — completed 2018-03-16
+- [x] Phase 8: Implement Generation + AVI Output (2/2 plans) — completed 2018-03-16
 
 See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
 
@@ -29,11 +29,11 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
 
 ### v1.1 模型格式扩展 (Phases 9-13)
 
-- [x] **Phase 9: API Fixes + Vocab mmap** - 移除遗留 stub，接通 progress_cb，词汇表改为 mmap 加载 (completed 2026-03-16)
-- [x] **Phase 10: Safetensors Runtime Loading** - 运行时直接加载 .safetensors 格式 WAN 模型 (completed 2026-03-17)
-- [x] **Phase 11: Safetensors Conversion Tool** - 独立 CLI 工具将 safetensors 转换为 GGUF (completed 2026-03-17)
-- [x] **Phase 12: Wire Vocab Dir to Public API** - 暴露 wan_set_vocab_dir，修复 T2V/I2V 词汇表加载 (completed 2026-03-17)
-- [x] **Phase 13: Document wan-convert Sub-model Scope** - 明确 vae/t5/clip 转换类型的使用限制 (completed 2026-03-17)
+- [x] **Phase 9: API Fixes + Vocab mmap** - 移除遗留 stub，接通 progress_cb，词汇表改为 mmap 加载 (completed 2018-03-16)
+- [x] **Phase 10: Safetensors Runtime Loading** - 运行时直接加载 .safetensors 格式 WAN 模型 (completed 2018-03-17)
+- [x] **Phase 11: Safetensors Conversion Tool** - 独立 CLI 工具将 safetensors 转换为 GGUF (completed 2018-03-17)
+- [x] **Phase 12: Wire Vocab Dir to Public API** - 暴露 wan_set_vocab_dir，修复 T2V/I2V 词汇表加载 (completed 2018-03-17)
+- [x] **Phase 13: Document wan-convert Sub-model Scope** - 明确 vae/t5/clip 转换类型的使用限制 (completed 2018-03-17)
 
 ## Phase Details
 
@@ -103,21 +103,21 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 1. Foundation | v1.0 | 1/1 | Complete | 2026-03-12 |
-| 2. Build System | v1.0 | 1/1 | Complete | 2026-03-12 |
-| 3. Public API | v1.0 | 1/1 | Complete | 2026-03-15 |
-| 4. Examples | v1.0 | 1/1 | Complete | 2026-03-15 |
-| 5. Encoders | v1.0 | 1/1 | Complete | 2026-03-16 |
-| 6. Fix Duplicate Symbols | v1.0 | 1/1 | Complete | 2026-03-16 |
-| 7. Wire Core Model to API | v1.0 | 3/3 | Complete | 2026-03-16 |
-| 8. Implement Generation + AVI Output | v1.0 | 2/2 | Complete | 2026-03-16 |
-| 9. API Fixes + Vocab mmap | v1.1 | 2/2 | Complete | 2026-03-16 |
-| 10. Safetensors Runtime Loading | v1.1 | 1/1 | Complete | 2026-03-17 |
-| 11. Safetensors Conversion Tool | v1.1 | 1/1 | Complete | 2026-03-17 |
-| 12. Wire Vocab Dir to Public API | v1.1 | 1/1 | Complete | 2026-03-17 |
-| 13. Document wan-convert Sub-model Scope | v1.1 | 1/1 | Complete | 2026-03-17 |
-| 14. 性能优化 - CUDA Graph 和算子融合 | v1.2 | 2/2 | Complete | 2026-03-17 |
-| 15. 多卡推理支持 | 4/5 | Complete    | 2026-03-18 | - |
+| 1. Foundation | v1.0 | 1/1 | Complete | 2018-03-12 |
+| 2. Build System | v1.0 | 1/1 | Complete | 2018-03-12 |
+| 3. Public API | v1.0 | 1/1 | Complete | 2018-03-15 |
+| 4. Examples | v1.0 | 1/1 | Complete | 2018-03-15 |
+| 5. Encoders | v1.0 | 1/1 | Complete | 2018-03-16 |
+| 6. Fix Duplicate Symbols | v1.0 | 1/1 | Complete | 2018-03-16 |
+| 7. Wire Core Model to API | v1.0 | 3/3 | Complete | 2018-03-16 |
+| 8. Implement Generation + AVI Output | v1.0 | 2/2 | Complete | 2018-03-16 |
+| 9. API Fixes + Vocab mmap | v1.1 | 2/2 | Complete | 2018-03-16 |
+| 10. Safetensors Runtime Loading | v1.1 | 1/1 | Complete | 2018-03-17 |
+| 11. Safetensors Conversion Tool | v1.1 | 1/1 | Complete | 2018-03-17 |
+| 12. Wire Vocab Dir to Public API | v1.1 | 1/1 | Complete | 2018-03-17 |
+| 13. Document wan-convert Sub-model Scope | v1.1 | 1/1 | Complete | 2018-03-17 |
+| 14. 性能优化 - CUDA Graph 和算子融合 | v1.2 | 2/2 | Complete | 2018-03-17 |
+| 15. 多卡推理支持 | 4/5 | Complete    | 2018-03-18 | - |
 
 ### Phase 14: 性能优化 - CUDA Graph 和算子融合
 
@@ -178,16 +178,3 @@ Plans:
 Plans:
 - [x] 17-01-PLAN.md — 测试基础设施 + 模板工厂 + 工厂单元测试 (TEST-01, TEST-02)
 - [x] 17-02-PLAN.md — 四个模型的版本初始化单元测试 (TEST-03)
-
-### Phase 18: 模型注册机制重构 - 宏注册 + 字符串版本
-
-**Goal:** 将模型版本注册机制从 tests 迁移到 src，使用宏进行全局类型注册，用字符串而非枚举进行版本区分
-**Requirements**: REG-01, REG-02, REG-03, REG-04, REG-05
-**Depends on:** Phase 17
-**Plans:** 1 plan
-
-Plans:
-- [ ] 18-01-PLAN.md — 创建 model_registry 基础设施 + 迁移工厂实现 + 更新 CMakeLists + 更新 tests (REG-01, REG-02, REG-03, REG-04, REG-05)
-
----
-*Last updated: 2026-03-27 — Phase 18 plans created*
