@@ -108,6 +108,14 @@
 - [x] **TEST-02**: 实现通用模板工厂模式 — `ModelFactory<ModelType, VersionEnum>` 支持动态注册 (`register_version`) 和统一创建 (`create`) 所有 Runner 版本，工厂自身通过单元测试验证
 - [x] **TEST-03**: 为四个核心 Runner 建立初始化单元测试 — CLIP (3版本)、T5/UMT5 (2版本)、VAE/AutoEncoderKL (4版本)、Transformer/FluxRunner (5版本)，使用合成数据（无需真实权重）验证构造、`alloc_params_buffer`、`get_desc` 等基本接口
 
+### 模型注册机制重构
+
+- [ ] **REG-01**: 创建 `src/model_registry.hpp` — 定义 ModelRegistry 单例、FactoryFn 类型别名、REGISTER_MODEL_FACTORY 宏，支持多模型类型的编译期全局注册
+- [ ] **REG-02**: 实现 `src/model_registry.cpp` — 全局注册表，std::map<string, FactoryFn> 存储，std::mutex 保障线程安全，register_factory/create/has_version 接口
+- [ ] **REG-03**: 迁移工厂实现到 src — 创建 `src/model_factory.hpp`（工厂类定义）和 `src/model_factory.cpp`（14个变体的 REGISTER_MODEL_FACTORY 调用），覆盖 CLIP×3、T5×2、VAE×4、Flux×5
+- [ ] **REG-04**: 更新 CMakeLists.txt — 将 model_registry.cpp 和 model_factory.cpp 添加到 libwan-cpp 源列表，测试目标链接到更新后的库
+- [ ] **REG-05**: 更新 tests — test_factory.cpp 及四个模型测试文件改用字符串版本 (`ModelRegistry::instance()->create<T>(version_string, ...)`)，移除手动 register_version 调用，所有 5/5 ctest 测试通过
+
 ## v2 Requirements
 
 延迟到未来发布。已追踪但不在当前路线图中。
@@ -194,10 +202,15 @@
 | MGPU-10 | Phase 15 | Planned |
 | MGPU-11 | Phase 15 | Planned |
 | MGPU-12 | Phase 15 | Planned |
-| TEST-01 | Phase 17 | Planned |
-| TEST-02 | Phase 17 | Planned |
-| TEST-03 | Phase 17 | Planned |
+| TEST-01 | Phase 17 | Complete |
+| TEST-02 | Phase 17 | Complete |
+| TEST-03 | Phase 17 | Complete |
+| REG-01 | Phase 18 | Planned |
+| REG-02 | Phase 18 | Planned |
+| REG-03 | Phase 18 | Planned |
+| REG-04 | Phase 18 | Planned |
+| REG-05 | Phase 18 | Planned |
 
 ---
 *需求定义时间：2025-03-12*
-*最后更新：2026-03-27 after Phase 17 测试需求添加*
+*最后更新：2026-03-27 after Phase 18 模型注册机制重构需求添加*

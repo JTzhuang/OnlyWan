@@ -179,5 +179,15 @@ Plans:
 - [x] 17-01-PLAN.md — 测试基础设施 + 模板工厂 + 工厂单元测试 (TEST-01, TEST-02)
 - [x] 17-02-PLAN.md — 四个模型的版本初始化单元测试 (TEST-03)
 
+### Phase 18: 模型注册机制重构 - 宏注册 + 字符串版本
+
+**Goal:** 将模型版本注册机制从 tests 迁移到 src，使用宏进行全局类型注册，用字符串而非枚举进行版本区分
+**Requirements**: REG-01, REG-02, REG-03, REG-04, REG-05
+**Depends on:** Phase 17
+**Plans:** 1 plan
+
+Plans:
+- [ ] 18-01-PLAN.md — 创建 model_registry 基础设施 + 迁移工厂实现 + 更新 CMakeLists + 更新 tests (REG-01, REG-02, REG-03, REG-04, REG-05)
+
 ---
-*Last updated: 2026-03-27 — Phase 17 plans created*
+*Last updated: 2026-03-27 — Phase 18 plans created*
