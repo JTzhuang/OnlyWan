@@ -18,5 +18,17 @@ endfunction()
 wan_add_test(test_factory     test_factory.cpp)
 wan_add_test(test_clip        test_clip.cpp)
 wan_add_test(test_t5          test_t5.cpp)
+
+# I/O tests: .npy file read/write (no model weights needed)
+add_executable(test_io_npy test_io_npy.cpp)
+target_link_libraries(test_io_npy PRIVATE wan-cpp libnpy)
+target_include_directories(test_io_npy PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/thirdparty
+)
+target_compile_features(test_io_npy PRIVATE cxx_std_17)
+add_test(NAME test_io_npy COMMAND test_io_npy)
 wan_add_test(test_vae         test_vae.cpp)
 wan_add_test(test_transformer test_transformer.cpp)

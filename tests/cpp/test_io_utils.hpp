@@ -34,7 +34,7 @@
 // load_npy
 // ---------------------------------------------------------------------------
 // Load a .npy file and allocate a new ggml_tensor inside `ctx`.
-// Supported dtypes: float32 ('<f4'), float16 ('<f2'), int32 ('<i4'), int64 ('<i8').
+// Supported dtypes: float32, float16, int32, int64.
 // Throws std::runtime_error on any I/O or format error.
 //
 // Dimension mapping:
@@ -45,36 +45,37 @@ static struct ggml_tensor* load_npy(struct ggml_context* ctx,
                                      const std::string& path) {
     npy::NpyArray arr = npy::load(path);
 
-    // Map dtype string to ggml type
+    // Map DType enum to ggml type
     enum ggml_type gtype;
-    const std::string& dtype = arr.dtype;
-    if (dtype == "<f4" || dtype == "=f4" || dtype == ">f4" || dtype == "f4") {
-        gtype = GGML_TYPE_F32;
-    } else if (dtype == "<f2" || dtype == "=f2" || dtype == ">f2" || dtype == "f2") {
-        gtype = GGML_TYPE_F16;
-    } else if (dtype == "<i4" || dtype == "=i4" || dtype == ">i4" || dtype == "i4") {
-        gtype = GGML_TYPE_I32;
-    } else if (dtype == "<i8" || dtype == "=i8" || dtype == ">i8" || dtype == "i8") {
-        gtype = GGML_TYPE_I64;
-    } else {
-        throw std::runtime_error("load_npy: unsupported dtype '" + dtype +
-                                 "' in file " + path);
+    switch (arr.dtype) {
+        case npy::DType::FLOAT32: gtype = GGML_TYPE_F32;  break;
+        case npy::DType::FLOAT16: gtype = GGML_TYPE_F16;  break;
+        case npy::DType::INT32:   gtype = GGML_TYPE_I32;  break;
+        case npy::DType::INT64:   gtype = GGML_TYPE_I64;  break;
+        default:
+            throw std::runtime_error(
+                "load_npy: unsupported dtype in " + path);
     }
 
-    const std::vector<unsigned long>& shape = arr.shape;
-    if (shape.empty() || shape.size() > 4) {
-        throw std::runtime_error("load_npy: shape must be 1-4 dimensional, got " +
-                                 std::to_string(shape.size()) + "D in " + path);
+    const std::vector<size_t>& shape = arr.shape;
+    size_t ndim = shape.size();
+
+    if (ndim == 0 || ndim > 4) {
+        throw std::runtime_error(
+            "load_npy: shape must be 1-4 dimensional, got " +
+            std::to_string(ndim) + "D in " + path);
     }
 
-    // ggml ne[0] = innermost (last numpy axis), ne[1] = second-to-last, etc.
+    // Build ggml tensor. ggml ne[0] = innermost dim = numpy's last axis.
+    // numpy shape = (d0, d1, ..., d_{n-1}), so:
+    //   ne[0] = shape[n-1], ne[1] = shape[n-2], ...
     struct ggml_tensor* tensor = nullptr;
-    switch (shape.size()) {
+    switch (ndim) {
         case 1:
-            tensor = ggml_new_tensor_1d(ctx, gtype, (int64_t)shape[0]);
+            tensor = ggml_new_tensor_1d(ctx, gtype,
+                                        (int64_t)shape[0]);
             break;
         case 2:
-            // numpy shape (rows, cols) -> ggml ne[0]=cols, ne[1]=rows
             tensor = ggml_new_tensor_2d(ctx, gtype,
                                         (int64_t)shape[1],
                                         (int64_t)shape[0]);
@@ -95,46 +96,47 @@ static struct ggml_tensor* load_npy(struct ggml_context* ctx,
     }
 
     if (!tensor) {
-        throw std::runtime_error("load_npy: ggml_new_tensor failed for " + path);
-    }
-
-    // Copy raw bytes from npy buffer into tensor data
-    size_t nbytes = ggml_nbytes(tensor);
-    if (arr.data.size() != nbytes) {
         throw std::runtime_error(
-            "load_npy: size mismatch: npy has " + std::to_string(arr.data.size()) +
-            " bytes but tensor expects " + std::to_string(nbytes) +
-            " bytes (file: " + path + ")");
+            "load_npy: ggml_new_tensor returned null for " + path);
     }
-    std::memcpy(tensor->data, arr.data.data(), nbytes);
 
+    // Validate byte count matches
+    size_t expected_bytes = arr.num_bytes();
+    size_t ggml_bytes     = ggml_nbytes(tensor);
+    if (expected_bytes != ggml_bytes) {
+        throw std::runtime_error(
+            "load_npy: byte count mismatch: npy=" +
+            std::to_string(expected_bytes) +
+            " ggml=" + std::to_string(ggml_bytes));
+    }
+
+    // Copy raw bytes into tensor data buffer
+    std::memcpy(tensor->data, arr.data.data(), expected_bytes);
     return tensor;
 }
 
 // ---------------------------------------------------------------------------
 // save_npy
 // ---------------------------------------------------------------------------
-// Save a contiguous ggml_tensor to a .npy file.
+// Write a ggml_tensor to a .npy file.
 // Supported types: GGML_TYPE_F32, GGML_TYPE_F16, GGML_TYPE_I32, GGML_TYPE_I64.
-// Throws std::runtime_error on any error.
+// Throws std::runtime_error on unsupported type or I/O error.
 //
-// Dimension mapping (inverse of load_npy):
-//   ggml ne[0]=cols, ne[1]=rows  ->  .npy shape (rows, cols)
-static void save_npy(const std::string& path, const struct ggml_tensor* tensor) {
-    if (!tensor) {
-        throw std::runtime_error("save_npy: null tensor");
-    }
-    if (!tensor->data) {
-        throw std::runtime_error("save_npy: tensor has no data");
+// Dimension mapping (reverse of load_npy):
+//   ggml ne[0]=innermost -> numpy last axis
+//   For a tensor with ndims=2: numpy shape = (ne[1], ne[0])
+static void save_npy(const std::string& path, struct ggml_tensor* tensor) {
+    if (!tensor || !tensor->data) {
+        throw std::runtime_error("save_npy: null tensor or tensor data");
     }
 
-    // Map ggml type to npy dtype string
-    std::string dtype;
+    // Map ggml type to npy DType enum
+    npy::DType dtype;
     switch (tensor->type) {
-        case GGML_TYPE_F32: dtype = "<f4"; break;
-        case GGML_TYPE_F16: dtype = "<f2"; break;
-        case GGML_TYPE_I32: dtype = "<i4"; break;
-        case GGML_TYPE_I64: dtype = "<i8"; break;
+        case GGML_TYPE_F32: dtype = npy::DType::FLOAT32; break;
+        case GGML_TYPE_F16: dtype = npy::DType::FLOAT16; break;
+        case GGML_TYPE_I32: dtype = npy::DType::INT32;   break;
+        case GGML_TYPE_I64: dtype = npy::DType::INT64;   break;
         default:
             throw std::runtime_error(
                 "save_npy: unsupported ggml type " +
@@ -146,16 +148,15 @@ static void save_npy(const std::string& path, const struct ggml_tensor* tensor) 
     int ndims = ggml_n_dims(tensor);
 
     // Build numpy shape: reversed ggml ne (ne[ndims-1], ..., ne[0])
-    std::vector<unsigned long> shape;
+    std::vector<size_t> shape;
     shape.reserve(ndims);
     for (int i = ndims - 1; i >= 0; --i) {
-        shape.push_back((unsigned long)tensor->ne[i]);
+        shape.push_back((size_t)tensor->ne[i]);
     }
 
-    // Copy tensor data
-    size_t nbytes = ggml_nbytes(tensor);
-    std::vector<char> data(nbytes);
-    std::memcpy(data.data(), tensor->data, nbytes);
-
-    npy::save(path, dtype, shape, data);
+    // Save raw bytes using npy::save(path, data_ptr, shape, dtype)
+    npy::save(path,
+              reinterpret_cast<const uint8_t*>(tensor->data),
+              shape,
+              dtype);
 }
