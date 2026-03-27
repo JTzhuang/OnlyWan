@@ -1,0 +1,3 @@
+# Ignore generated .npy test data files - they are produced by generate_test_data.py
+*.npy
+*.pt
