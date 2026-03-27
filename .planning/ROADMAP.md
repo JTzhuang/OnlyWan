@@ -168,5 +168,16 @@ Plans:
 Plans:
 - [x] 16-01-PLAN.md — 基础 spdlog 集成与 util 日志宏重写 (LOG-01, LOG-02, LOG-03, LOG-04)
 
+### Phase 17: 模型单元测试与工厂模式
+
+**Goal:** 为四个核心模型（CLIP、T5/UMT5、VAE、Transformer/Flux）建立 C++ 单元测试框架，使用通用模板工厂模式管理多版本模型的注册与创建，所有测试通过 ctest 运行
+**Requirements**: TEST-01, TEST-02, TEST-03
+**Depends on:** Phase 16
+**Plans:** 2 plans
+
+Plans:
+- [ ] 17-01-PLAN.md — 测试基础设施 + 模板工厂 + 工厂单元测试 (TEST-01, TEST-02)
+- [ ] 17-02-PLAN.md — 四个模型的版本初始化单元测试 (TEST-03)
+
 ---
-*Last updated: 2026-03-18 — Phase 15 Plan 04 complete*
+*Last updated: 2026-03-27 — Phase 17 plans created*

@@ -98,6 +98,16 @@
 
 - [x] **MGPU-12**: 不指定多卡配置时自动回退到单卡推理，现有 API 行为不变
 
+## v1.3 Requirements
+
+**里程碑目标：** C++ 单元测试框架与模型工厂模式
+
+### 测试基础设施
+
+- [ ] **TEST-01**: 建立 C++ 测试构建系统 — CMake `WAN_BUILD_TESTS` 选项、`tests/cpp/` 子目录、`ctest` 集成、自定义轻量测试框架（断言宏 + 测试套件 + 报告）
+- [ ] **TEST-02**: 实现通用模板工厂模式 — `ModelFactory<ModelType, VersionEnum>` 支持动态注册 (`register_version`) 和统一创建 (`create`) 所有 Runner 版本，工厂自身通过单元测试验证
+- [ ] **TEST-03**: 为四个核心 Runner 建立初始化单元测试 — CLIP (3版本)、T5/UMT5 (2版本)、VAE/AutoEncoderKL (4版本)、Transformer/FluxRunner (5版本)，使用合成数据（无需真实权重）验证构造、`alloc_params_buffer`、`get_desc` 等基本接口
+
 ## v2 Requirements
 
 延迟到未来发布。已追踪但不在当前路线图中。
@@ -184,7 +194,10 @@
 | MGPU-10 | Phase 15 | Planned |
 | MGPU-11 | Phase 15 | Planned |
 | MGPU-12 | Phase 15 | Planned |
+| TEST-01 | Phase 17 | Planned |
+| TEST-02 | Phase 17 | Planned |
+| TEST-03 | Phase 17 | Planned |
 
 ---
 *需求定义时间：2025-03-12*
-*最后更新：2026-03-18 after Phase 15 多卡推理需求添加*
+*最后更新：2026-03-27 after Phase 17 测试需求添加*
