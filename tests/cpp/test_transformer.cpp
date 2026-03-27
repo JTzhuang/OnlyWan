@@ -1,5 +1,6 @@
 #include "test_framework.hpp"
 #include "test_helpers.hpp"
+#include "test_io_utils.hpp"
 #include "model_registry.hpp"
 
 // WAN Transformer (DiT) header
@@ -9,6 +10,9 @@
 #include "ggml_extend.hpp"
 #include "model.h"
 #include "ggml-backend.h"
+
+#include <filesystem>
+namespace fs = std::filesystem;
 
 // Force-link model_factory.cpp to ensure static registrations are not DCE'd by linker.
 extern "C" void wan_force_model_registrations();
