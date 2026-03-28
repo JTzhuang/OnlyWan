@@ -8,6 +8,14 @@
 #include "model.h"
 #include "ggml-backend.h"
 
+#ifdef WAN_USE_CUDA
+#include "ggml-cuda.h"
+#endif
+
+#ifdef WAN_USE_METAL
+#include "ggml-metal.h"
+#endif
+
 #include <chrono>
 #include <fstream>
 #include <iostream>
@@ -111,7 +119,7 @@ ggml_backend_t backend_from_string(const std::string& backend_name) {
 #ifdef WAN_USE_CUDA
     else if (backend_name == "cuda") {
         std::cerr << "[Backend] Selected: CUDA\n";
-        return ggml_backend_cuda_init();
+        return ggml_backend_cuda_init(0);  // device 0
     }
 #endif
 #ifdef WAN_USE_METAL
