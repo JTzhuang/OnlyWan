@@ -54,12 +54,13 @@
 ### 1.3 CLIP 文本编码器调用流程
 
 ```
-输入文本
+输入文本提示 (Text Prompt)
     │
     ▼
 CLIPTokenizer
     │
     ├─ 分词 (Tokenization)
+    │  └─ 使用 BPE (Byte Pair Encoding)
     │
     ▼
 Token IDs [batch=1, seq_len=77]
@@ -67,13 +68,17 @@ Token IDs [batch=1, seq_len=77]
     ▼
 CLIPTextModelRunner::forward()
     │
-    ├─ 参数: input_ids, mask, max_token_idx, return_pooled, clip_skip
+    ├─ 参数: input_ids, embeddings, mask, max_token_idx, return_pooled, clip_skip
     │
     ├─ 处理流程:
-    │  ├─ Token Embedding
-    │  ├─ Position Embedding
-    │  ├─ Transformer Blocks (12-32 layers)
-    │  └─ Output Projection
+    │  ├─ Token Embedding (vocab_size=49408 → hidden_size)
+    │  ├─ Position Embedding (max_position_embeddings=77)
+    │  ├─ Transformer Encoder Blocks (12-32 layers)
+    │  │  ├─ Self-Attention
+    │  │  ├─ Feed-Forward Network
+    │  │  └─ Layer Normalization
+    │  ├─ Final Layer Normalization
+    │  └─ 可选: Text Projection (return_pooled=true)
     │
     ▼
 文本嵌入 [batch=1, seq_len=77, hidden_size=768/1024/1280]
@@ -82,9 +87,11 @@ CLIPTextModelRunner::forward()
 ```
 
 **模型变体:**
-- `clip-vit-l-14` - ViT-L (hidden_size=768)
-- `clip-vit-h-14` - ViT-H (hidden_size=1024)
-- `clip-vit-bigg-14` - ViT-BigG (hidden_size=1280)
+- `clip-vit-l-14` - ViT-L (hidden_size=768, 12 layers)
+- `clip-vit-h-14` - ViT-H (hidden_size=1024, 24 layers)
+- `clip-vit-bigg-14` - ViT-BigG (hidden_size=1280, 32 layers)
+
+**注意:** 虽然代码中定义了 `CLIPVisionModel`（图像编码器），但在模型工厂中只注册了 `CLIPTextModelRunner`（文本编码器）。
 
 ### 1.4 T5 文本编码器调用流程
 
