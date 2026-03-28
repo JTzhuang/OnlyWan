@@ -92,6 +92,7 @@ Plan: 19-01 complete
 | 260326-h31 | 合并多个 safetensors 为单文件并将所有浮点张量统一为 bf16，重复键直接报错退出 | 2026-03-26 | 06660b9 | [260326-h31](./quick/260326-h31-safetensors-dtype-bf16/) |
 | 260328-m62 | 结合相关的测试工具，生成 API 调用文档 | 2026-03-28 | 697f3e2 | [260328-m62-api](./quick/260328-m62-api/) |
 | 260328-tuc | 帮我写一下各个模型推理效率的测试工具 | 2026-03-28 | 5373779 | [260328-tuc](./quick/260328-tuc/) |
+| 260328-ucx | 为 benchmark_inference 工具添加后端选择功能（--backend 参数支持 cpu/cuda/metal 等） | 2026-03-28 | ed5469b | [260328-ucx](./quick/260328-ucx-benchmark-inference-backend-cpu-cuda-met/) |
 
 ## Session Continuity
 
