@@ -90,6 +90,7 @@ Plan: 19-01 complete
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260326-h31 | 合并多个 safetensors 为单文件并将所有浮点张量统一为 bf16，重复键直接报错退出 | 2026-03-26 | 06660b9 | [260326-h31](./quick/260326-h31-safetensors-dtype-bf16/) |
+| 260328-m62 | 结合相关的测试工具，生成 API 调用文档 | 2026-03-28 | 697f3e2 | [260328-m62-api](./quick/260328-m62-api/) |
 
 ## Session Continuity
 
