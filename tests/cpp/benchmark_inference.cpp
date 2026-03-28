@@ -108,13 +108,13 @@ ggml_backend_t backend_from_string(const std::string& backend_name) {
         std::cerr << "[Backend] Selected: CPU\n";
         return ggml_backend_cpu_init();
     }
-#ifdef SD_USE_CUDA
+#ifdef WAN_USE_CUDA
     else if (backend_name == "cuda") {
         std::cerr << "[Backend] Selected: CUDA\n";
         return ggml_backend_cuda_init();
     }
 #endif
-#ifdef SD_USE_METAL
+#ifdef WAN_USE_METAL
     else if (backend_name == "metal") {
         std::cerr << "[Backend] Selected: Metal\n";
         return ggml_backend_metal_init();
