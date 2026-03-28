@@ -100,12 +100,39 @@ private:
 };
 
 // ---------------------------------------------------------------------------
+// Backend Selection Helper
+// ---------------------------------------------------------------------------
+
+ggml_backend_t backend_from_string(const std::string& backend_name) {
+    if (backend_name == "cpu") {
+        std::cerr << "[Backend] Selected: CPU\n";
+        return ggml_backend_cpu_init();
+    }
+#ifdef SD_USE_CUDA
+    else if (backend_name == "cuda") {
+        std::cerr << "[Backend] Selected: CUDA\n";
+        return ggml_backend_cuda_init();
+    }
+#endif
+#ifdef SD_USE_METAL
+    else if (backend_name == "metal") {
+        std::cerr << "[Backend] Selected: Metal\n";
+        return ggml_backend_metal_init();
+    }
+#endif
+    else {
+        std::cerr << "[Backend] Unknown backend '" << backend_name << "', falling back to CPU\n";
+        return ggml_backend_cpu_init();
+    }
+}
+
+// ---------------------------------------------------------------------------
 // CLIP Benchmark
 // ---------------------------------------------------------------------------
 
-BenchmarkResult benchmark_clip(const std::string& version, int num_runs, MemoryTracker& mem_tracker) {
+BenchmarkResult benchmark_clip(const std::string& version, int num_runs, MemoryTracker& mem_tracker, const std::string& backend_name) {
     wan_force_model_registrations();
-    BackendRAII guard(ggml_backend_cpu_init());
+    BackendRAII guard(backend_from_string(backend_name));
     String2TensorStorage empty_map{};
 
     auto runner = ModelRegistry::instance()->create<CLIPTextModelRunner>(
@@ -175,9 +202,9 @@ BenchmarkResult benchmark_clip(const std::string& version, int num_runs, MemoryT
 // T5 Benchmark
 // ---------------------------------------------------------------------------
 
-BenchmarkResult benchmark_t5(const std::string& version, int num_runs, MemoryTracker& mem_tracker) {
+BenchmarkResult benchmark_t5(const std::string& version, int num_runs, MemoryTracker& mem_tracker, const std::string& backend_name) {
     wan_force_model_registrations();
-    BackendRAII guard(ggml_backend_cpu_init());
+    BackendRAII guard(backend_from_string(backend_name));
     String2TensorStorage empty_map{};
 
     auto runner = ModelRegistry::instance()->create<T5Runner>(
@@ -247,9 +274,9 @@ BenchmarkResult benchmark_t5(const std::string& version, int num_runs, MemoryTra
 // VAE Benchmark
 // ---------------------------------------------------------------------------
 
-BenchmarkResult benchmark_vae(const std::string& version, int num_runs, MemoryTracker& mem_tracker) {
+BenchmarkResult benchmark_vae(const std::string& version, int num_runs, MemoryTracker& mem_tracker, const std::string& backend_name) {
     wan_force_model_registrations();
-    BackendRAII guard(ggml_backend_cpu_init());
+    BackendRAII guard(backend_from_string(backend_name));
     String2TensorStorage empty_map{};
 
     auto runner = ModelRegistry::instance()->create<WAN::WanVAERunner>(
@@ -316,9 +343,9 @@ BenchmarkResult benchmark_vae(const std::string& version, int num_runs, MemoryTr
 // Transformer (WAN) Benchmark
 // ---------------------------------------------------------------------------
 
-BenchmarkResult benchmark_transformer(const std::string& version, int num_runs, MemoryTracker& mem_tracker) {
+BenchmarkResult benchmark_transformer(const std::string& version, int num_runs, MemoryTracker& mem_tracker, const std::string& backend_name) {
     wan_force_model_registrations();
-    BackendRAII guard(ggml_backend_cpu_init());
+    BackendRAII guard(backend_from_string(backend_name));
     String2TensorStorage empty_map{};
 
     // Add dummy block tensor to ensure num_layers is detected
@@ -421,6 +448,7 @@ int main(int argc, char* argv[]) {
     std::string version = "";
     int num_runs = 5;
     std::string output_file = "benchmark_results.csv";
+    std::string backend = "cpu";
     bool show_help = false;
 
     // Parse command-line arguments
@@ -436,6 +464,8 @@ int main(int argc, char* argv[]) {
             num_runs = std::stoi(argv[++i]);
         } else if (arg == "--output" && i + 1 < argc) {
             output_file = argv[++i];
+        } else if (arg == "--backend" && i + 1 < argc) {
+            backend = argv[++i];
         }
     }
 
@@ -446,6 +476,7 @@ int main(int argc, char* argv[]) {
                   << "  --version VERSION_STR                   Model version string\n"
                   << "  --runs N                                Number of runs per model (default: 5)\n"
                   << "  --output FILE                           CSV output file (default: benchmark_results.csv)\n"
+                  << "  --backend {cpu|cuda|metal}              Compute backend (default: cpu)\n"
                   << "  --help                                  Show this help message\n";
         return 0;
     }
@@ -460,7 +491,7 @@ int main(int argc, char* argv[]) {
             for (const auto& v : clip_versions) {
                 std::cerr << "Version: " << v << "\n";
                 MemoryTracker mem;
-                auto result = benchmark_clip(v, num_runs, mem);
+                auto result = benchmark_clip(v, num_runs, mem, backend);
                 all_results.push_back(result);
                 std::cout << "CLIP " << v << ": " << std::fixed << std::setprecision(2)
                           << result.latency_ms << " ms avg\n";
@@ -474,7 +505,7 @@ int main(int argc, char* argv[]) {
             for (const auto& v : t5_versions) {
                 std::cerr << "Version: " << v << "\n";
                 MemoryTracker mem;
-                auto result = benchmark_t5(v, num_runs, mem);
+                auto result = benchmark_t5(v, num_runs, mem, backend);
                 all_results.push_back(result);
                 std::cout << "T5 " << v << ": " << std::fixed << std::setprecision(2)
                           << result.latency_ms << " ms avg\n";
@@ -488,7 +519,7 @@ int main(int argc, char* argv[]) {
             for (const auto& v : vae_versions) {
                 std::cerr << "Version: " << v << "\n";
                 MemoryTracker mem;
-                auto result = benchmark_vae(v, num_runs, mem);
+                auto result = benchmark_vae(v, num_runs, mem, backend);
                 all_results.push_back(result);
                 std::cout << "VAE " << v << ": " << std::fixed << std::setprecision(2)
                           << result.latency_ms << " ms avg\n";
@@ -502,7 +533,7 @@ int main(int argc, char* argv[]) {
             for (const auto& v : transformer_versions) {
                 std::cerr << "Version: " << v << "\n";
                 MemoryTracker mem;
-                auto result = benchmark_transformer(v, num_runs, mem);
+                auto result = benchmark_transformer(v, num_runs, mem, backend);
                 all_results.push_back(result);
                 std::cout << "Transformer " << v << ": " << std::fixed << std::setprecision(2)
                           << result.latency_ms << " ms avg\n";
