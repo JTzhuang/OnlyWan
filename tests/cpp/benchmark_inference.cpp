@@ -138,7 +138,7 @@ ggml_backend_t backend_from_string(const std::string& backend_name, int device_i
 // CLIP Benchmark
 // ---------------------------------------------------------------------------
 
-BenchmarkResult benchmark_clip(const std::string& version, int num_runs, MemoryTracker& mem_tracker, const std::string& backend_name, int device_id = 0) {
+BenchmarkResult benchmark_clip(const std::string& version, int num_runs, MemoryTracker& mem_tracker, const std::string& backend_name, int device_id = 0, const std::string& model_path = "") {
     wan_force_model_registrations();
     BackendRAII guard(backend_from_string(backend_name, device_id));
     String2TensorStorage empty_map{};
@@ -149,7 +149,14 @@ BenchmarkResult benchmark_clip(const std::string& version, int num_runs, MemoryT
         throw std::runtime_error("Failed to create CLIP runner for version: " + version);
     }
 
-    runner->alloc_params_buffer();
+    // Load weights from file if model_path is provided
+    if (!model_path.empty()) {
+        if (!runner->load_from_file(model_path)) {
+            throw std::runtime_error("Failed to load CLIP weights from: " + model_path);
+        }
+    } else {
+        runner->alloc_params_buffer();
+    }
 
     std::vector<double> latencies;
     double total_latency = 0.0;
@@ -210,7 +217,7 @@ BenchmarkResult benchmark_clip(const std::string& version, int num_runs, MemoryT
 // T5 Benchmark
 // ---------------------------------------------------------------------------
 
-BenchmarkResult benchmark_t5(const std::string& version, int num_runs, MemoryTracker& mem_tracker, const std::string& backend_name, int device_id = 0) {
+BenchmarkResult benchmark_t5(const std::string& version, int num_runs, MemoryTracker& mem_tracker, const std::string& backend_name, int device_id = 0, const std::string& model_path = "") {
     wan_force_model_registrations();
     BackendRAII guard(backend_from_string(backend_name, device_id));
     String2TensorStorage empty_map{};
@@ -221,7 +228,14 @@ BenchmarkResult benchmark_t5(const std::string& version, int num_runs, MemoryTra
         throw std::runtime_error("Failed to create T5 runner for version: " + version);
     }
 
-    runner->alloc_params_buffer();
+    // Load weights from file if model_path is provided
+    if (!model_path.empty()) {
+        if (!runner->load_from_file(model_path)) {
+            throw std::runtime_error("Failed to load T5 weights from: " + model_path);
+        }
+    } else {
+        runner->alloc_params_buffer();
+    }
 
     std::vector<double> latencies;
     double total_latency = 0.0;
@@ -282,7 +296,7 @@ BenchmarkResult benchmark_t5(const std::string& version, int num_runs, MemoryTra
 // VAE Benchmark
 // ---------------------------------------------------------------------------
 
-BenchmarkResult benchmark_vae(const std::string& version, int num_runs, MemoryTracker& mem_tracker, const std::string& backend_name, int device_id = 0) {
+BenchmarkResult benchmark_vae(const std::string& version, int num_runs, MemoryTracker& mem_tracker, const std::string& backend_name, int device_id = 0, const std::string& model_path = "") {
     wan_force_model_registrations();
     BackendRAII guard(backend_from_string(backend_name, device_id));
     String2TensorStorage empty_map{};
@@ -293,7 +307,14 @@ BenchmarkResult benchmark_vae(const std::string& version, int num_runs, MemoryTr
         throw std::runtime_error("Failed to create VAE runner for version: " + version);
     }
 
-    runner->alloc_params_buffer();
+    // Load weights from file if model_path is provided
+    if (!model_path.empty()) {
+        if (!runner->load_from_file(model_path)) {
+            throw std::runtime_error("Failed to load VAE weights from: " + model_path);
+        }
+    } else {
+        runner->alloc_params_buffer();
+    }
 
     std::vector<double> latencies;
     double total_latency = 0.0;
@@ -351,7 +372,7 @@ BenchmarkResult benchmark_vae(const std::string& version, int num_runs, MemoryTr
 // Transformer (WAN) Benchmark
 // ---------------------------------------------------------------------------
 
-BenchmarkResult benchmark_transformer(const std::string& version, int num_runs, MemoryTracker& mem_tracker, const std::string& backend_name, int device_id = 0) {
+BenchmarkResult benchmark_transformer(const std::string& version, int num_runs, MemoryTracker& mem_tracker, const std::string& backend_name, int device_id = 0, const std::string& model_path = "") {
     wan_force_model_registrations();
     BackendRAII guard(backend_from_string(backend_name, device_id));
     String2TensorStorage empty_map{};
@@ -365,31 +386,43 @@ BenchmarkResult benchmark_transformer(const std::string& version, int num_runs, 
         throw std::runtime_error("Failed to create Transformer runner for version: " + version);
     }
 
-    runner->alloc_params_buffer();
+    // Load weights from file if model_path is provided
+    if (!model_path.empty()) {
+        if (!runner->load_from_file(model_path)) {
+            throw std::runtime_error("Failed to load Transformer weights from: " + model_path);
+        }
+    } else {
+        runner->alloc_params_buffer();
+    }
 
     std::vector<double> latencies;
     double total_latency = 0.0;
 
     for (int i = 0; i < num_runs; ++i) {
         // Create fresh context for each run
-        ggml_init_params params{256*1024*1024, nullptr, false};
+        ggml_init_params params{512*1024*1024, nullptr, false};
         ggml_context* ctx = ggml_init(params);
 
-        // Create random latent: [5120, 4096, 1] (dim, seq, batch) in ggml layout
-        ggml_tensor* x = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, 5120, 4096, 1);
+        // Create latent x: [ch=8, w=8, h=2, frames=16] matching test_transformer.cpp
+        ggml_tensor* x = ggml_new_tensor_4d(ctx, GGML_TYPE_F32, 8, 8, 2, 16);
         float* x_data = (float*)x->data;
-        for (size_t j = 0; j < 5120*4096*1; ++j) x_data[j] = 0.1f;
+        for (size_t j = 0; j < 8*8*2*16; ++j) x_data[j] = 0.1f;
 
         // Create timestep: [1]
         ggml_tensor* timesteps = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, 1);
         int32_t* ts_data = (int32_t*)timesteps->data;
         ts_data[0] = 500;
 
+        // Create context (text encoder output): [4096, 77, 1]
+        ggml_tensor* context = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, 4096, 77, 1);
+        float* ctx_data = (float*)context->data;
+        for (size_t j = 0; j < 4096*77; ++j) ctx_data[j] = 0.1f;
+
         double elapsed_ms = 0.0;
         {
             TimerRAII timer(elapsed_ms);
             ggml_tensor* output = nullptr;
-            bool ok = runner->compute(4, x, timesteps, nullptr, nullptr, nullptr, nullptr, nullptr, 1.0f, &output, ctx);
+            bool ok = runner->compute(4, x, timesteps, context, nullptr, nullptr, nullptr, nullptr, 1.0f, &output, ctx);
             if (!ok) {
                 throw std::runtime_error("Transformer compute failed");
             }
@@ -415,7 +448,7 @@ BenchmarkResult benchmark_transformer(const std::string& version, int num_runs, 
     BenchmarkResult result;
     result.model_name = "Transformer";
     result.version = version;
-    result.input_shape = "5120,4096,1";
+    result.input_shape = "8,8,2,16";
     result.latency_ms = avg_latency;
     result.throughput_tokens_per_sec = throughput;
     result.peak_memory_mb = mem_tracker.peak_mb();
@@ -458,6 +491,7 @@ int main(int argc, char* argv[]) {
     std::string output_file = "benchmark_results.csv";
     std::string backend = "cpu";
     int device_id = 0;
+    std::string model_path = "";
     bool show_help = false;
 
     // Parse command-line arguments
@@ -477,6 +511,8 @@ int main(int argc, char* argv[]) {
             backend = argv[++i];
         } else if (arg == "--device" && i + 1 < argc) {
             device_id = std::stoi(argv[++i]);
+        } else if (arg == "--model-path" && i + 1 < argc) {
+            model_path = argv[++i];
         }
     }
 
@@ -489,6 +525,7 @@ int main(int argc, char* argv[]) {
                   << "  --output FILE                           CSV output file (default: benchmark_results.csv)\n"
                   << "  --backend {cpu|cuda|metal}              Compute backend (default: cpu)\n"
                   << "  --device ID                             GPU device ID for CUDA backend (default: 0)\n"
+                  << "  --model-path PATH                       Path to model weights file (optional)\n"
                   << "  --help                                  Show this help message\n";
         return 0;
     }
@@ -503,7 +540,7 @@ int main(int argc, char* argv[]) {
             for (const auto& v : clip_versions) {
                 std::cerr << "Version: " << v << "\n";
                 MemoryTracker mem;
-                auto result = benchmark_clip(v, num_runs, mem, backend, device_id);
+                auto result = benchmark_clip(v, num_runs, mem, backend, device_id, model_path);
                 all_results.push_back(result);
                 std::cout << "CLIP " << v << ": " << std::fixed << std::setprecision(2)
                           << result.latency_ms << " ms avg\n";
@@ -517,7 +554,7 @@ int main(int argc, char* argv[]) {
             for (const auto& v : t5_versions) {
                 std::cerr << "Version: " << v << "\n";
                 MemoryTracker mem;
-                auto result = benchmark_t5(v, num_runs, mem, backend, device_id);
+                auto result = benchmark_t5(v, num_runs, mem, backend, device_id, model_path);
                 all_results.push_back(result);
                 std::cout << "T5 " << v << ": " << std::fixed << std::setprecision(2)
                           << result.latency_ms << " ms avg\n";
@@ -531,7 +568,7 @@ int main(int argc, char* argv[]) {
             for (const auto& v : vae_versions) {
                 std::cerr << "Version: " << v << "\n";
                 MemoryTracker mem;
-                auto result = benchmark_vae(v, num_runs, mem, backend, device_id);
+                auto result = benchmark_vae(v, num_runs, mem, backend, device_id, model_path);
                 all_results.push_back(result);
                 std::cout << "VAE " << v << ": " << std::fixed << std::setprecision(2)
                           << result.latency_ms << " ms avg\n";
@@ -545,7 +582,7 @@ int main(int argc, char* argv[]) {
             for (const auto& v : transformer_versions) {
                 std::cerr << "Version: " << v << "\n";
                 MemoryTracker mem;
-                auto result = benchmark_transformer(v, num_runs, mem, backend, device_id);
+                auto result = benchmark_transformer(v, num_runs, mem, backend, device_id, model_path);
                 all_results.push_back(result);
                 std::cout << "Transformer " << v << ": " << std::fixed << std::setprecision(2)
                           << result.latency_ms << " ms avg\n";
