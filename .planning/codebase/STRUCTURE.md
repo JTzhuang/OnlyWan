@@ -1,218 +1,208 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-03-17
+**Analysis Date:** 2026-03-28
 
 ## Directory Layout
 
 ```
-wan/
-├── include/wan-cpp/          # Public headers
-│   ├── wan.h                 # C API interface
-│   └── wan-internal.hpp      # Internal C++ structures
-├── src/                      # Core implementation
-│   ├── api/                  # C API implementation
-│   │   ├── wan-api.cpp       # Main API functions
-│   │   ├── wan_config.cpp    # Backend configuration
-│   │   ├── wan_t2v.cpp       # Text-to-video generation
-│   │   ├── wan_i2v.cpp       # Image-to-video generation
-│   │   └── wan_loader.cpp    # Model format detection
-│   ├── vocab/                # Tokenizers
-│   │   ├── vocab.h/cpp       # Tokenizer registry
-│   │   ├── clip_t5.hpp       # CLIP/T5 tokenizers
-│   │   ├── mistral.hpp       # Mistral tokenizer
-│   │   ├── qwen.hpp          # Qwen tokenizer
-│   │   └── umt5.hpp          # UMT5 tokenizer
-│   ├── wan.hpp               # WAN model runner
-│   ├── flux.hpp              # Flux model runner
-│   ├── t5.hpp                # T5 text encoder
-│   ├── clip.hpp              # CLIP vision encoder
-│   ├── vae.hpp               # VAE decoder
-│   ├── common_dit.hpp        # DiT utilities (patchify, etc.)
-│   ├── common_block.hpp      # Base neural network blocks
-│   ├── model.h/cpp           # Model loader
-│   ├── name_conversion.h/cpp # Tensor name mapping
-│   ├── tokenize_util.h/cpp   # Tokenization utilities
-│   ├── util.h/cpp            # General utilities
-│   ├── ggml_extend.hpp       # GGML extensions
-│   ├── gguf_reader.hpp       # GGUF parsing
-│   ├── rope.hpp              # RoPE positional encoding
-│   ├── rng.hpp               # RNG interface
-│   ├── rng_mt19937.hpp       # Mersenne Twister
-│   ├── rng_philox.hpp        # Philox RNG
-│   ├── preprocessing.hpp     # Image preprocessing
-│   ├── ordered_map.hpp       # Ordered map container
-│   ├── json.hpp              # JSON parsing
-│   └── wan-types.h           # Type definitions
-├── examples/                 # Example applications
-│   ├── cli/                  # CLI tool
-│   │   ├── main.cpp          # CLI implementation
-│   │   ├── avi_writer.h/c    # AVI video encoding
-│   │   └── README.md         # CLI documentation
-│   ├── convert/              # Model converter
-│   │   ├── main.cpp          # Converter implementation
-│   │   └── README.md         # Converter documentation
-│   └── README.md             # Examples overview
-├── thirdparty/               # External dependencies
-│   ├── zip.h                 # ZIP file handling
-│   └── stb_image.h           # Image loading
-├── CMakeLists.txt            # Build configuration
-├── .clang-format             # Code formatting rules
-├── .clang-tidy               # Linting configuration
-├── format-code.sh            # Format script
-└── README.md                 # Project overview
+OnlyWan/
+├── src/                          # Core model implementations
+│   ├── wan.hpp                   # WAN Transformer (DiT) - main model
+│   ├── vae.hpp                   # Video VAE encoder/decoder
+│   ├── clip.hpp                  # CLIP text encoder
+│   ├── t5.hpp                    # T5 text encoder
+│   ├── common_block.hpp           # Shared neural network blocks
+│   ├── ggml_extend.hpp            # GGML operation wrappers
+│   ├── rope.hpp                   # RoPE positional encoding
+│   ├── model_factory.cpp          # Model registration & instantiation
+│   ├── model_registry.hpp         # Model registry interface
+│   ├── model.cpp/model.h          # Base model classes
+│   ├── config_loader.hpp/cpp      # Configuration loading
+│   ├── preprocessing.hpp          # Input preprocessing
+│   ├── api/                       # High-level API
+│   │   ├── wan-api.cpp            # Main API entry point
+│   │   ├── wan_t2v.cpp            # Text-to-video API
+│   │   ├── wan_i2v.cpp            # Image-to-video API
+│   │   ├── wan_loader.cpp         # Model loading utilities
+│   │   └── wan_config.cpp         # Configuration utilities
+│   ├── vocab/                     # Tokenizer vocabularies
+│   │   ├── clip_t5.hpp
+│   │   ├── mistral.hpp
+│   │   ├── qwen.hpp
+│   │   └── umt5.hpp
+│   └── util.cpp/util.h            # General utilities
+├── tests/cpp/                     # C++ test suite
+│   ├── test_clip.cpp              # CLIP model inference test
+│   ├── test_t5.cpp                # T5 model inference test
+│   ├── test_vae.cpp               # VAE encode/decode test
+│   ├── test_transformer.cpp       # WAN Transformer inference test
+│   ├── test_factory.cpp           # Model factory test
+│   ├── test_io_npy.cpp            # NumPy I/O test
+│   ├── test_framework.hpp         # Test utilities
+│   ├── test_helpers.hpp           # Test helper functions
+│   ├── test_io_utils.hpp          # I/O utilities for tests
+│   ├── model_factory.hpp          # Test model factory
+│   └── test_data/                 # Test data files
+└── build/                         # Build output directory
+    └── bin/                       # Compiled binaries
 ```
 
 ## Directory Purposes
 
-**include/wan-cpp/:**
-- Purpose: Public API headers
-- Contains: C interface, internal structures for implementation
-- Key files: `wan.h` (stable C API), `wan-internal.hpp` (C++ internals)
+**src/ - Core Implementation:**
+- Purpose: All model implementations and core logic
+- Contains: Model runners, blocks, utilities, API
+- Key files: wan.hpp (2300+ lines), vae.hpp, clip.hpp, t5.hpp
 
-**src/api/:**
-- Purpose: C API implementation and model loading
-- Contains: API functions, backend setup, generation logic
-- Key files: `wan-api.cpp` (main implementation), `wan_loader.cpp` (format detection)
+**src/api/ - High-Level API:**
+- Purpose: User-facing API for model inference
+- Contains: T2V, I2V pipeline orchestration
+- Key files: wan-api.cpp, wan_t2v.cpp, wan_i2v.cpp
 
-**src/vocab/:**
-- Purpose: Text tokenization for different models
-- Contains: Tokenizer implementations, vocabulary data
-- Key files: `vocab.h` (registry), `clip_t5.hpp`, `mistral.hpp`, `qwen.hpp`, `umt5.hpp`
+**src/vocab/ - Tokenizer Vocabularies:**
+- Purpose: Vocabulary data for different tokenizers
+- Contains: CLIP, T5, Mistral, Qwen vocabularies
+- Key files: clip_t5.hpp, umt5.hpp
 
-**src/ (root):**
-- Purpose: Core model implementations and utilities
-- Contains: Model runners (WAN, Flux), encoders (T5, CLIP), VAE, utilities
-- Key files: `wan.hpp`, `flux.hpp`, `t5.hpp`, `clip.hpp`, `vae.hpp`, `model.h`
+**tests/cpp/ - Test Suite:**
+- Purpose: Unit and integration tests for all models
+- Contains: Individual model tests, factory tests, I/O tests
+- Key files: test_clip.cpp, test_t5.cpp, test_vae.cpp, test_transformer.cpp
 
-**examples/cli/:**
-- Purpose: Full-featured command-line tool
-- Contains: CLI argument parsing, progress display, video output
-- Key files: `main.cpp` (CLI logic), `avi_writer.h/c` (video encoding)
-
-**examples/convert/:**
-- Purpose: Model format conversion utility
-- Contains: Safetensors → GGUF conversion logic
-- Key files: `main.cpp` (converter implementation)
-
-**thirdparty/:**
-- Purpose: External dependencies
-- Contains: ZIP file handling, image loading libraries
-- Key files: `zip.h`, `stb_image.h`
+**build/ - Build Artifacts:**
+- Purpose: Compiled binaries and build outputs
+- Contains: Executable binaries in build/bin/
+- Generated: CMake build system output
 
 ## Key File Locations
 
 **Entry Points:**
-- `include/wan-cpp/wan.h`: Public C API entry point
-- `examples/cli/main.cpp`: CLI application entry point
-- `examples/convert/main.cpp`: Model converter entry point
+- `src/api/wan-api.cpp`: Main API entry point
+- `src/api/wan_t2v.cpp`: T2V pipeline entry
+- `src/api/wan_i2v.cpp`: I2V pipeline entry
+- `src/model_factory.cpp`: Model instantiation entry
 
 **Configuration:**
-- `CMakeLists.txt`: Build system configuration
-- `.clang-format`: Code style rules
-- `.clang-tidy`: Static analysis rules
+- `src/config_loader.hpp`: Configuration loading interface
+- `src/config_loader.cpp`: Configuration implementation
+- `src/wan-types.h`: Type definitions and constants
 
 **Core Logic:**
-- `src/api/wan-api.cpp`: Main API implementation (36KB)
-- `src/model.cpp`: Model loading and tensor management
-- `src/wan.hpp`: WAN model runner (header-only)
-- `src/flux.hpp`: Flux model runner (header-only)
+- `src/wan.hpp`: WAN Transformer implementation (lines 1766-2318)
+- `src/vae.hpp`: VAE implementation (lines 922-1297)
+- `src/clip.hpp`: CLIP text encoder
+- `src/t5.hpp`: T5 text encoder
 
 **Testing:**
-- `examples/cli/main.cpp`: Functional test via CLI
-- `examples/convert/main.cpp`: Format conversion test
+- `tests/cpp/test_transformer.cpp`: WAN Transformer tests
+- `tests/cpp/test_vae.cpp`: VAE tests
+- `tests/cpp/test_clip.cpp`: CLIP tests
+- `tests/cpp/test_t5.cpp`: T5 tests
 
 ## Naming Conventions
 
 **Files:**
-- `*.h` - C headers (public API, type definitions)
-- `*.hpp` - C++ headers (implementations, templates)
-- `*.cpp` - C++ source files (implementations)
-- `*.c` - C source files (utilities like AVI writer)
+- Model implementations: `{model_name}.hpp` (e.g., wan.hpp, vae.hpp)
+- Tests: `test_{component}.cpp` (e.g., test_transformer.cpp)
+- Utilities: `{purpose}.hpp` or `{purpose}.cpp` (e.g., ggml_extend.hpp)
+- API: `wan_{variant}.cpp` (e.g., wan_t2v.cpp)
 
 **Directories:**
-- `src/api/` - API implementation
-- `src/vocab/` - Vocabulary/tokenizer modules
-- `examples/` - Example applications
-- `thirdparty/` - External dependencies
-
-**Naming Patterns:**
-- Model runners: `{ModelName}Runner` (e.g., `WanRunner`, `FluxRunner`)
-- Encoders: `{ModelName}Embedder` (e.g., `T5Embedder`, `CLIPVisionModelProjectionRunner`)
-- Blocks: `{BlockType}` (e.g., `Linear`, `Attention`, `RMSNorm`)
-- Tokenizers: `{ModelName}Tokenizer` (e.g., `CLIPTokenizer`, `T5Tokenizer`)
+- Core models: `src/`
+- API layer: `src/api/`
+- Vocabularies: `src/vocab/`
+- Tests: `tests/cpp/`
+- Build output: `build/`
 
 ## Where to Add New Code
 
-**New Feature (e.g., new generation mode):**
-- Primary code: `src/api/wan_*.cpp` (new file for feature)
-- Header: `include/wan-cpp/wan.h` (add C API functions)
-- Internal: `include/wan-cpp/wan-internal.hpp` (add internal structures)
-- Example: `examples/cli/main.cpp` (add CLI support)
+**New Feature (e.g., new model variant):**
+- Primary code: `src/wan.hpp` (add new WanParams configuration)
+- Registration: `src/model_factory.cpp` (add REGISTER_MODEL_FACTORY)
+- Tests: `tests/cpp/test_transformer.cpp` (add test case)
 
-**New Model Support (e.g., new diffusion architecture):**
-- Implementation: `src/{model_name}.hpp` (header-only runner)
-- Loader: `src/api/wan_loader.cpp` (add format detection)
-- Tokenizer: `src/vocab/{model_name}.hpp` (if needed)
-- Example: `examples/convert/main.cpp` (add conversion support)
-
-**New Tokenizer:**
-- Implementation: `src/vocab/{model_name}.hpp`
-- Registry: `src/vocab/vocab.h` (add to enum)
-- Loader: `src/vocab/vocab.cpp` (add instantiation)
+**New Component/Module (e.g., new attention mechanism):**
+- Implementation: `src/wan.hpp` or `src/common_block.hpp` (add new class inheriting from GGMLBlock)
+- Integration: Update parent block to use new component
+- Tests: `tests/cpp/test_transformer.cpp` (add unit test)
 
 **Utilities:**
-- Shared helpers: `src/util.h/cpp`
-- GGML extensions: `src/ggml_extend.hpp`
-- Image processing: `src/preprocessing.hpp`
+- Shared helpers: `src/ggml_extend.hpp` (GGML wrappers)
+- General utilities: `src/util.cpp` / `src/util.h`
+- Preprocessing: `src/preprocessing.hpp`
+
+**API Endpoints:**
+- New pipeline: `src/api/wan_{variant}.cpp`
+- Configuration: `src/config_loader.cpp`
+- Loader utilities: `src/api/wan_loader.cpp`
 
 ## Special Directories
 
+**src/vocab/:**
+- Purpose: Tokenizer vocabulary data
+- Generated: No (pre-built vocabularies)
+- Committed: Yes (part of source)
+
+**tests/cpp/test_data/:**
+- Purpose: Test data files (binary tensors, reference outputs)
+- Generated: No (pre-built test fixtures)
+- Committed: Yes (small test files)
+
 **build/:**
 - Purpose: CMake build output
-- Generated: Yes
-- Committed: No
-- Contains: Object files, executables, CMake cache
+- Generated: Yes (by CMake)
+- Committed: No (.gitignore)
 
-**models/:**
-- Purpose: Model storage (not committed)
-- Generated: No (user-provided)
-- Committed: No
-- Contains: GGUF model files
+## Model Variant Structure
 
-**.planning/:**
-- Purpose: Project planning and documentation
-- Generated: Yes (by GSD tools)
-- Committed: Yes
-- Contains: Roadmaps, requirements, phase documentation
+**WAN Transformer Variants (src/wan.hpp):**
+- T2V (Text-to-Video): 1.3B (30 layers, dim=1536) or 14B (40 layers, dim=5120)
+- I2V (Image-to-Video): 1.3B or 14B with img_emb module
+- TI2V (Text+Image-to-Video): 5B (30 layers, dim=3072)
+- VACE: Optional Video Augmented Cross-attention Enhancement layers
 
-**.claude/:**
-- Purpose: Claude Code workspace metadata
-- Generated: Yes
-- Committed: No
-- Contains: Session state, tool results
+**VAE Variants (src/vae.hpp):**
+- wan-vae-t2v: Full encode/decode for T2V
+- wan-vae-t2v-decode: Decode-only for inference
+- wan-vae-i2v: Full encode/decode for I2V
+- wan-vae-ti2v: Full encode/decode for TI2V
 
-## Build System
+**Text Encoder Variants:**
+- CLIP: clip-vit-l-14, clip-vit-h-14, clip-vit-bigg-14
+- T5: t5-standard, t5-umt5
 
-**CMake Configuration:**
-- Minimum version: 3.20
-- C++ standard: C++17
-- Default build type: Release
-- Output: `build/bin/` for executables and libraries
+## Class Hierarchy
 
-**Backend Options (CMakeLists.txt):**
-- `WAN_CUDA` - NVIDIA GPU support
-- `WAN_METAL` - Apple Metal support
-- `WAN_VULKAN` - Vulkan support
-- `WAN_OPENCL` - OpenCL support
-- `WAN_SYCL` - Intel SYCL support
-- `WAN_HIPBLAS` - AMD ROCm support
-- `WAN_MUSA` - MUSA support
-- `WAN_BUILD_SHARED_LIBS` - Build as shared library
-- `WAN_EMBED_VOCAB` - Embed vocab in binary (adds ~85MB, speeds up build)
+**GGMLRunner (Base):**
+```
+GGMLRunner (src/model.h)
+├── WanRunner (src/wan.hpp, line 2020)
+├── CLIPTextModelRunner (src/clip.hpp)
+├── T5Runner (src/t5.hpp)
+└── WanVAERunner (src/vae.hpp, line 1119)
+```
 
-**Library Targets:**
-- `wan-cpp` - Main library (static or shared)
-- `wan-cli` - CLI executable
-- `wan-convert` - Model converter executable
-- `ggml` - GGML backend (submodule)
-- `zip` - ZIP library (thirdparty)
+**GGMLBlock (Component Base):**
+```
+GGMLBlock (src/ggml_extend.hpp)
+├── Conv2d, Conv3d
+├── Linear, LayerNorm
+├── Attention blocks
+├── Residual blocks
+├── Wan-specific blocks:
+│   ├── WanAttentionBlock (line 1503)
+│   ├── WanSelfAttention (line 1299)
+│   ├── WanCrossAttention (line 1359)
+│   ├── WanT2VCrossAttention (line 1372)
+│   ├── WanI2VCrossAttention (line 1410)
+│   └── VaceWanAttentionBlock (line 1595)
+└── VAE-specific blocks:
+    ├── Encoder3d (line 588)
+    ├── Decoder3d (line 751)
+    ├── ResidualBlock (line 338)
+    └── AttentionBlock (line 527)
+```
+
+---
+
+*Structure analysis: 2026-03-28*

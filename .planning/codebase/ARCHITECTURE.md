@@ -1,182 +1,166 @@
 # Architecture
 
-**Analysis Date:** 2026-03-17
+**Analysis Date:** 2026-03-28
 
 ## Pattern Overview
 
-**Overall:** Layered C++ library with C API wrapper for video generation
+**Overall:** Hierarchical Model Runner Pattern with Modular Component Architecture
 
 **Key Characteristics:**
-- Header-only model implementations (DiT, VAE, text encoders)
-- GGML-based tensor computation backend with pluggable hardware support
-- C API facade (`wan.h`) wrapping C++ internals (`wan-internal.hpp`)
-- Model-agnostic loader supporting GGUF, safetensors, CKPT, and diffusers formats
-- Modular encoder/decoder architecture (T5, CLIP, VAE)
+- Model factory registration system for dynamic model instantiation
+- Inheritance-based runner hierarchy (GGMLRunner → specialized runners)
+- Composition of reusable blocks (GGMLBlock) for neural network layers
+- Separation of concerns: tokenization, embedding, inference, I/O
+- Support for multiple model variants (T2V, I2V, TI2V) through configuration
 
 ## Layers
 
-**Public C API Layer:**
-- Purpose: Stable C interface for video generation (T2V, I2V)
-- Location: `include/wan-cpp/wan.h`
-- Contains: Function declarations, error codes, opaque handles, parameter structures
-- Depends on: None (pure C interface)
-- Used by: CLI examples, external applications
-
-**Internal C++ API Layer:**
-- Purpose: Bridge between C API and implementation, manage context lifecycle
-- Location: `include/wan-cpp/wan-internal.hpp`, `src/api/wan-api.cpp`
-- Contains: Context structures, model loading, parameter conversion, error handling
-- Depends on: GGML, model runners, encoders
-- Used by: C API implementation
+**Model Registry & Factory Layer:**
+- Purpose: Centralized model registration and instantiation
+- Location: `src/model_factory.cpp`, `src/model_registry.hpp`
+- Contains: Model factory registrations for CLIP, T5, WAN VAE, WAN Transformer
+- Depends on: Individual model runner classes
+- Used by: Application code to load models by name
 
 **Model Runner Layer:**
-- Purpose: Execute diffusion models (WAN, Flux, SD variants)
-- Location: `src/wan.hpp`, `src/flux.hpp`, `src/common_dit.hpp`
-- Contains: DiT blocks, attention mechanisms, normalization, forward passes
-- Depends on: GGML, common blocks, RoPE, VAE
-- Used by: API layer for inference
+- Purpose: Orchestrate model inference and graph building
+- Location: `src/wan.hpp` (WanRunner), `src/clip.hpp` (CLIPTextModelRunner), `src/t5.hpp` (T5Runner), `src/vae.hpp` (WanVAERunner)
+- Contains: Runner classes that inherit from GGMLRunner
+- Depends on: GGMLBlock components, GGML backend
+- Used by: API layer and application code
 
-**Encoder/Decoder Layer:**
-- Purpose: Text and image encoding, VAE decoding
-- Location: `src/t5.hpp`, `src/clip.hpp`, `src/vae.hpp`
-- Contains: T5 text encoder, CLIP vision encoder, VAE decoder
-- Depends on: GGML, common blocks
-- Used by: Model runners for conditioning
+**Block/Component Layer:**
+- Purpose: Reusable neural network building blocks
+- Location: `src/common_block.hpp`, `src/wan.hpp`, `src/vae.hpp`
+- Contains: Conv2d, Conv3d, Linear, LayerNorm, Attention blocks, etc.
+- Depends on: GGML operations (ggml_extend.hpp)
+- Used by: Model runners to construct computation graphs
 
-**Model Loading Layer:**
-- Purpose: Load and convert model weights from various formats
-- Location: `src/model.h`, `src/model.cpp`, `src/api/wan_loader.cpp`
-- Contains: `ModelLoader` class, format detection, tensor storage, conversion
-- Depends on: GGML, GGUF, zip, safetensors parsing
-- Used by: API layer during model initialization
+**GGML Extension Layer:**
+- Purpose: Wrapper functions around GGML operations
+- Location: `src/ggml_extend.hpp`
+- Contains: Helper functions for tensor operations, attention, convolution, etc.
+- Depends on: GGML library
+- Used by: All block implementations
 
-**Vocabulary Layer:**
-- Purpose: Tokenization for text encoders
-- Location: `src/vocab/vocab.h`, `src/vocab/vocab.cpp`, `src/vocab/*.hpp`
-- Contains: Tokenizers (T5, CLIP, Mistral, Qwen, UMT5)
-- Depends on: JSON parsing, utility functions
-- Used by: T5 and CLIP encoders
-
-**Utility Layer:**
-- Purpose: Common utilities and helpers
-- Location: `src/util.h`, `src/util.cpp`, `src/ggml_extend.hpp`, `src/rng*.hpp`
-- Contains: String utilities, image processing, GGML extensions, RNG implementations
-- Depends on: GGML, standard library
-- Used by: All layers
-
-**Backend Layer:**
-- Purpose: Hardware acceleration abstraction
-- Location: `src/api/wan_config.cpp`, CMakeLists.txt
-- Contains: Backend selection (CPU, CUDA, Metal, Vulkan, OpenCL, SYCL, HIP, MUSA)
-- Depends on: GGML backend system
-- Used by: Context initialization
+**Utility & Support Layer:**
+- Purpose: Tokenization, preprocessing, I/O, configuration
+- Location: `src/clip.hpp` (CLIPTokenizer), `src/t5.hpp` (T5UniGramTokenizer), `src/preprocessing.hpp`, `src/config_loader.hpp`
+- Contains: Tokenizers, preprocessors, model loaders
+- Depends on: Vocabulary files, JSON config
+- Used by: API layer
 
 ## Data Flow
 
-**Text-to-Video (T2V) Generation:**
+**Inference Pipeline (T2V Example):**
 
-1. User calls `wan_generate_video_t2v()` with prompt and parameters
-2. C API converts parameters to internal `WanParams` structure
-3. T5 encoder tokenizes prompt → text embeddings
-4. WAN DiT model processes embeddings + noise → latent video
-5. VAE decoder converts latent → RGB video frames
-6. AVI writer encodes frames to output file
-7. Progress callback invoked at each diffusion step
+1. **Input Preparation**
+   - Text prompt → CLIPTokenizer → token IDs
+   - Token IDs → CLIPTextModelRunner → text embeddings [N, L, text_dim]
+   - Noise tensor [N*C, T, H, W] → VAE encoder (optional)
 
-**Image-to-Video (I2V) Generation:**
+2. **WAN Transformer Forward Pass**
+   - Input: x [N*C, T, H, W], timestep [N], context [N, L, text_dim]
+   - Patch embedding: x → [N, t_len*h_len*w_len, dim]
+   - Time embedding: timestep → [N, dim] or [N, T, dim]
+   - Text embedding: context → [N, L, dim]
+   - Positional encoding: RoPE → [pos_len, axes_dim_sum/2, 2, 2]
+   - Transformer blocks (32-40 layers): self-attention + cross-attention + FFN
+   - Head: output → [N, t_len*h_len*w_len, pt*ph*pw*C]
+   - Unpatchify: → [N*C, T, H, W]
 
-1. User calls `wan_generate_video_i2v()` with image and optional prompt
-2. Image loaded and preprocessed (resize, normalize)
-3. CLIP vision encoder processes image → image embeddings
-4. Optional: T5 encoder processes prompt → text embeddings
-5. WAN DiT model processes embeddings + noise → latent video
-6. VAE decoder converts latent → RGB video frames
-7. AVI writer encodes frames to output file
-
-**Model Loading:**
-
-1. User calls `wan_load_model()` with GGUF file path
-2. `ModelLoader` detects format (GGUF, safetensors, CKPT, diffusers)
-3. Tensor metadata extracted and stored in `tensor_storage_map`
-4. Model version detected from metadata (WAN2.1, WAN2.2, etc.)
-5. Appropriate runner instantiated (WAN, Flux, SD variants)
-6. Encoders (T5, CLIP) and VAE loaded
-7. Context returned with all components ready
+3. **VAE Decoding**
+   - Latent z [N*C, T, H, W] → WanVAERunner.decode()
+   - Decoder3d: upsampling + residual blocks + attention
+   - Output: video frames [N*C, T, H, W]
 
 **State Management:**
-- `wan_context` holds all model runners, encoders, backend, and parameters
-- Runners are shared_ptr for safe multi-threaded access
-- Backend context created once per context, reused for all operations
-- Tensor storage map persists for weight access during inference
+- Computation graph built per inference step
+- Tensor caching for positional encodings (OP-02)
+- Feature cache for VAE encoder/decoder (feat_cache)
+- Backend tensor management (CPU/GPU offloading)
 
 ## Key Abstractions
 
-**GGMLBlock:**
-- Purpose: Base class for composable neural network components
-- Examples: `src/common_block.hpp` (Linear, Conv2d, Attention, Norm)
-- Pattern: Virtual `forward()` method, `params` map for weights, `blocks` map for sub-modules
+**GGMLRunner (Base Class):**
+- Purpose: Abstract base for all model runners
+- Examples: `src/wan.hpp` (WanRunner), `src/clip.hpp` (CLIPTextModelRunner), `src/t5.hpp` (T5Runner), `src/vae.hpp` (WanVAERunner)
+- Pattern: Template method pattern - subclasses implement build_graph() and compute()
 
-**ModelLoader:**
-- Purpose: Format-agnostic model weight loading
-- Examples: `src/model.h`, `src/model.cpp`
-- Pattern: Polymorphic `init_from_*()` methods, tensor name conversion, quantization support
+**GGMLBlock (Component Base):**
+- Purpose: Reusable neural network layer
+- Examples: Conv2d, Linear, LayerNorm, Attention, ResidualBlock
+- Pattern: Composite pattern - blocks contain sub-blocks via `blocks` map
 
-**Runner Classes:**
-- Purpose: Stateful inference engines for specific models
-- Examples: `WAN::WanRunner`, `Flux::FluxRunner`, `VAE::VAEDecoder`
-- Pattern: Shared context, forward pass returns GGML tensor, manages computation graph
+**WanRunner (Transformer DiT):**
+- Purpose: Diffusion Transformer for video generation
+- Variants: T2V (text-to-video), I2V (image-to-video), TI2V (text+image-to-video)
+- Key components: Patch embedding, text embedding, time embedding, transformer blocks, head
+- Supports: VACE (Video Augmented Cross-attention Enhancement) layers
 
-**Embedder Classes:**
-- Purpose: Text and image encoding
-- Examples: `T5Embedder`, `CLIPVisionModelProjectionRunner`
-- Pattern: Tokenize input → embed → return tensor
+**WanVAERunner (Video VAE):**
+- Purpose: Encode/decode video to/from latent space
+- Variants: wan-vae-t2v, wan-vae-t2v-decode, wan-vae-i2v, wan-vae-ti2v
+- Key components: Encoder3d, Decoder3d with causal convolutions
+- Supports: Decode-only mode for inference
+
+**CLIPTextModelRunner:**
+- Purpose: Text encoding for conditioning
+- Variants: clip-vit-l-14, clip-vit-h-14, clip-vit-bigg-14
+- Output: Text embeddings [N, L, text_dim]
+
+**T5Runner:**
+- Purpose: Alternative text encoder
+- Variants: t5-standard, t5-umt5
+- Output: Text embeddings [N, L, text_dim]
 
 ## Entry Points
 
-**C API Entry Points:**
-- `wan_load_model()` - Load model from GGUF file
-- `wan_generate_video_t2v()` - Generate video from text
-- `wan_generate_video_i2v()` - Generate video from image
-- `wan_free()` - Clean up context
+**Model Loading:**
+- Location: `src/model_factory.cpp`
+- Triggers: Application calls model factory with model name
+- Responsibilities: Instantiate runner, load weights, initialize parameters
 
-**CLI Entry Points:**
-- `examples/cli/main.cpp` - Full-featured CLI with T2V/I2V support
-- `examples/convert/main.cpp` - Model format converter (safetensors → GGUF)
+**Inference:**
+- Location: `src/wan.hpp` (WanRunner::compute), `src/vae.hpp` (WanVAERunner::compute)
+- Triggers: Application calls runner.compute() with input tensors
+- Responsibilities: Build computation graph, execute on backend, return output
 
-**Library Entry Points:**
-- `include/wan-cpp/wan.h` - Public C API
-- `src/api/wan-api.cpp` - C API implementation
-- `src/api/wan_t2v.cpp` - T2V generation logic
-- `src/api/wan_i2v.cpp` - I2V generation logic
+**API Layer:**
+- Location: `src/api/wan-api.cpp`, `src/api/wan_t2v.cpp`, `src/api/wan_i2v.cpp`
+- Triggers: High-level API calls
+- Responsibilities: Orchestrate model pipeline, handle I/O
 
 ## Error Handling
 
-**Strategy:** Error codes + error message strings
+**Strategy:** Assertion-based with GGML_ASSERT macros
 
 **Patterns:**
-- All C API functions return `wan_error_t` enum (WAN_SUCCESS, WAN_ERROR_*)
-- Error messages stored in `wan_context->last_error` (std::string)
-- Retrieved via `wan_get_last_error()`
-- C++ exceptions caught at API boundary, converted to error codes
-- Invalid arguments validated before processing
+- Dimension validation: GGML_ASSERT(b == 1) for batch size
+- Type checking: GGML_ASSERT(decode_only == false) for encode operations
+- Resource validation: GGML_ASSERT(work_ctx != nullptr) for context initialization
+- Fallback: Abort with descriptive message on invalid configuration
 
 ## Cross-Cutting Concerns
 
 **Logging:**
-- Global callback `g_log_callback` set via `wan_set_log_callback()`
-- Levels: DEBUG (0), INFO (1), WARN (2), ERROR (3)
-- Used for model loading, inference progress, backend selection
+- Framework: LOG_INFO, LOG_DEBUG, LOG_ERROR macros
+- Usage: Model loading, inference timing, error reporting
 
 **Validation:**
-- Model format detection in `wan_loader.cpp` (GGUF metadata checks)
-- Tensor shape validation during loading
-- Parameter bounds checking (width, height, steps, etc.)
+- Tensor shape validation in forward() methods
+- Parameter existence checks in init_params()
+- Type compatibility checks in block initialization
 
 **Authentication:**
-- None (local inference only)
+- Not applicable (inference-only system)
 
-**Threading:**
-- `n_threads` parameter controls GGML parallelism
-- 0 = auto-detect CPU count
-- Runners are thread-safe via shared_ptr and GGML backend synchronization
-- Progress callbacks invoked from inference thread
+**Performance Optimization:**
+- OP-02: PE (Positional Encoding) caching to avoid redundant CPU computation
+- FUS-02: Inplace GELU for operator fusion in FFN blocks
+- CG-02: CUDA graph automatic kernel merging
+- Offload strategy: Parameters can be offloaded to CPU, activated on demand
+
+---
+
+*Architecture analysis: 2026-03-28*

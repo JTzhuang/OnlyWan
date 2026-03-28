@@ -800,13 +800,6 @@ struct T5Runner : public GGMLRunner {
 
         relative_position_bucket_vec = compute_relative_position_bucket(static_cast<int>(input_ids->ne[0]), static_cast<int>(input_ids->ne[0]));
 
-        // for (int i = 0; i < relative_position_bucket_vec.size(); i++) {
-        //     if (i % 77 == 0) {
-        //         printf("\n");
-        //     }
-        //     printf("%d ", relative_position_bucket_vec[i]);
-        // }
-
         auto relative_position_bucket = ggml_new_tensor_2d(compute_ctx,
                                                            GGML_TYPE_I32,
                                                            input_ids->ne[0],

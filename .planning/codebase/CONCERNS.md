@@ -1,203 +1,166 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-03-17
+**Analysis Date:** 2026-03-28
 
-## Tech Debt
+## Model Registration & Factory Pattern
 
-**Incomplete Windows Implementation:**
-- Issue: Windows physical core detection not implemented
-- Files: `src/util.cpp` (line 264)
-- Impact: Falls back to generic `std::thread::hardware_concurrency()` on Windows, potentially suboptimal thread allocation for model loading
-- Fix approach: Implement Windows-specific core detection using Windows API (GetLogicalProcessorInformation or similar)
+**Issue: Implicit Model Dependencies**
+- Files: `src/model_factory.cpp`, `src/ggml_extend.hpp`, `src/wan.hpp`
+- Problem: Model registration uses lambda closures capturing backend, offload flags, and tensor_storage_map. No explicit dependency graph or initialization order validation. If a downstream model (e.g., WAN DiT) is instantiated before its encoder dependencies (CLIP/T5), runtime failures occur silently.
+- Impact: Hard to debug model pipeline failures. No compile-time or runtime checks for required encoder availability.
+- Fix approach: Add model dependency registry that validates encoder availability before VAE/DiT instantiation. Implement dependency resolution in factory.
 
-**Tensor Name Conversion Complexity:**
-- Issue: Multiple large static maps for model name conversions (OpenCLIP→HF, SD→HF, Flux, etc.) scattered across function scope
-- Files: `src/name_conversion.cpp` (lines 35-508)
-- Impact: Difficult to maintain, extend, or debug model compatibility; static initialization overhead
-- Fix approach: Consolidate into a registry pattern or configuration-driven approach; consider lazy initialization
+**Issue: Tensor Storage Map Lifecycle**
+- Files: `src/model_factory.cpp` (lines 15-79), `src/ggml_extend.hpp` (GGMLRunner constructor)
+- Problem: `tensor_storage_map` is passed as const reference to factory lambda but its lifetime is not guaranteed. If map is destroyed before model inference, tensor lookups fail.
+- Impact: Potential use-after-free in long-running applications where models are created/destroyed dynamically.
+- Fix approach: Store tensor_storage_map as shared_ptr in GGMLRunner. Add lifetime validation in model initialization.
 
-**Regex Compilation in Hot Paths:**
-- Issue: `std::regex` patterns compiled repeatedly during tensor type rule matching
-- Files: `src/model.cpp` (lines 1325-1326, 1728-1729, 1806-1807)
-- Impact: Performance degradation during model loading when applying quantization overrides; regex compilation is expensive
-- Fix approach: Pre-compile regex patterns at initialization time; cache compiled patterns in a static map
+## Memory Management Architecture
 
-**Unused Tensor Hardcoded List:**
-- Issue: Large hardcoded array of unused tensor names checked with linear search
-- Files: `src/model.cpp` (lines 75-110)
-- Impact: O(n) lookup for every tensor; difficult to maintain across model versions
-- Fix approach: Convert to unordered_set or trie structure; consider dynamic registration from model metadata
+**Issue: Three-Tier Context Lifecycle Management**
+- Files: `src/ggml_extend.hpp` (lines 180-250: alloc_params_ctx, alloc_compute_ctx, alloc_cache_ctx)
+- Problem: Three separate ggml_context allocations (params_ctx, compute_ctx, cache_ctx) with independent buffer management. No unified lifecycle tracking. If compute_ctx allocation fails mid-pipeline, params_ctx and cache_ctx remain allocated, causing memory leaks.
+- Impact: Memory fragmentation in multi-model scenarios. Difficult to track total memory usage across all three contexts.
+- Fix approach: Implement RAII wrapper (ModelContextManager) that manages all three contexts as single unit. Add rollback on partial allocation failure.
 
-## Known Bugs
+**Issue: Buffer Allocation Overhead**
+- Files: `src/ggml_extend.hpp` (lines 200-220: alloc_compute_ctx with ggml_allocr_new_measure)
+- Problem: Compute context uses two-pass allocation (measure pass + actual allocation). For models with dynamic graph sizes, this doubles allocation overhead. No caching of measured sizes.
+- Impact: Slow model initialization, especially for large models (14B WAN DiT with 40 layers).
+- Fix approach: Cache measured allocation sizes per model variant. Implement lazy allocation for cache_ctx (allocate only when needed).
 
-**VAE Loading Best-Effort Silently Fails:**
-- Symptoms: VAE may not load if in separate file; no explicit error reported to user
-- Files: `src/api/wan-api.cpp` (line 224)
-- Trigger: When VAE tensors are in a different GGUF file than main model
-- Workaround: Ensure VAE is bundled in same GGUF file as model
+**Issue: Backend Abstraction Complexity**
+- Files: `src/model_factory.cpp` (backend parameter in all 12 registrations), `src/ggml_extend.hpp` (ggml_backend_t usage)
+- Problem: Backend selection (CPU/GPU/multi-GPU) is hardcoded at model registration time. No runtime backend switching or fallback mechanism if GPU memory exhausted.
+- Impact: Cannot dynamically offload models to CPU if GPU OOM occurs. Multi-GPU scheduling not exposed to caller.
+- Fix approach: Add backend negotiation layer. Implement fallback chain: GPU → CPU. Expose multi-GPU scheduling hints.
 
-**Unknown Tensor Warnings for Model Detection:**
-- Symptoms: "unknown tensor" warnings logged for tensors used only for model type detection
-- Files: `src/model.cpp` (lines 104-106)
-- Trigger: Loading SDXL vpred or CosXL models
-- Workaround: None; warnings are informational but confusing to users
+## Model Call Flow & Dependencies
 
-**Zip Entry Size Mismatch Handling:**
-- Symptoms: Silent memcpy fallback when zip entry size differs from expected tensor size
-- Files: `src/model.cpp` (lines 1463-1472)
-- Trigger: Corrupted or misaligned zip entries
-- Workaround: None; may silently load incorrect data
+**CLIP/T5 Encoder Pipeline:**
+```
+1. CLIP/T5 model instantiated via factory
+2. GGMLRunner::compute() called with input tokens
+3. Encoder forward pass: embedding → transformer layers → output
+4. Output cached for VAE encoder input
+```
+- Files: `src/model_factory.cpp` (lines 20-35: CLIP/T5 registrations)
+- Dependency: None (standalone encoders)
+- Memory: params_ctx (model weights) + compute_ctx (intermediate activations)
 
-## Security Considerations
+**VAE Encode Pipeline:**
+```
+1. VAE encoder instantiated (wan-vae-t2v or wan-vae-i2v)
+2. Input: image/video frames (B, C, H, W)
+3. Encoder3d forward: Conv3d → ResidualBlocks → AttentionBlocks → output
+4. Output: latent codes (B, D, H', W')
+```
+- Files: `src/wan.hpp` (lines 1200-1400: WanVAE::Encoder3d)
+- Dependency: None (standalone VAE)
+- Memory: params_ctx (VAE weights) + compute_ctx (conv/attention intermediates)
+- Issue: Conv2d with random weights crashes (see test_vae.cpp workaround using decode-only)
 
-**Buffer Overflow Risk in Logging:**
-- Risk: Fixed 1024-byte buffer for error formatting; long error messages could overflow
-- Files: `src/api/wan-api.cpp` (line 76)
-- Current mitigation: `vsnprintf` with size limit, but no overflow detection
-- Recommendations: Use dynamic string allocation or larger fixed buffer; add overflow detection
+**VAE Decode Pipeline:**
+```
+1. VAE decoder instantiated (wan-vae-t2v-decode)
+2. Input: latent codes from DiT output
+3. Decoder3d forward: ResidualBlocks → AttentionBlocks → Conv3d → output
+4. Output: reconstructed frames
+```
+- Files: `src/wan.hpp` (lines 1400-1600: WanVAE::Decoder3d)
+- Dependency: None (standalone decoder)
+- Memory: params_ctx (VAE weights) + compute_ctx (deconv/attention intermediates)
 
-**Fixed 4096-byte Log Buffer:**
-- Risk: Very long log messages could be truncated silently
-- Files: `src/util.cpp` (line 400)
-- Current mitigation: `snprintf` with size limit
-- Recommendations: Consider dynamic allocation for log messages or increase buffer size
+**WAN DiT (Diffusion Transformer) Pipeline:**
+```
+1. DiT instantiated (wan-t2v, wan-i2v, or wan-ti2v)
+2. Input: latent codes + timestep + text/image embeddings
+3. Forward pass:
+   a. Timestep embedding (ggml_timestep_embedding)
+   b. Latent projection
+   c. 30-40 transformer layers with cross-attention
+   d. Output projection
+4. Output: denoised latents
+```
+- Files: `src/wan.hpp` (lines 1700-2100: WanRunner)
+- Dependencies: CLIP encoder (text embeddings for T2V/TI2V), image encoder (image embeddings for I2V/TI2V)
+- Memory: params_ctx (DiT weights) + compute_ctx (attention/FFN intermediates) + cache_ctx (KV cache for cross-attention)
+- Issue: Timestep embedding requires F32 input (see ggml_extend.hpp line 850: cast I32 to F32)
 
-**No Input Validation on File Paths:**
-- Risk: Path traversal or symlink attacks possible
-- Files: `src/api/wan-api.cpp` (model loading), `src/util.cpp` (file operations)
-- Current mitigation: None detected
-- Recommendations: Validate and canonicalize file paths; reject paths with `..` or suspicious patterns
+**Full T2V Pipeline:**
+```
+1. Text → CLIP encoder → text embeddings
+2. Latent codes → WAN DiT (with text embeddings) → denoised latents
+3. Denoised latents → VAE decoder → video frames
+```
+- Files: `src/model_factory.cpp` (lines 20-79), `src/wan.hpp`
+- Dependency chain: CLIP → DiT → VAE decoder
+- Memory: 3 × (params_ctx + compute_ctx) + 1 × cache_ctx (DiT only)
+- Issue: No explicit ordering enforcement. Caller must instantiate in correct order.
 
-**Unsafe Regex Patterns from User Input:**
-- Risk: User-provided tensor type rules compiled as regex without validation
-- Files: `src/model.cpp` (lines 1320-1339)
-- Current mitigation: None; invalid regex throws exception
-- Recommendations: Validate regex patterns before compilation; catch and report regex errors gracefully
+## Identified Issues
 
-## Performance Bottlenecks
+**Issue: Positional Encoding Caching (OP-02)**
+- Files: `src/wan.hpp` (lines 1750-1800: positional encoding computation)
+- Problem: Positional encodings recomputed for every forward pass. For fixed sequence lengths, this is wasteful.
+- Impact: ~5-10% overhead per forward pass in DiT.
+- Fix approach: Cache PE tensors keyed by (seq_len, dim). Reuse across batches.
 
-**Linear Search for Unused Tensors:**
-- Problem: Every tensor checked against 50+ hardcoded names with linear search
-- Files: `src/model.cpp` (lines 112-119)
-- Cause: Array-based lookup instead of hash set
-- Improvement path: Convert `unused_tensors` array to `std::unordered_set<std::string>` for O(1) lookup
+**Issue: Graph Structure Stability (CG-01)**
+- Files: `src/ggml_extend.hpp` (lines 300-350: compute graph building)
+- Problem: Compute graph structure may vary based on input shapes or dynamic conditions. No validation that graph structure is stable across calls.
+- Impact: Potential memory corruption if graph structure changes mid-inference.
+- Fix approach: Add graph structure fingerprinting. Validate consistency across calls.
 
-**Regex Compilation During Model Loading:**
-- Problem: Regex patterns recompiled for every tensor when applying quantization overrides
-- Files: `src/model.cpp` (lines 1320-1339, 1720-1740, 1800-1820)
-- Cause: No caching of compiled patterns
-- Improvement path: Pre-compile patterns once; store in static map keyed by pattern string
+**Issue: FFN Fusion Opportunity (FUS-02)**
+- Files: `src/wan.hpp` (lines 1850-1900: FFN blocks in transformer layers)
+- Problem: FFN implemented as separate matmul + activation + matmul operations. No kernel fusion.
+- Impact: Memory bandwidth bottleneck, especially for 14B model.
+- Fix approach: Implement fused FFN kernel or use ggml_mul_mat_id for dynamic routing.
 
-**Repeated String Comparisons in Name Conversion:**
-- Problem: Multiple string prefix/suffix checks in nested loops during tensor name mapping
-- Files: `src/name_conversion.cpp` (lines 79-240)
-- Cause: No early termination or indexed lookup
-- Improvement path: Build index of tensor names by prefix; use trie or prefix tree for O(log n) lookup
+**Issue: Multi-GPU Scheduling**
+- Files: `src/model_factory.cpp` (backend parameter), `src/ggml_extend.hpp` (ggml_backend_t)
+- Problem: No explicit multi-GPU load balancing. All models run on single backend.
+- Impact: Cannot distribute CLIP + DiT + VAE across multiple GPUs.
+- Fix approach: Add backend affinity hints. Implement model-to-GPU assignment strategy.
 
-**Memory Allocation in Tensor Loading Loop:**
-- Problem: `read_buffer` and `convert_buffer` resized repeatedly per tensor in worker threads
-- Files: `src/model.cpp` (lines 1430-1431, 1465, 1496, 1503, 1509, 1514)
-- Cause: No pre-allocation or buffer pooling
-- Improvement path: Pre-allocate buffers based on max tensor size; reuse across iterations
-
-**Zip Entry Lookup by Index:**
-- Problem: Linear iteration through zip entries to find matching tensor
-- Files: `src/model.cpp` (lines 823-833)
-- Cause: No zip entry indexing
-- Improvement path: Build index of zip entries at load time; use direct lookup
-
-## Fragile Areas
-
-**Model Type Detection Logic:**
-- Files: `src/api/wan-api.cpp` (lines 150-180)
-- Why fragile: Relies on presence of specific tensors; no validation that detected type is actually correct
-- Safe modification: Add explicit model type field to GGUF metadata; validate detection with multiple heuristics
-- Test coverage: No unit tests for model type detection; only integration tests
-
-**Tensor Name Conversion Pipeline:**
-- Files: `src/name_conversion.cpp` (entire file)
-- Why fragile: Multiple overlapping conversion rules; order-dependent; no conflict detection
-- Safe modification: Add rule priority/ordering; validate no conflicting rules; add comprehensive test cases for each model type
-- Test coverage: Gaps in edge cases (partial model loading, mixed model versions)
-
-**Thread-Safe Atomic Operations in Model Loading:**
-- Files: `src/model.cpp` (lines 1343-1346, 1406-1407)
-- Why fragile: Multiple atomic variables updated without synchronization; potential race conditions on timing measurements
-- Safe modification: Use mutex for timing aggregation; validate atomic operations are necessary
-- Test coverage: No thread safety tests; only manual testing
-
-**Error Handling in Worker Threads:**
-- Files: `src/model.cpp` (lines 1410-1487)
-- Why fragile: Errors in worker threads set `failed` flag but don't propagate detailed error info
-- Safe modification: Use thread-safe error queue; collect all errors before returning
-- Test coverage: No tests for error scenarios in multi-threaded loading
+**Issue: Context Reuse Across Models**
+- Files: `src/ggml_extend.hpp` (alloc_compute_ctx, alloc_cache_ctx)
+- Problem: Each model allocates separate compute_ctx and cache_ctx. No sharing between models.
+- Impact: Memory overhead when running multiple models sequentially (e.g., CLIP → DiT → VAE).
+- Fix approach: Implement context pool. Reuse compute_ctx for sequential models with compatible shapes.
 
 ## Scaling Limits
 
-**Single-Threaded Zip File Access:**
-- Current capacity: 1 thread per zip file (enforced at line 1400)
-- Limit: Zip library not thread-safe; blocks parallel tensor loading from zip archives
-- Scaling path: Implement zip entry pre-reading or use thread-safe zip library; consider extracting to temp files
+**Memory Scaling:**
+- Current: 14B DiT with 40 layers requires ~256MB compute_ctx (see test_transformer.cpp)
+- Limit: GPU memory exhaustion at ~8B+ models on consumer GPUs (8GB VRAM)
+- Scaling path: Implement gradient checkpointing (recompute activations instead of storing). Use activation quantization.
 
-**Fixed Tensor Storage Map:**
-- Current capacity: All tensors loaded into memory map before loading
-- Limit: Large models with thousands of tensors consume significant memory for metadata
-- Scaling path: Implement lazy tensor discovery; stream tensor metadata from file
-
-**Worker Thread Pool Size:**
-- Current capacity: Limited to number of tensors per file (line 1400)
-- Limit: Suboptimal for files with few large tensors
-- Scaling path: Implement dynamic work stealing; allow more threads than tensor count
-
-## Dependencies at Risk
-
-**GGML Backend Abstraction:**
-- Risk: Heavy reliance on GGML for tensor operations; tight coupling to GGML API
-- Impact: Changes to GGML API require updates across codebase; difficult to swap backends
-- Migration plan: Create abstraction layer for tensor operations; reduce direct GGML calls
-
-**Zip Library (minizip):**
-- Risk: Zip library not thread-safe; limited maintenance
-- Impact: Cannot parallelize zip file reading; potential security issues in zip parsing
-- Migration plan: Evaluate libzip or zlib alternatives; implement thread-safe wrapper
-
-**Regex Library (std::regex):**
-- Risk: std::regex performance varies by implementation; no control over compilation strategy
-- Impact: Unpredictable performance during model loading
-- Migration plan: Consider RE2 or boost::regex for consistent performance; pre-compile patterns
+**Inference Latency:**
+- Current: Single forward pass ~100-500ms depending on model size
+- Limit: Real-time applications need <50ms per frame
+- Scaling path: Implement model parallelism. Use tensor parallelism for 14B model across multiple GPUs.
 
 ## Test Coverage Gaps
 
-**Model Type Detection:**
-- What's not tested: Edge cases where multiple model types could match; partial model loading
-- Files: `src/api/wan-api.cpp` (lines 150-180)
-- Risk: Silent misdetection of model type; incorrect runner initialization
+**Untested Areas:**
+- Files: `tests/cpp/test_*.cpp`
+- What's not tested:
+  - Multi-model pipeline (CLIP → DiT → VAE) end-to-end
+  - Backend fallback (GPU OOM → CPU)
+  - Concurrent model inference
+  - Long-running inference (memory leak detection)
+- Risk: Pipeline integration bugs, memory leaks in production
 - Priority: High
 
-**Tensor Name Conversion:**
-- What's not tested: All model type conversions; edge cases with missing tensors; conflicting rules
-- Files: `src/name_conversion.cpp` (entire file)
-- Risk: Incorrect tensor mapping; model loading failures
-- Priority: High
-
-**Error Handling in Multi-Threaded Loading:**
-- What's not tested: Failure scenarios in worker threads; partial load recovery; error propagation
-- Files: `src/model.cpp` (lines 1410-1487)
-- Risk: Silent failures; corrupted model state; resource leaks
-- Priority: High
-
-**Memory-Mapped File Fallback:**
-- What's not tested: Mmap failure scenarios; fallback to file I/O; large file handling
-- Files: `src/model.cpp` (lines 1391-1398)
-- Risk: Incorrect fallback behavior; performance degradation
-- Priority: Medium
-
-**Quantization Override Rules:**
-- What's not tested: Invalid regex patterns; conflicting rules; edge cases in pattern matching
-- Files: `src/model.cpp` (lines 1320-1339)
-- Risk: Crashes on invalid input; silent rule failures
-- Priority: Medium
+**Fragile Areas:**
+- Files: `src/wan.hpp` (WanCrossAttention variants for T2V/I2V/TI2V)
+- Why fragile: Three separate attention implementations with subtle differences in embedding handling
+- Safe modification: Add attention variant factory. Consolidate common logic.
+- Test coverage: Only basic forward pass tested, no gradient/backprop
 
 ---
 
-*Concerns audit: 2026-03-17*
+*Concerns audit: 2026-03-28*

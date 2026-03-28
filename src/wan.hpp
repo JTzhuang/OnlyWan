@@ -6,7 +6,6 @@
 #include <utility>
 
 #include "common_block.hpp"
-#include "flux.hpp"
 #include "rope.hpp"
 #include "vae.hpp"
 

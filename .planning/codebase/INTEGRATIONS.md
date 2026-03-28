@@ -1,6 +1,64 @@
 # External Integrations
 
-**Analysis Date:** 2026-03-17
+**Analysis Date:** 2026-03-28
+
+## Model Architecture & Types
+
+**Four Core Model Types (via Model Registry):**
+
+1. **CLIP Text Encoder** - `CLIPTextModelRunner`
+   - Location: `src/clip.hpp` (line 908)
+   - Registered variants: `clip-vit-l-14`, `clip-vit-h-14`, `clip-vit-bigg-14`
+   - Purpose: Text encoding for prompt conditioning
+   - Interface: `forward(ctx, input_ids, embeddings, mask, max_token_idx, return_pooled, clip_skip)`
+   - Output: Text embeddings for diffusion guidance
+
+2. **T5 Text Encoder** - `T5Runner`
+   - Location: `src/t5.hpp` (line 756)
+   - Registered variants: `t5-standard`, `t5-umt5`
+   - Purpose: Advanced text encoding with relative position buckets
+   - Interface: `forward(ctx, input_ids, relative_position_bucket, attention_mask)`
+   - Output: Hidden states [N, n_token, model_dim]
+   - Supports: Standard T5 and multilingual UMT5 tokenization
+
+3. **WAN VAE (Video Autoencoder)** - `WAN::WanVAERunner`
+   - Location: `src/wan.hpp` (line 1119)
+   - Registered variants: `wan-vae-t2v`, `wan-vae-t2v-decode`, `wan-vae-i2v`, `wan-vae-ti2v`
+   - Purpose: Video encoding/decoding for latent space representation
+   - Modes: Full encode/decode or decode-only (for inference)
+   - Supports: T2V, I2V, TI2V variants via `SDVersion` parameter
+   - Interface: `compute(n_threads, z, decode_graph, output)`
+   - Graph size: 10240 * z->ne[2] (adaptive based on input)
+
+4. **WAN Transformer (DiT)** - `WAN::WanRunner`
+   - Location: `src/wan.hpp` (line 2020)
+   - Registered variants: `wan-runner-t2v`, `wan-runner-i2v`, `wan-runner-ti2v`
+   - Purpose: Diffusion transformer for video generation
+   - Model variants by layer count:
+     - 30 layers: 1.3B models (dim=1536, ffn_dim=8960, 12 heads)
+     - 40 layers: 14B models (dim=5120, ffn_dim=13824, 40 heads)
+     - 30 layers TI2V: 5B model (dim=3072, ffn_dim=14336, 24 heads)
+   - Supports: T2V, I2V, TI2V, VACE variants
+   - Positional encoding caching: PE cached to avoid redundant CPU->GPU transfer
+
+## Model Registry System
+
+**Location:** `src/model_registry.hpp`, `src/model_factory.cpp`
+
+**Registration Mechanism:**
+- Template-based factory pattern with type erasure
+- Macro: `REGISTER_MODEL_FACTORY(ModelType, VersionString, FactoryBody)`
+- Thread-safe singleton registry with mutex protection
+- Factory signature: `std::unique_ptr<ModelType>(ggml_backend_t, bool, String2TensorStorage, std::string)`
+
+**Model Creation Flow:**
+1. `ModelRegistry::instance()->create<ModelType>(version, backend, offload, tensor_map, prefix)`
+2. Registry lookup by type name + version string
+3. Factory lambda invoked with backend and tensor storage
+4. Returns unique_ptr to initialized model runner
+
+**Force-load Function:**
+- `wan_force_model_registrations()` - Prevents linker dead-code elimination of model_factory.cpp
 
 ## APIs & External Services
 
@@ -29,7 +87,9 @@
   - Vocabulary files: Optional external directory or embedded in binary
 
 **Caching:**
-- None - No caching layer implemented
+- Positional encoding cache in `WAN::WanRunner` (pe_cached, cached_pe_t/h/w)
+- Feature map cache in `WAN::WanVAERunner` for partial graph computation
+- No persistent caching layer
 
 ## Authentication & Identity
 
@@ -125,6 +185,19 @@
 - Specified via CLI: `--vocab-dir` parameter
 - Contains tokenizer vocabulary files for model inference
 
+## Tensor Storage & Parameter Loading
+
+**String2TensorStorage:**
+- Type: `std::map<std::string, TensorStorage>`
+- Purpose: Maps tensor names to storage metadata (dimensions, type)
+- Used by all model runners during initialization
+- Location: `src/model.h`
+
+**Parameter Initialization:**
+- Each model runner calls `init(params_ctx, tensor_storage_map, prefix)` during construction
+- Prefix parameter allows multiple model instances with different tensor namespaces
+- Lazy loading: Tensors loaded on-demand from GGUF files
+
 ---
 
-*Integration audit: 2026-03-17*
+*Integration audit: 2026-03-28*
