@@ -1,6 +1,6 @@
 # OnlyWan 模型调用流程图
 
-**生成日期:** 2026-03-28
+**更新日期:** 2026-03-28
 
 ## 1. 各个模型调用流程图
 
@@ -17,9 +17,8 @@
 │              Model Factory Registration                      │
 │              (src/model_factory.cpp)                         │
 │                                                              │
-│  REGISTER_MODEL_FACTORY(CLIPTextModelRunner, "clip-*")      │
 │  REGISTER_MODEL_FACTORY(CLIPVisionModelProjectionRunner,    │
-│                         "clip-vision-*") ✅ NEW             │
+│                         "clip-vision-*") ✅ 已注册           │
 │  REGISTER_MODEL_FACTORY(T5Runner, "t5-*")                   │
 │  REGISTER_MODEL_FACTORY(WanVAERunner, "wan-vae-*")          │
 │  REGISTER_MODEL_FACTORY(WanRunner, "wan-runner-*")          │
@@ -37,7 +36,7 @@
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 四个模型的调用接口
+### 1.2 模型调用接口层级
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -48,65 +47,77 @@
 │        ┌───────────────────┼───────────────────┐                │
 │        │                   │                   │                │
 │        ▼                   ▼                   ▼                │
-│   CLIPTextModelRunner  T5Runner         WAN::WanVAERunner      │
-│   (已注册但未使用)     (必需)           (必需)                 │
-│        │                                       │                │
-│        │                                       ▼                │
-│        │                               WAN::WanRunner           │
-│        │                               (必需)                   │
-│        │                                                         │
-│        └─ CLIPVisionModelProjectionRunner ✅ NEW               │
-│           (用于 I2V/TI2V 的图像编码)                           │
+│   CLIPVisionModelProjectionRunner  T5Runner  WAN::WanVAERunner  │
+│   (已注册) ✅ NEW           (必需)           (必需)             │
+│                                                │                │
+│                                                ▼                │
+│                                        WAN::WanRunner           │
+│                                        (必需)                   │
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.3 CLIP 文本编码器调用流程
+### 1.3 CLIP 视觉编码器调用流程
 
 ```
-输入文本提示 (Text Prompt)
+输入图像 (Image)
     │
     ▼
-CLIPTokenizer
+图像预处理
     │
-    ├─ 分词 (Tokenization)
-    │  └─ 使用 BPE (Byte Pair Encoding)
+    ├─ 加载图像 (JPG/PNG via stb_image)
+    │
+    ├─ 缩放到 224x224
+    │
+    ├─ 归一化 (ImageNet normalization)
+    │  └─ mean=[0.48145466, 0.4578275, 0.40821073]
+    │  └─ std=[0.26862954, 0.26130258, 0.27577711]
     │
     ▼
-Token IDs [batch=1, seq_len=77]
+像素值张量 [batch=1, channels=3, height=224, width=224]
     │
     ▼
-CLIPTextModelRunner::forward()
+CLIPVisionModelProjectionRunner::forward()
     │
-    ├─ 参数: input_ids, embeddings, mask, max_token_idx, return_pooled, clip_skip
+    ├─ 参数: pixel_values, return_pooled=true, clip_skip=-1
     │
     ├─ 处理流程:
-    │  ├─ Token Embedding (vocab_size=49408 → hidden_size)
-    │  ├─ Position Embedding (max_position_embeddings=77)
-    │  ├─ Transformer Encoder Blocks (12-32 layers)
+    │  ├─ Patch Embedding
+    │  │  └─ Conv2d: 3 channels → hidden_size (patch_size=14)
+    │  │  └─ 输出: [batch, num_positions=257, hidden_size]
+    │  │
+    │  ├─ Pre-LayerNorm
+    │  │
+    │  ├─ Vision Transformer Encoder Blocks (12-48 layers)
     │  │  ├─ Self-Attention
     │  │  ├─ Feed-Forward Network
     │  │  └─ Layer Normalization
-    │  ├─ Final Layer Normalization
-    │  └─ 可选: Text Projection (return_pooled=true)
+    │  │
+    │  ├─ Post-LayerNorm
+    │  │
+    │  └─ Visual Projection
+    │     └─ Linear: hidden_size → projection_dim
     │
     ▼
-文本嵌入 [batch=1, seq_len=77, hidden_size=768/1024/1280]
+图像特征 [batch=1, projection_dim]
     │
-    └─ 用于: WAN Transformer 的交叉注意力输入
+    └─ 用于: WAN Transformer 的交叉注意力输入 (clip_fea)
 ```
 
-**模型变体:**
-- `clip-vit-l-14` - ViT-L (hidden_size=768, 12 layers)
-- `clip-vit-h-14` - ViT-H (hidden_size=1024, 24 layers)
-- `clip-vit-bigg-14` - ViT-BigG (hidden_size=1280, 32 layers)
+**已注册的 CLIP 视觉编码器版本:**
+- `clip-vision-vit-l-14` - ViT-L (hidden_size=1024, projection_dim=768, 24 layers)
+- `clip-vision-vit-h-14` - ViT-H (hidden_size=1280, projection_dim=1024, 32 layers)
+- `clip-vision-vit-bigg-14` - ViT-BigG (hidden_size=1664, projection_dim=1280, 48 layers)
 
-**注意:** 虽然代码中定义了 `CLIPVisionModel`（图像编码器），但在模型工厂中只注册了 `CLIPTextModelRunner`（文本编码器）。
+**输出规格:**
+- 形状: [batch, projection_dim]
+- 用途: I2V 和 TI2V 模式中的图像条件编码
+- 集成: 通过 WAN::WanRunner 的 clip_fea 参数传入
 
 ### 1.4 T5 文本编码器调用流程
 
 ```
-输入文本
+输入文本提示 (Text Prompt)
     │
     ▼
 T5UniGramTokenizer / SentencePiece
@@ -194,7 +205,8 @@ WanVAERunner::compute(decode=true)
 输入:
   ├─ x: 潜在表示 [batch, channels=16, time, height, width]
   ├─ timesteps: 扩散步数 [batch] (int32)
-  └─ context: 文本嵌入 [batch, seq_len, text_dim]
+  ├─ context: 文本嵌入 [batch, seq_len, text_dim]
+  └─ clip_fea: 图像特征 [batch, projection_dim] (仅 I2V/TI2V)
 
     │
     ▼
@@ -210,16 +222,20 @@ WAN::WanRunner::compute()
     ├─ 3. Text Embedding 投影
     │  └─ context → [batch, seq_len, dim]
     │
-    ├─ 4. Positional Encoding (RoPE)
+    ├─ 4. Image Feature 投影 (仅 I2V/TI2V)
+    │  └─ clip_fea → [batch, dim]
+    │
+    ├─ 5. Positional Encoding (RoPE)
     │  └─ 生成旋转位置编码
     │
-    ├─ 5. Transformer Blocks (30-40 layers)
+    ├─ 6. Transformer Blocks (30-40 layers)
     │  ├─ Self-Attention
     │  ├─ Cross-Attention (with text context)
+    │  ├─ Cross-Attention (with image features, 仅 I2V/TI2V)
     │  ├─ FFN (Feed-Forward Network)
     │  └─ 可选: VACE (Video Augmented Cross-attention)
     │
-    ├─ 6. Head Projection
+    ├─ 7. Head Projection
     │  └─ → [batch, num_patches, output_channels]
     │
     ▼
@@ -252,7 +268,7 @@ Unpatchify:
 │                                                              │
 │  重要: CLIP 文本编码器在 WAN 推理中 NOT USED                │
 │       T5 是唯一的文本编码器                                 │
-│       CLIP 视觉编码器现已注册，用于 I2V/TI2V 的图像编码    │
+│       CLIP 视觉编码器已注册，用于 I2V/TI2V 的图像编码      │
 └──────────────────────────────────────────────────────────────┘
 
 场景 1: T2V (Text-to-Video) - 文本生成视频
@@ -274,7 +290,7 @@ Unpatchify:
 输入: 图像 + 可选文本提示
   │
   ├─ CLIPVisionModelProjectionRunner (图像编码) ✅ 必需 (已注册)
-  │  └─ 输出: 图像特征 clip_fea [N, 257, 1280]
+  │  └─ 输出: 图像特征 clip_fea [N, projection_dim]
   │
   ├─ T5Runner (文本编码) ⚠️ 可选
   │  └─ 输出: 文本嵌入 context [4096, n_token]
@@ -291,7 +307,7 @@ Unpatchify:
 输入: 文本提示 + 图像
   │
   ├─ CLIPVisionModelProjectionRunner (图像编码) ✅ 必需 (已注册)
-  │  └─ 输出: 图像特征 clip_fea [N, 257, 1280]
+  │  └─ 输出: 图像特征 clip_fea [N, projection_dim]
   │
   ├─ T5Runner (文本编码) ✅ 必需
   │  └─ 输出: 文本嵌入 context [4096, n_token]
@@ -309,60 +325,51 @@ Unpatchify:
 ✅ CLIPVisionModelProjectionRunner: 仅 I2V/TI2V 需要 (已注册) ✨ NEW
 ✅ WAN::WanRunner: 所有场景都需要
 ✅ WAN::WanVAERunner: 所有场景都需要
-
-已注册的 CLIP 视觉编码器版本:
-- clip-vision-vit-l-14: ViT-L (hidden_size=1024, projection_dim=768)
-- clip-vision-vit-h-14: ViT-H (hidden_size=1280, projection_dim=1024)
-- clip-vision-vit-bigg-14: ViT-BigG (hidden_size=1664, projection_dim=1280)
 ```
 
 ---
 
-## 2. WAN 全流程调用流程图 (T2V 示例)
+## 3. WAN 全流程调用流程图 (T2V 示例)
 
-### 2.1 完整推理管道
+### 3.1 完整推理管道
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │                    WAN T2V 完整推理流程                          │
 └──────────────────────────────────────────────────────────────────┘
 
-第一步: 文本编码
-═══════════════════════════════════════════════════════════════════
+第一步: 文本编码 (T5 编码器)
+═══════════════════════════════════════════════════════════════
 
 输入文本提示 (Prompt)
     │
     ▼
-选择文本编码器 (CLIP 或 T5)
+T5UniGramTokenizer / SentencePiece
     │
-    ├─ 选项 A: CLIP 编码
-    │  │
-    │  ├─ CLIPTokenizer.encode(prompt)
-    │  │  └─ Token IDs [1, 77]
-    │  │
-    │  ├─ CLIPTextModelRunner.forward()
-    │  │  └─ 文本嵌入 [1, 77, 768]
-    │  │
-    │  └─ 输出: text_embeddings_clip
+    ├─ 分词 (Tokenization)
+    │  └─ Token IDs [1, 16]
     │
-    └─ 选项 B: T5 编码
-       │
-       ├─ T5UniGramTokenizer.encode(prompt)
-       │  └─ Token IDs [1, 16]
-       │
-       ├─ T5Runner.forward()
-       │  └─ 隐藏状态 [1, 16, 4096]
-       │
-       └─ 输出: text_embeddings_t5
-
     ▼
-文本嵌入 [batch=1, seq_len, text_dim]
+T5Runner::forward()
+    │
+    ├─ 参数: input_ids, relative_position_bucket, attention_mask
+    │
+    ├─ 处理流程:
+    │  ├─ Token Embedding
+    │  ├─ Relative Position Buckets
+    │  ├─ Transformer Encoder Blocks (12-24 layers)
+    │  └─ Output Hidden States
+    │
+    ▼
+文本嵌入 context [4096, n_token]
     │
     └─ 保存用于后续步骤
 
+注意: T5 是唯一的文本编码器，CLIPTextModelRunner 在 WAN 推理中 NOT USED
+
 
 第二步: 初始化噪声 (Noise Initialization)
-═══════════════════════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════════
 
 生成随机噪声
     │
@@ -373,7 +380,7 @@ Unpatchify:
 
 
 第三步: 扩散去噪循环 (Diffusion Denoising Loop)
-═══════════════════════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════════
 
 for timestep in [999, 998, ..., 1, 0]:
     │
@@ -405,7 +412,7 @@ for timestep in [999, 998, ..., 1, 0]:
 
 
 第四步: VAE 解码 (VAE Decoding)
-═══════════════════════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════════
 
 潜在表示 z [1, 16, T, H, W]
     │
@@ -431,7 +438,7 @@ WAN::WanVAERunner::compute(
 
 
 第五步: 输出处理 (Output Processing)
-═══════════════════════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════════
 
 解码视频帧 [1, 3, T, H, W]
     │
@@ -447,7 +454,7 @@ WAN::WanVAERunner::compute(
     └─ 最终输出: video.avi
 ```
 
-### 2.2 数据流详细图
+### 3.2 数据流详细图
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -460,63 +467,55 @@ WAN::WanVAERunner::compute(
 │ 例: "A cat running in the forest"                           │
 └──────────────────────────────────────────────────────────────┘
          │
-         ├─────────────────────────────────────────┐
-         │                                         │
-         ▼                                         ▼
-    ┌─────────────┐                         ┌─────────────┐
-    │ CLIP 编码器  │                         │ T5 编码器   │
-    │ (768 dim)   │                         │ (4096 dim)  │
-    └─────────────┘                         └─────────────┘
-         │                                         │
-         └─────────────────────────────────────────┘
-                         │
-                         ▼
-            ┌──────────────────────────┐
-            │ 文本嵌入                  │
-            │ [1, seq_len, text_dim]   │
-            └──────────────────────────┘
-                         │
-                         │ (保存)
-                         │
-         ┌───────────────┴───────────────┐
-         │                               │
-         ▼                               ▼
-    ┌─────────────┐              ┌──────────────────┐
-    │ 随机噪声    │              │ WAN Transformer  │
-    │ [1,16,T,H,W]│              │ (DiT)            │
-    └─────────────┘              └──────────────────┘
-         │                               │
-         └───────────────┬───────────────┘
-                         │
-                    (循环 1000 步)
-                         │
-                         ▼
-            ┌──────────────────────────┐
-            │ 去噪潜在表示              │
-            │ [1, 16, T, H, W]         │
-            └──────────────────────────┘
-                         │
-                         ▼
-            ┌──────────────────────────┐
-            │ WAN VAE 解码器           │
-            │ (Decoder3d)              │
-            └──────────────────────────┘
-                         │
-                         ▼
-            ┌──────────────────────────┐
-            │ 视频帧                   │
-            │ [1, 3, T, H, W]          │
-            │ (RGB, 0-255)             │
-            └──────────────────────────┘
-                         │
-                         ▼
-            ┌──────────────────────────┐
-            │ 输出视频文件             │
-            │ video.avi                │
-            └──────────────────────────┘
+         ▼
+    ┌─────────────┐
+    │ T5 编码器   │
+    │ (4096 dim)  │
+    └─────────────┘
+         │
+         └─ 文本嵌入 [1, seq_len, 4096]
+                │
+                │ (保存)
+                │
+         ┌──────┴──────┐
+         │             │
+         ▼             ▼
+    ┌─────────────┐  ┌──────────────────┐
+    │ 随机噪声    │  │ WAN Transformer  │
+    │ [1,16,T,H,W]│  │ (DiT)            │
+    └─────────────┘  └──────────────────┘
+         │                   │
+         └───────────┬───────┘
+                     │
+                (循环 1000 步)
+                     │
+                     ▼
+        ┌──────────────────────────┐
+        │ 去噪潜在表示              │
+        │ [1, 16, T, H, W]         │
+        └──────────────────────────┘
+                     │
+                     ▼
+        ┌──────────────────────────┐
+        │ WAN VAE 解码器           │
+        │ (Decoder3d)              │
+        └──────────────────────────┘
+                     │
+                     ▼
+        ┌──────────────────────────┐
+        │ 视频帧                   │
+        │ [1, 3, T, H, W]          │
+        │ (RGB, 0-255)             │
+        └──────────────────────────┘
+                     │
+                     ▼
+        ┌──────────────────────────┐
+        │ 输出视频文件             │
+        │ video.avi                │
+        └──────────────────────────┘
 ```
 
-### 2.3 关键参数和配置
+### 3.3 关键参数和配置
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -524,15 +523,10 @@ WAN::WanVAERunner::compute(
 └──────────────────────────────────────────────────────────────┘
 
 文本编码参数:
-├─ CLIP:
-│  ├─ max_token_length: 77
-│  ├─ hidden_size: 768/1024/1280
-│  └─ clip_skip: -1 (使用最后一层)
-│
-└─ T5:
-   ├─ max_token_length: 16
-   ├─ model_dim: 4096
-   └─ relative_position_buckets: 32
+├─ T5:
+│  ├─ max_token_length: 16
+│  ├─ model_dim: 4096
+│  └─ relative_position_buckets: 32
 
 WAN Transformer 参数:
 ├─ 输入形状: [batch, 16, time, height, width]
@@ -556,7 +550,7 @@ VAE 参数:
 └─ 总步数: 1000 (扩散步数)
 ```
 
-### 2.4 性能优化点
+### 3.4 性能优化点
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -589,86 +583,54 @@ CG-02: CUDA 图自动合并 (CUDA Graph Merging)
 
 ---
 
-## 3. 模型调用时序图
+## 4. I2V/TI2V 推理流程 (使用 CLIP 视觉编码器)
 
-### 3.1 单步推理时序
-
-```
-时间轴:
-│
-├─ T0: 准备输入
-│  ├─ x: 潜在表示
-│  ├─ timesteps: 当前步数
-│  └─ context: 文本嵌入
-│
-├─ T1: WAN Transformer 前向传播
-│  ├─ Patch Embedding
-│  ├─ Time Embedding
-│  ├─ Transformer Blocks (30-40 层)
-│  │  ├─ Self-Attention
-│  │  ├─ Cross-Attention
-│  │  └─ FFN
-│  └─ Head Projection
-│
-├─ T2: 获取输出
-│  └─ 预测噪声 [batch, 16, T, H, W]
-│
-└─ T3: 更新潜在表示
-   └─ x_t-1 = denoise(x_t, noise_pred)
-```
-
-### 3.2 完整推理时序
+### 4.1 I2V 完整流程
 
 ```
-总时间: ~30-60 秒 (取决于硬件)
-
-│
-├─ 文本编码 (1-2 秒)
-│  ├─ CLIP/T5 前向传播
-│  └─ 输出: 文本嵌入
-│
-├─ 扩散循环 (25-55 秒)
-│  ├─ 1000 步迭代
-│  │  ├─ 每步: ~25-55 毫秒
-│  │  ├─ WAN Transformer 前向传播
-│  │  └─ 去噪更新
-│  └─ 进度回调每 10 步
-│
-├─ VAE 解码 (2-5 秒)
-│  ├─ Decoder3d 处理
-│  └─ 输出: 视频帧
-│
-└─ 输出处理 (<1 秒)
-   └─ 保存为视频文件
+输入: 图像 + 可选文本提示
+    │
+    ├─ 图像预处理
+    │  ├─ 加载图像 (JPG/PNG)
+    │  ├─ 缩放到 224x224
+    │  └─ 归一化
+    │
+    ├─ CLIP 视觉编码
+    │  │
+    │  ├─ CLIPVisionModelProjectionRunner::forward()
+    │  │  ├─ Patch Embedding
+    │  │  ├─ Vision Transformer Blocks
+    │  │  └─ Visual Projection
+    │  │
+    │  └─ 输出: clip_fea [batch, projection_dim]
+    │
+    ├─ 可选: T5 文本编码
+    │  │
+    │  ├─ T5Runner::forward()
+    │  │  └─ 输出: context [4096, n_token]
+    │  │
+    │  └─ 如果无文本，使用零向量
+    │
+    ├─ WAN Transformer (I2V 模式)
+    │  │
+    │  ├─ 输入: 噪声 + 文本嵌入 + 图像特征
+    │  ├─ 扩散循环 (1000 步)
+    │  │  ├─ 每步调用 WAN::WanRunner::compute()
+    │  │  ├─ 传入 clip_fea 参数
+    │  │  └─ 更新潜在表示
+    │  │
+    │  └─ 输出: 去噪潜在表示
+    │
+    ├─ VAE 解码
+    │  │
+    │  ├─ WanVAERunner::compute(decode=true)
+    │  │  └─ 输出: 视频帧
+    │  │
+    │  └─ 最终输出: 视频文件
+    │
+    └─ 完成
 ```
 
 ---
 
-## 4. 错误处理和验证
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│                    错误处理流程                              │
-└──────────────────────────────────────────────────────────────┘
-
-模型加载:
-├─ 检查: 模型版本是否注册
-├─ 检查: 模型文件是否存在
-├─ 检查: 张量存储映射是否完整
-└─ 错误: 抛出异常或返回 nullptr
-
-推理验证:
-├─ 检查: 输入张量形状
-├─ 检查: 输入张量类型
-├─ 检查: 批大小 (必须为 1)
-└─ 错误: GGML_ASSERT 或异常
-
-输出验证:
-├─ 检查: 输出张量形状
-├─ 检查: 输出值范围
-└─ 错误: 日志记录或异常
-```
-
----
-
-*流程图分析: 2026-03-28*
+*流程图最后更新: 2026-03-28*
