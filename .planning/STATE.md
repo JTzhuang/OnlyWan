@@ -96,6 +96,7 @@ Plan: 19-01 complete
 | 260328-uo6 | 修复 benchmark_inference 工具的 CUDA 后端支持（启用 WAN_CUDA 编译标志并重新编译） | 2026-03-28 | 5fe2de4 | [260328-uo6](./quick/260328-uo6-benchmark-inference-cuda-wan-cuda/) |
 | 260328-uyg | 修复 benchmark_inference 工具编译错误（添加 CUDA/Metal 头文件和设备 ID 参数） | 2026-03-28 | defde00 | [260328-uyg](./quick/260328-uyg-benchmark-inference-cuda-metal-id/) |
 | 260328-v10 | 为 benchmark_inference 工具添加 --device 参数来设置 GPU 卡号 | 2026-03-28 | 738ab4e | [260328-v10](./quick/260328-v10-benchmark-inference-device-gpu/) |
+| 260328-fpe | 修复 benchmark_inference 工具中的浮点异常（除以零保护） | 2026-03-28 | 4bfe62c | — |
 
 ## Session Continuity
 
