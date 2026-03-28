@@ -1,23 +1,23 @@
 #include "model_factory.hpp"
 
-// ---- CLIP: 3 registrations ----
-// All use with_final_ln=true (standard WAN usage pattern)
-REGISTER_MODEL_FACTORY(CLIPTextModelRunner, "clip-vit-l-14",
+// ---- CLIP Vision: 3 registrations ----
+// Image encoder for I2V and TI2V modes
+REGISTER_MODEL_FACTORY(CLIPVisionModelProjectionRunner, "clip-vision-vit-l-14",
     [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-        return std::make_unique<CLIPTextModelRunner>(
-            backend, offload, map, prefix, OPENAI_CLIP_VIT_L_14, /*with_final_ln=*/true);
+        return std::make_unique<CLIPVisionModelProjectionRunner>(
+            backend, offload, map, prefix, OPENAI_CLIP_VIT_L_14, /*transpose_proj_w=*/false);
     })
 
-REGISTER_MODEL_FACTORY(CLIPTextModelRunner, "clip-vit-h-14",
+REGISTER_MODEL_FACTORY(CLIPVisionModelProjectionRunner, "clip-vision-vit-h-14",
     [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-        return std::make_unique<CLIPTextModelRunner>(
-            backend, offload, map, prefix, OPEN_CLIP_VIT_H_14, /*with_final_ln=*/true);
+        return std::make_unique<CLIPVisionModelProjectionRunner>(
+            backend, offload, map, prefix, OPEN_CLIP_VIT_H_14, /*transpose_proj_w=*/false);
     })
 
-REGISTER_MODEL_FACTORY(CLIPTextModelRunner, "clip-vit-bigg-14",
+REGISTER_MODEL_FACTORY(CLIPVisionModelProjectionRunner, "clip-vision-vit-bigg-14",
     [](ggml_backend_t backend, bool offload, const String2TensorStorage& map, const std::string& prefix) {
-        return std::make_unique<CLIPTextModelRunner>(
-            backend, offload, map, prefix, OPEN_CLIP_VIT_BIGG_14, /*with_final_ln=*/true);
+        return std::make_unique<CLIPVisionModelProjectionRunner>(
+            backend, offload, map, prefix, OPEN_CLIP_VIT_BIGG_14, /*transpose_proj_w=*/false);
     })
 
 // ---- T5: 2 registrations ----
