@@ -190,7 +190,7 @@ BenchmarkResult benchmark_clip(const std::string& version, int num_runs, MemoryT
     }
 
     double avg_latency = total_latency / num_runs;
-    double throughput = (77.0 / avg_latency) * 1000.0;  // tokens per second
+    double throughput = (avg_latency > 0.0) ? (77.0 / avg_latency) * 1000.0 : 0.0;  // tokens per second
 
     mem_tracker.finalize(num_runs);
 
@@ -262,7 +262,7 @@ BenchmarkResult benchmark_t5(const std::string& version, int num_runs, MemoryTra
     }
 
     double avg_latency = total_latency / num_runs;
-    double throughput = (512.0 / avg_latency) * 1000.0;  // tokens per second
+    double throughput = (avg_latency > 0.0) ? (512.0 / avg_latency) * 1000.0 : 0.0;  // tokens per second
 
     mem_tracker.finalize(num_runs);
 
@@ -331,7 +331,7 @@ BenchmarkResult benchmark_vae(const std::string& version, int num_runs, MemoryTr
     }
 
     double avg_latency = total_latency / num_runs;
-    double throughput = (1.0 / avg_latency) * 1000.0;  // frames per second
+    double throughput = (avg_latency > 0.0) ? (1.0 / avg_latency) * 1000.0 : 0.0;  // frames per second
 
     mem_tracker.finalize(num_runs);
 
@@ -408,7 +408,7 @@ BenchmarkResult benchmark_transformer(const std::string& version, int num_runs, 
     }
 
     double avg_latency = total_latency / num_runs;
-    double throughput = (1.0 / avg_latency) * 1000.0;  // iterations per second
+    double throughput = (avg_latency > 0.0) ? (1.0 / avg_latency) * 1000.0 : 0.0;  // iterations per second
 
     mem_tracker.finalize(num_runs);
 
