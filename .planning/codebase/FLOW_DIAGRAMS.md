@@ -18,19 +18,21 @@
 │              (src/model_factory.cpp)                         │
 │                                                              │
 │  REGISTER_MODEL_FACTORY(CLIPTextModelRunner, "clip-*")      │
+│  REGISTER_MODEL_FACTORY(CLIPVisionModelProjectionRunner,    │
+│                         "clip-vision-*") ✅ NEW             │
 │  REGISTER_MODEL_FACTORY(T5Runner, "t5-*")                   │
 │  REGISTER_MODEL_FACTORY(WanVAERunner, "wan-vae-*")          │
 │  REGISTER_MODEL_FACTORY(WanRunner, "wan-runner-*")          │
 │                                                              │
 │  注意: CLIPTextModelRunner 已注册但在 WAN 推理中未使用      │
-│       CLIP 仅用于 I2V/TI2V 的图像编码 (CLIPVisionModel)    │
+│       CLIPVisionModelProjectionRunner 用于 I2V/TI2V 的图像编码 │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │         ModelRegistry::instance()->create<T>(version)        │
 │                                                              │
-│  Input: version string (e.g., "clip-vit-l-14")             │
+│  Input: version string (e.g., "clip-vision-vit-l-14")      │
 │  Output: unique_ptr<ModelRunner>                            │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -48,14 +50,13 @@
 │        ▼                   ▼                   ▼                │
 │   CLIPTextModelRunner  T5Runner         WAN::WanVAERunner      │
 │   (已注册但未使用)     (必需)           (必需)                 │
-│                                                │                │
-│                                                ▼                │
-│                                        WAN::WanRunner           │
-│                                        (必需)                   │
-│                                                                  │
-│  额外: CLIPVisionModel (未注册)                                 │
-│        用于 I2V/TI2V 的图像编码                                │
-│        (通过 CLIPVisionModelProjectionRunner)                  │
+│        │                                       │                │
+│        │                                       ▼                │
+│        │                               WAN::WanRunner           │
+│        │                               (必需)                   │
+│        │                                                         │
+│        └─ CLIPVisionModelProjectionRunner ✅ NEW               │
+│           (用于 I2V/TI2V 的图像编码)                           │
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -251,7 +252,7 @@ Unpatchify:
 │                                                              │
 │  重要: CLIP 文本编码器在 WAN 推理中 NOT USED                │
 │       T5 是唯一的文本编码器                                 │
-│       CLIP 仅用于 I2V/TI2V 的图像编码 (CLIPVisionModel)    │
+│       CLIP 视觉编码器现已注册，用于 I2V/TI2V 的图像编码    │
 └──────────────────────────────────────────────────────────────┘
 
 场景 1: T2V (Text-to-Video) - 文本生成视频
@@ -272,7 +273,7 @@ Unpatchify:
 ═══════════════════════════════════════════════════════════════
 输入: 图像 + 可选文本提示
   │
-  ├─ CLIPVisionModel (图像编码) ✅ 必需
+  ├─ CLIPVisionModelProjectionRunner (图像编码) ✅ 必需 (已注册)
   │  └─ 输出: 图像特征 clip_fea [N, 257, 1280]
   │
   ├─ T5Runner (文本编码) ⚠️ 可选
@@ -289,7 +290,7 @@ Unpatchify:
 ═══════════════════════════════════════════════════════════════
 输入: 文本提示 + 图像
   │
-  ├─ CLIPVisionModel (图像编码) ✅ 必需
+  ├─ CLIPVisionModelProjectionRunner (图像编码) ✅ 必需 (已注册)
   │  └─ 输出: 图像特征 clip_fea [N, 257, 1280]
   │
   ├─ T5Runner (文本编码) ✅ 必需
@@ -305,9 +306,14 @@ Unpatchify:
 关键发现:
 ✅ T5Runner: 所有场景都需要 (T2V/I2V/TI2V)
 ❌ CLIPTextModelRunner: 已注册但在 WAN 推理中未使用
-✅ CLIPVisionModel: 仅 I2V/TI2V 需要 (用于图像编码)
+✅ CLIPVisionModelProjectionRunner: 仅 I2V/TI2V 需要 (已注册) ✨ NEW
 ✅ WAN::WanRunner: 所有场景都需要
 ✅ WAN::WanVAERunner: 所有场景都需要
+
+已注册的 CLIP 视觉编码器版本:
+- clip-vision-vit-l-14: ViT-L (hidden_size=1024, projection_dim=768)
+- clip-vision-vit-h-14: ViT-H (hidden_size=1280, projection_dim=1024)
+- clip-vision-vit-bigg-14: ViT-BigG (hidden_size=1664, projection_dim=1280)
 ```
 
 ---
