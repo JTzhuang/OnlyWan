@@ -33,3 +33,13 @@ target_compile_features(test_io_npy PRIVATE cxx_std_17)
 add_test(NAME test_io_npy COMMAND test_io_npy)
 wan_add_test(test_vae         test_vae.cpp)
 wan_add_test(test_transformer test_transformer.cpp)
+
+# Benchmark tool: measure inference latency, throughput, memory for all models
+add_executable(benchmark_inference benchmark_inference.cpp)
+target_link_libraries(benchmark_inference PRIVATE wan-cpp)
+target_include_directories(benchmark_inference PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_compile_features(benchmark_inference PRIVATE cxx_std_17)
