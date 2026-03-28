@@ -93,6 +93,7 @@ Plan: 19-01 complete
 | 260328-m62 | 结合相关的测试工具，生成 API 调用文档 | 2026-03-28 | 697f3e2 | [260328-m62-api](./quick/260328-m62-api/) |
 | 260328-tuc | 帮我写一下各个模型推理效率的测试工具 | 2026-03-28 | 5373779 | [260328-tuc](./quick/260328-tuc/) |
 | 260328-ucx | 为 benchmark_inference 工具添加后端选择功能（--backend 参数支持 cpu/cuda/metal 等） | 2026-03-28 | ed5469b | [260328-ucx](./quick/260328-ucx-benchmark-inference-backend-cpu-cuda-met/) |
+| 260328-uo6 | 修复 benchmark_inference 工具的 CUDA 后端支持（启用 WAN_CUDA 编译标志并重新编译） | 2026-03-28 | 5fe2de4 | [260328-uo6](./quick/260328-uo6-benchmark-inference-cuda-wan-cuda/) |
 
 ## Session Continuity
 
