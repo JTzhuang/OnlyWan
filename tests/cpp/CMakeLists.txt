@@ -17,6 +17,7 @@ endfunction()
 
 wan_add_test(test_factory     test_factory.cpp)
 wan_add_test(test_clip        test_clip.cpp)
+wan_add_test(test_clip_vision test_clip_vision.cpp)
 wan_add_test(test_t5          test_t5.cpp)
 
 # I/O tests: .npy file read/write (no model weights needed)
