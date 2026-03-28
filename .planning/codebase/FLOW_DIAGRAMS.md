@@ -21,6 +21,9 @@
 │  REGISTER_MODEL_FACTORY(T5Runner, "t5-*")                   │
 │  REGISTER_MODEL_FACTORY(WanVAERunner, "wan-vae-*")          │
 │  REGISTER_MODEL_FACTORY(WanRunner, "wan-runner-*")          │
+│                                                              │
+│  注意: CLIPTextModelRunner 已注册但在 WAN 推理中未使用      │
+│       CLIP 仅用于 I2V/TI2V 的图像编码 (CLIPVisionModel)    │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -44,9 +47,15 @@
 │        │                   │                   │                │
 │        ▼                   ▼                   ▼                │
 │   CLIPTextModelRunner  T5Runner         WAN::WanVAERunner      │
+│   (已注册但未使用)     (必需)           (必需)                 │
 │                                                │                │
 │                                                ▼                │
 │                                        WAN::WanRunner           │
+│                                        (必需)                   │
+│                                                                  │
+│  额外: CLIPVisionModel (未注册)                                 │
+│        用于 I2V/TI2V 的图像编码                                │
+│        (通过 CLIPVisionModelProjectionRunner)                  │
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -239,16 +248,21 @@ Unpatchify:
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │              各模型在不同场景中的使用                        │
+│                                                              │
+│  重要: CLIP 文本编码器在 WAN 推理中 NOT USED                │
+│       T5 是唯一的文本编码器                                 │
+│       CLIP 仅用于 I2V/TI2V 的图像编码 (CLIPVisionModel)    │
 └──────────────────────────────────────────────────────────────┘
 
 场景 1: T2V (Text-to-Video) - 文本生成视频
 ═══════════════════════════════════════════════════════════════
 输入: 文本提示
   │
-  ├─ CLIPTextModelRunner (文本编码)
-  │  └─ 输出: 文本嵌入 [1, 77, 768]
+  ├─ T5Runner (文本编码) ✅ 必需
+  │  └─ 输出: 文本嵌入 context [4096, n_token]
   │
   ├─ WAN::WanRunner (T2V 模式)
+  │  ├─ 输入: 噪声 + 文本嵌入
   │  └─ 输出: 潜在表示 [1, 16, T, H, W]
   │
   └─ WAN::WanVAERunner (解码)
@@ -256,13 +270,16 @@ Unpatchify:
 
 场景 2: I2V (Image-to-Video) - 图像生成视频
 ═══════════════════════════════════════════════════════════════
-输入: 图像 + 文本提示
+输入: 图像 + 可选文本提示
   │
-  ├─ CLIPTextModelRunner (文本编码)
-  │  └─ 输出: 文本嵌入 [1, 77, 768]
+  ├─ CLIPVisionModel (图像编码) ✅ 必需
+  │  └─ 输出: 图像特征 clip_fea [N, 257, 1280]
+  │
+  ├─ T5Runner (文本编码) ⚠️ 可选
+  │  └─ 输出: 文本嵌入 context [4096, n_token]
   │
   ├─ WAN::WanRunner (I2V 模式)
-  │  ├─ 输入: 初始帧 + 文本嵌入
+  │  ├─ 输入: 初始帧 + 文本嵌入 + 图像特征
   │  └─ 输出: 潜在表示 [1, 16, T, H, W]
   │
   └─ WAN::WanVAERunner (解码)
@@ -272,20 +289,25 @@ Unpatchify:
 ═══════════════════════════════════════════════════════════════
 输入: 文本提示 + 图像
   │
-  ├─ CLIPTextModelRunner (文本编码)
-  │  └─ 输出: 文本嵌入 [1, 77, 768]
+  ├─ CLIPVisionModel (图像编码) ✅ 必需
+  │  └─ 输出: 图像特征 clip_fea [N, 257, 1280]
+  │
+  ├─ T5Runner (文本编码) ✅ 必需
+  │  └─ 输出: 文本嵌入 context [4096, n_token]
   │
   ├─ WAN::WanRunner (TI2V 模式, 5B 模型)
-  │  ├─ 输入: 初始帧 + 文本嵌入
+  │  ├─ 输入: 初始帧 + 文本嵌入 + 图像特征
   │  └─ 输出: 潜在表示 [1, 16, T, H, W]
   │
   └─ WAN::WanVAERunner (解码)
      └─ 输出: 视频帧 [1, 3, T, H, W]
 
-注意:
-- T5Runner 是 CLIPTextModelRunner 的替代方案
-- 所有场景都使用相同的 VAE 解码器
-- 模型变体通过 SDVersion 参数选择
+关键发现:
+✅ T5Runner: 所有场景都需要 (T2V/I2V/TI2V)
+❌ CLIPTextModelRunner: 已注册但在 WAN 推理中未使用
+✅ CLIPVisionModel: 仅 I2V/TI2V 需要 (用于图像编码)
+✅ WAN::WanRunner: 所有场景都需要
+✅ WAN::WanVAERunner: 所有场景都需要
 ```
 
 ---
